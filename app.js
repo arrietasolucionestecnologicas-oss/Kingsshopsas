@@ -2,16 +2,14 @@
 // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // debe terminar en /exec
 // ============================================
-const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec";  
 
-
-var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[]};
+var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
 var modalEdit, modalNuevo, modalWA, modalProv;
 var prodEdit = null;
 var calculatedValues = { total: 0, inicial: 0 };
 
-// --- CONEXIÓN API (FETCH) ---
 async function callAPI(action, data = null) {
   try {
     const response = await fetch(API_URL, {
@@ -32,7 +30,6 @@ window.onload = function() {
   modalWA = new bootstrap.Modal('#modalWA');
   modalProv = new bootstrap.Modal('#modalProv');
   
-  // Clonar Template de Carrito
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
@@ -46,6 +43,7 @@ function loadData(){
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
+    D.ultimasVentas = res.ultimasVentas || []; // Guardar ventas para el select
     
     document.getElementById('loader').style.display='none';
     document.getElementById('user-display').innerText = res.user;
@@ -57,6 +55,18 @@ function loadData(){
     
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
     res.categorias.forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
+
+    // MEJORA 1: POBLAR SELECT DE VINCULO GASTOS
+    var sg = document.getElementById('g-vinculo');
+    if(sg) {
+        sg.innerHTML = '<option value="">-- Ninguna --</option>';
+        D.ultimasVentas.forEach(v => {
+            var o = document.createElement('option');
+            o.value = v.id;
+            o.text = v.desc;
+            sg.appendChild(o);
+        });
+    }
   });
 }
 
@@ -67,7 +77,6 @@ function nav(v, btn){
   btn.classList.add('active');
 }
 
-// --- POS & CART ---
 function renderPos(){
   var q = document.getElementById('pos-search').value.toLowerCase();
   var c = document.getElementById('pos-list'); c.innerHTML='';
@@ -82,19 +91,10 @@ function renderPos(){
     var src = (p.foto && p.foto.includes('http')) ? p.foto.replace('view','thumbnail') : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
     var priceTxt = p.costo > 0 ? `$${p.costo.toLocaleString()}` : '<small class="text-danger">Consultar</small>';
-    
     var div = document.createElement('div');
     div.className = `card-product d-flex align-items-center ${active}`;
     div.onclick = function() { toggleCart(p, div); };
-    div.innerHTML = `
-         <div class="check-mark">✓</div>
-         ${img}
-         <div class="flex-grow-1" style="min-width:0;">
-            <div class="fw-bold text-dark lh-1 mb-1 text-truncate">${p.nombre}</div>
-            <small class="text-muted d-block text-truncate">${p.prov}</small>
-            <div class="price-tag mt-1">${priceTxt}</div>
-         </div>
-    `;
+    div.innerHTML = `<div class="check-mark">✓</div>${img}<div class="flex-grow-1" style="min-width:0;"><div class="fw-bold text-dark lh-1 mb-1 text-truncate">${p.nombre}</div><small class="text-muted d-block text-truncate">${p.prov}</small><div class="price-tag mt-1">${priceTxt}</div></div>`;
     c.appendChild(div);
   });
 }
@@ -116,12 +116,31 @@ function updateCartUI() {
    document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
 }
 
-// LÓGICA DE CÁLCULO (IVA + 30% INICIAL)
+// MEJORA 2: TOGGLE MODO MANUAL
+function toggleManual() {
+    var isManual = document.querySelector('#c-manual').checked;
+    var inpTotal = document.querySelector('#res-cont-input');
+    var txtTotal = document.querySelector('#res-cont');
+    var inpUtil = document.querySelector('#c-util');
+
+    if(isManual) {
+        inpTotal.style.display = 'inline-block';
+        txtTotal.style.display = 'none';
+        inpUtil.disabled = true; // Desactivar utilidad porque el precio es libre
+    } else {
+        inpTotal.style.display = 'none';
+        txtTotal.style.display = 'inline-block';
+        inpUtil.disabled = false;
+    }
+    calcCart();
+}
+
 function calcCart() {
    if(CART.length===0) { 
        document.querySelectorAll('#res-cont').forEach(e => e.innerText = '$0'); 
        return; 
    }
+   // Detectar contexto (Escritorio o Movil)
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
@@ -130,13 +149,28 @@ function calcCart() {
    var inter = parseFloat(parent.querySelector('#c-int').value)||0;
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    var conIva = parent.querySelector('#c-iva').checked;
+   var isManual = parent.querySelector('#c-manual').checked;
    var metodo = parent.querySelector('#c-metodo').value;
 
-   var totalCosto = CART.reduce((a,b)=>a+b.costo,0);
-   var base = totalCosto * (1 + util/100);
-   if(conIva) base = base * 1.19;
+   var base = 0;
+
+   // LÓGICA MANUAL VS AUTOMÁTICA
+   if (isManual) {
+       // Si es manual, leemos el input. Si está vacío, usamos 0.
+       var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+       base = isNaN(manualVal) ? 0 : manualVal;
+   } else {
+       // Si es automático, calculamos
+       var totalCosto = CART.reduce((a,b)=>a+b.costo,0);
+       base = totalCosto * (1 + util/100);
+       if(conIva) base = base * 1.19;
+       
+       // Actualizamos la vista del texto
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = '$'+Math.round(base).toLocaleString());
+       // Actualizamos el input oculto por si cambian a manual
+       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
+   }
    
-   document.querySelectorAll('#res-cont').forEach(e => e.innerText = '$'+Math.round(base).toLocaleString());
    calculatedValues.total = base;
 
    var rowCred = parent.querySelectorAll('#row-cred');
@@ -173,6 +207,10 @@ function finalizarVenta() {
    if(!cli) return alert("Falta Cliente");
    
    var metodo = parent.querySelector('#c-metodo').value;
+   
+   // Si el total es 0 (modo manual vacío), alertar
+   if(calculatedValues.total <= 0) return alert("El precio de venta no puede ser 0");
+
    var factor = calculatedValues.total / CART.reduce((a,b)=>a+b.costo,0);
    
    var d = {
@@ -194,39 +232,17 @@ function finalizarVenta() {
    });
 }
 
-// --- PROVEEDORES ---
 function abrirModalProv() { renderProvs(); modalProv.show(); }
 function renderProvs() {
     var c = document.getElementById('list-provs'); c.innerHTML='';
     D.proveedores.forEach(p => {
         var waLink = p.tel ? `https://wa.me/57${p.tel.replace(/\D/g,'')}` : '#';
         var btn = p.tel ? `<a href="${waLink}" target="_blank" class="btn-wa-mini"><i class="fab fa-whatsapp"></i></a>` : '<span class="text-muted">-</span>';
-        c.innerHTML += `
-          <div class="prov-item">
-             <div><strong>${p.nombre}</strong><br><small class="text-muted">${p.tel||'Sin numero'}</small></div>
-             <div class="d-flex gap-2">
-               ${btn}
-               <button class="btn btn-sm btn-light border" onclick="editarProv('${p.nombre}')">✏️</button>
-             </div>
-          </div>`;
+        c.innerHTML += `<div class="prov-item"><div><strong>${p.nombre}</strong><br><small class="text-muted">${p.tel||'Sin numero'}</small></div><div class="d-flex gap-2">${btn}<button class="btn btn-sm btn-light border" onclick="editarProv('${p.nombre}')">✏️</button></div></div>`;
     });
 }
-function guardarProvManual(){
-    var n = document.getElementById('new-prov-name').value;
-    var t = document.getElementById('new-prov-tel').value;
-    if(!n) return;
-    callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{
-        document.getElementById('new-prov-name').value='';
-        document.getElementById('new-prov-tel').value='';
-        loadData();
-    });
-}
-function editarProv(nombre){
-    var t = prompt("Nuevo teléfono para "+nombre+":");
-    if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); }
-}
-
-// --- OTRAS FUNCIONES ---
+function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
+function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 function renderInv(){ var c=document.getElementById('inv-list');c.innerHTML=''; (D.inv||[]).forEach(p=>{c.innerHTML+=`<div class="card-k d-flex justify-content-between align-items-center" onclick='openEdit(${JSON.stringify(p)})'><div><strong>${p.nombre}</strong><br><small>${p.cat}</small></div><button class="btn btn-sm btn-light border">✏️</button></div>`}); }
 function openEdit(p){ prodEdit=p; document.getElementById('inp-edit-nombre').value=p.nombre; document.getElementById('inp-edit-categoria').value=p.cat; document.getElementById('inp-edit-costo').value=p.costo; document.getElementById('inp-edit-proveedor').value=p.prov; document.getElementById('inp-edit-desc').value=p.desc; document.getElementById('img-preview-box').style.display='none'; if(p.foto){document.getElementById('img-preview-box').src=p.foto.replace('view','thumbnail');document.getElementById('img-preview-box').style.display='block';} modalEdit.show(); }
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
