@@ -3,9 +3,9 @@
 // debe terminar en /exec
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
+
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
-// Variables globales para modales
 var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed;
 var prodEdit = null;
 var calculatedValues = { total: 0, inicial: 0 };
@@ -19,13 +19,13 @@ async function callAPI(action, data = null) {
     const result = await response.json();
     return result;
   } catch (e) {
-    alert("Error de conexión: " + e.toString());
+    console.error("Error API:", e);
+    alert("Error de conexión. Revisa tu internet.");
     return { exito: false, error: e.toString() };
   }
 }
 
 window.onload = function() {
-  // Inicialización de Modales
   myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
   myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
   myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
@@ -41,35 +41,46 @@ window.onload = function() {
 
 function loadData(){
   callAPI('obtenerDatosCompletos').then(res => {
+    // Asignación Global
     D = res;
+    
+    // Mapeo Seguro de Datos (Para evitar que sean undefined)
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
-    D.ultimasVentas = res.ultimasVentas || []; // Recibimos la lista garantizada
+    D.ultimasVentas = res.ultimasVentas || []; 
     
+    // --- CORRECCION CRÍTICA AQUÍ ---
+    D.ped = res.pedidos || []; // <--- ESTO FALTABA Y CAUSABA EL ERROR
+    // -------------------------------
+
     document.getElementById('loader').style.display='none';
-    document.getElementById('user-display').innerText = res.user;
-    document.getElementById('bal-caja').innerText = '$'+res.metricas.saldo.toLocaleString();
-    document.getElementById('bal-ventas').innerText = '$'+res.metricas.ventaMes.toLocaleString();
-    document.getElementById('bal-ganancia').innerText = '$'+res.metricas.gananciaMes.toLocaleString();
     
-    renderPos(); renderInv(); renderFin(); renderPed(); renderProvs();
+    // Validar que metricas existan antes de pintar
+    if(res.metricas) {
+        document.getElementById('user-display').innerText = res.user;
+        document.getElementById('bal-caja').innerText = '$'+(res.metricas.saldo||0).toLocaleString();
+        document.getElementById('bal-ventas').innerText = '$'+(res.metricas.ventaMes||0).toLocaleString();
+        document.getElementById('bal-ganancia').innerText = '$'+(res.metricas.gananciaMes||0).toLocaleString();
+    }
+    
+    renderPos(); 
+    renderInv(); 
+    renderFin(); 
+    renderPed(); // Ahora sí funcionará porque D.ped existe
+    renderProvs();
     
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
-    res.categorias.forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
+    (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
 
-    // LLAMADO A LA FUNCIÓN DE VINCULACIÓN
-    updateGastosSelect();
+    updateGastosSelect(); // Se ejecutará porque renderPed ya no falla
   });
 }
 
 function updateGastosSelect() {
     var sg = document.getElementById('g-vinculo');
     if(sg) {
-        // Limpiamos y dejamos la opción por defecto
         sg.innerHTML = '<option value="">-- Ninguna --</option>';
-        
-        // Llenamos con la data garantizada del backend
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
             D.ultimasVentas.forEach(v => {
                 var o = document.createElement('option');
@@ -80,6 +91,10 @@ function updateGastosSelect() {
         }
     }
 }
+
+// ... EL RESTO DEL CÓDIGO SE MANTIENE IGUAL ...
+// (Copia el resto de funciones nav, renderPos, calcCart, etc. del archivo app.js anterior)
+// Para facilitarte, te pego el bloque completo abajo para que copies y pegues todo de una vez.
 
 function nav(v, btn){
   document.querySelectorAll('.view-sec').forEach(e => e.style.display='none');
@@ -187,7 +202,6 @@ function finalizarVenta() {
    callAPI('procesarVentaCarrito', d).then(r => { if(r.exito) { location.reload(); } else { alert(r.error); document.getElementById('loader').style.display='none'; } });
 }
 
-// --- FUNCIONES DE MODALES ---
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
 function abrirModalNuevo() { document.getElementById('new-id').value=''; myModalNuevo.show(); }
 function abrirModalWA() { myModalWA.show(); }
@@ -235,6 +249,13 @@ function renderFin(){
 }
 function doAbono(){ var id=document.getElementById('ab-cli').value; if(!id)return; var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); document.getElementById('loader').style.display='flex'; callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); }
 function doGasto(){ var d={desc:document.getElementById('g-desc').value, cat:document.getElementById('g-cat').value, monto:document.getElementById('g-monto').value, vinculo:document.getElementById('g-vinculo').value}; document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); }
-function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; D.ped.forEach(p=>{ c.innerHTML+=`<div class="card-k border-start border-4 ${p.estado==='Pendiente'?'border-warning':'border-success'}"><strong>${p.prod}</strong><br><small>${p.user} - ${p.fecha}</small></div>`}); }
+function renderPed(){ 
+    var c=document.getElementById('ped-list'); 
+    c.innerHTML=''; 
+    // CORRECCION FINAL: Protección contra undefined
+    (D.ped || []).forEach(p=>{ 
+        c.innerHTML+=`<div class="card-k border-start border-4 ${p.estado==='Pendiente'?'border-warning':'border-success'}"><strong>${p.prod}</strong><br><small>${p.user} - ${p.fecha}</small></div>`
+    }); 
+}
 function savePed(){ var p=document.getElementById('pe-prod').value; if(!p)return; callAPI('guardarPedido', {user:D.user, prod:p, notas:document.getElementById('pe-nota').value}).then(()=>location.reload()); }
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
