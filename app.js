@@ -3,7 +3,6 @@
 // debe terminar en /exec
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
-
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
 // Variables globales para modales
@@ -26,7 +25,7 @@ async function callAPI(action, data = null) {
 }
 
 window.onload = function() {
-  // Inicialización ÚNICA Y CORRECTA de Modales
+  // Inicialización de Modales
   myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
   myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
   myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
@@ -46,7 +45,7 @@ function loadData(){
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
-    D.ultimasVentas = res.ultimasVentas || []; 
+    D.ultimasVentas = res.ultimasVentas || []; // Recibimos la lista garantizada
     
     document.getElementById('loader').style.display='none';
     document.getElementById('user-display').innerText = res.user;
@@ -59,21 +58,26 @@ function loadData(){
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
     res.categorias.forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
 
-    // CORRECCION GASTOS: Llenar select aquí, asegurando que el DOM esté listo
+    // LLAMADO A LA FUNCIÓN DE VINCULACIÓN
     updateGastosSelect();
   });
 }
 
 function updateGastosSelect() {
     var sg = document.getElementById('g-vinculo');
-    if(sg && D.ultimasVentas.length > 0) {
+    if(sg) {
+        // Limpiamos y dejamos la opción por defecto
         sg.innerHTML = '<option value="">-- Ninguna --</option>';
-        D.ultimasVentas.forEach(v => {
-            var o = document.createElement('option');
-            o.value = v.id;
-            o.text = v.desc;
-            sg.appendChild(o);
-        });
+        
+        // Llenamos con la data garantizada del backend
+        if (D.ultimasVentas && D.ultimasVentas.length > 0) {
+            D.ultimasVentas.forEach(v => {
+                var o = document.createElement('option');
+                o.value = v.id;
+                o.text = v.desc;
+                sg.appendChild(o);
+            });
+        }
     }
 }
 
@@ -183,7 +187,7 @@ function finalizarVenta() {
    callAPI('procesarVentaCarrito', d).then(r => { if(r.exito) { location.reload(); } else { alert(r.error); document.getElementById('loader').style.display='none'; } });
 }
 
-// --- FUNCIONES DE MODALES CORREGIDAS ---
+// --- FUNCIONES DE MODALES ---
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
 function abrirModalNuevo() { document.getElementById('new-id').value=''; myModalNuevo.show(); }
 function abrirModalWA() { myModalWA.show(); }
