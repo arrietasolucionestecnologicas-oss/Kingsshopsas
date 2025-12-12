@@ -6,8 +6,9 @@ const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLw
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed;
 var prodEdit = null;
+var pedEditId = null; // ID del pedido que se esta editando
 var calculatedValues = { total: 0, inicial: 0 };
 
 // --- UTILIDAD DE FORMATO COLOMBIA ---
@@ -39,6 +40,7 @@ window.onload = function() {
   myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
   myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
   myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
+  myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -79,20 +81,18 @@ function loadData(){
     renderPed();
     renderProvs();
     
-    // Categorias
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
     (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
     
-    // NUEVO: Autocompletar Productos en Pedidos
-    var dlp = document.getElementById('list-prods-all'); 
-    if(dlp) {
-        dlp.innerHTML = '';
+    var dlp = document.querySelectorAll('#list-prods-all'); 
+    dlp.forEach(list => {
+        list.innerHTML = '';
         (D.inv || []).forEach(p => { 
             var o=document.createElement('option'); 
             o.value=p.nombre; 
-            dlp.appendChild(o); 
+            list.appendChild(o); 
         });
-    }
+    });
 
     updateGastosSelect();
   });
@@ -290,14 +290,19 @@ function doGasto(){
     document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
 }
 
-// --- LOGICA DE PEDIDOS MEJORADA ---
+// --- LOGICA DE PEDIDOS MEJORADA (EDIT/DELETE) ---
 function renderPed(){ 
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
-        var btnAction = isPend 
-           ? `<button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="comprarPedido('${p.id}', '${p.prod}')">✅ Comprar</button>` 
-           : `<div class="badge bg-success mt-2 d-block">Comprado</div>`;
+        
+        var controls = isPend 
+           ? `<div class="d-flex gap-2 mt-2">
+                <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️ Editar</button>
+                <button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>
+              </div>
+              <button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="comprarPedido('${p.id}', '${p.prod}')">✅ Comprar</button>` 
+           : `<div class="badge bg-success mt-2 d-block w-100">Comprado</div>`;
         
         c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
            <div class="d-flex justify-content-between">
@@ -305,7 +310,7 @@ function renderPed(){
               <div class="text-end"><small>${p.fecha}</small><br><span class="badge ${isPend?'bg-warning text-dark':'bg-success'}">${p.estado}</span></div>
            </div>
            ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
-           ${btnAction}
+           ${controls}
         </div>`;
     }); 
 }
@@ -324,6 +329,50 @@ function savePed(){
     
     document.getElementById('loader').style.display='flex';
     callAPI('guardarPedido', d).then(()=>location.reload()); 
+}
+
+function openEditPed(p) {
+    pedEditId = p.id;
+    document.getElementById('ed-ped-prod').value = p.prod;
+    document.getElementById('ed-ped-prov').value = p.prov;
+    document.getElementById('ed-ped-costo').value = p.costo;
+    document.getElementById('ed-ped-nota').value = p.notas;
+    myModalEditPed.show();
+}
+
+function guardarEdicionPed() {
+    if(!pedEditId) return;
+    var d = {
+        id: pedEditId,
+        prod: document.getElementById('ed-ped-prod').value,
+        prov: document.getElementById('ed-ped-prov').value,
+        costoEst: document.getElementById('ed-ped-costo').value,
+        notas: document.getElementById('ed-ped-nota').value
+    };
+    document.getElementById('loader').style.display='flex';
+    callAPI('editarPedido', d).then(r => {
+        if(r.exito) location.reload();
+        else { alert(r.error); document.getElementById('loader').style.display='none'; }
+    });
+}
+
+function delPed(id) {
+    Swal.fire({
+        title: '¿Eliminar Pedido?',
+        text: "No podrás deshacer esta acción.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Sí, eliminar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loader').style.display='flex';
+            callAPI('eliminarPedido', id).then(r => {
+                if(r.exito) location.reload();
+                else { alert(r.error); document.getElementById('loader').style.display='none'; }
+            });
+        }
+    });
 }
 
 function comprarPedido(id, nombreProd) {
