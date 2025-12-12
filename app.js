@@ -10,6 +10,14 @@ var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed;
 var prodEdit = null;
 var calculatedValues = { total: 0, inicial: 0 };
 
+// --- UTILIDAD DE FORMATO COLOMBIA ---
+const COP = new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+});
+
 async function callAPI(action, data = null) {
   try {
     const response = await fetch(API_URL, {
@@ -36,51 +44,55 @@ window.onload = function() {
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
   
+  // --- PERSISTENCIA DE VISTA ---
+  var lastView = localStorage.getItem('lastView') || 'pos';
+  // Restauramos la vista activa visualmente en el menú inferior
+  var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
+  if(btn) nav(lastView, btn);
+  else nav('pos', document.querySelector('.nav-btn')); // Fallback
+
   loadData();
 };
 
 function loadData(){
   callAPI('obtenerDatosCompletos').then(res => {
-    // Asignación Global
     D = res;
     
-    // Mapeo Seguro de Datos (Para evitar que sean undefined)
+    // Mapeo Seguro
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
     D.ultimasVentas = res.ultimasVentas || []; 
-    
-    // --- CORRECCION CRÍTICA AQUÍ ---
-    D.ped = res.pedidos || []; // <--- ESTO FALTABA Y CAUSABA EL ERROR
-    // -------------------------------
+    D.ped = res.pedidos || [];
+    D.deudores = res.deudores || [];
 
     document.getElementById('loader').style.display='none';
     
-    // Validar que metricas existan antes de pintar
+    // Validar metricas y pintar con formato COP
     if(res.metricas) {
         document.getElementById('user-display').innerText = res.user;
-        document.getElementById('bal-caja').innerText = '$'+(res.metricas.saldo||0).toLocaleString();
-        document.getElementById('bal-ventas').innerText = '$'+(res.metricas.ventaMes||0).toLocaleString();
-        document.getElementById('bal-ganancia').innerText = '$'+(res.metricas.gananciaMes||0).toLocaleString();
+        document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
+        document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
+        document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
     }
     
     renderPos(); 
     renderInv(); 
     renderFin(); 
-    renderPed(); // Ahora sí funcionará porque D.ped existe
+    renderPed();
     renderProvs();
     
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
     (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
 
-    updateGastosSelect(); // Se ejecutará porque renderPed ya no falla
+    updateGastosSelect();
   });
 }
 
 function updateGastosSelect() {
     var sg = document.getElementById('g-vinculo');
     if(sg) {
-        sg.innerHTML = '<option value="">-- Ninguna --</option>';
+        sg.innerHTML = '<option value="">-- Ninguna (Gasto General) --</option>';
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
             D.ultimasVentas.forEach(v => {
                 var o = document.createElement('option');
@@ -92,15 +104,14 @@ function updateGastosSelect() {
     }
 }
 
-// ... EL RESTO DEL CÓDIGO SE MANTIENE IGUAL ...
-// (Copia el resto de funciones nav, renderPos, calcCart, etc. del archivo app.js anterior)
-// Para facilitarte, te pego el bloque completo abajo para que copies y pegues todo de una vez.
-
 function nav(v, btn){
   document.querySelectorAll('.view-sec').forEach(e => e.style.display='none');
   document.getElementById('view-'+v).style.display='block';
   document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  
+  // Guardar estado
+  localStorage.setItem('lastView', v);
 }
 
 function renderPos(){
@@ -115,7 +126,7 @@ function renderPos(){
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     var src = (p.foto && p.foto.includes('http')) ? p.foto.replace('view','thumbnail') : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
-    var priceTxt = p.costo > 0 ? `$${p.costo.toLocaleString()}` : '<small class="text-danger">Consultar</small>';
+    var priceTxt = p.costo > 0 ? COP.format(p.costo) : '<small class="text-danger">Consultar</small>';
     var div = document.createElement('div');
     div.className = `card-product d-flex align-items-center ${active}`;
     div.onclick = function() { toggleCart(p, div); };
@@ -152,7 +163,7 @@ function toggleManual() {
 }
 
 function calcCart() {
-   if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = '$0'); return; }
+   if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(0)); return; }
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
@@ -172,7 +183,7 @@ function calcCart() {
        var totalCosto = CART.reduce((a,b)=>a+b.costo,0);
        base = totalCosto * (1 + util/100);
        if(conIva) base = base * 1.19;
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = '$'+Math.round(base).toLocaleString());
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
        document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
    }
    calculatedValues.total = base;
@@ -180,7 +191,12 @@ function calcCart() {
    if(metodo === "Crédito") {
        var inicial = base * 0.30; calculatedValues.inicial = inicial;
        var saldoRestante = base - inicial; var saldoConInteres = saldoRestante * (1 + inter/100); var valorCuota = saldoConInteres / cuotas;
-       rowCred.forEach(e => { e.style.display = 'block'; e.querySelector('#res-ini').innerText = '$'+Math.round(inicial).toLocaleString(); e.querySelector('#res-cuota-val').innerText = '$'+Math.round(valorCuota).toLocaleString(); e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} cuotas`; });
+       rowCred.forEach(e => { 
+           e.style.display = 'block'; 
+           e.querySelector('#res-ini').innerText = COP.format(Math.round(inicial)); 
+           e.querySelector('#res-cuota-val').innerText = COP.format(Math.round(valorCuota)); 
+           e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} cuotas`; 
+       });
        inpInicial.forEach(e => { e.value = Math.round(inicial); e.style.display='block'; });
    } else { rowCred.forEach(e => e.style.display = 'none'); inpInicial.forEach(e => e.style.display='none'); }
 }
@@ -241,18 +257,49 @@ function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarPr
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 function crearProducto(){ var d={nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo:document.getElementById('new-costo').value, id:document.getElementById('new-id').value||'GEN-'+Math.random()}; callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); }
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
+
 function renderFin(){ 
-  var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} ($${d.saldo.toLocaleString()})</option>`; });
+  var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
+  D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
+
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
-  var dataHist = D.historial || []; if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
-  else { dataHist.forEach(x=>{ var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} $${x.monto.toLocaleString()}</div></div>`; }); }
+  var dataHist = D.historial || []; 
+  if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
+  else { 
+    dataHist.forEach(x=>{ 
+        var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
+        h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div></div>`; 
+    }); 
+  }
 }
-function doAbono(){ var id=document.getElementById('ab-cli').value; if(!id)return; var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); document.getElementById('loader').style.display='flex'; callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); }
-function doGasto(){ var d={desc:document.getElementById('g-desc').value, cat:document.getElementById('g-cat').value, monto:document.getElementById('g-monto').value, vinculo:document.getElementById('g-vinculo').value}; document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); }
+
+function doAbono(){ 
+    var id=document.getElementById('ab-cli').value; 
+    if(!id)return alert("Seleccione un cliente"); 
+    var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; 
+    var cli=txt.split('(')[0].trim(); 
+    document.getElementById('loader').style.display='flex'; 
+    callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); 
+}
+
+function doGasto(){ 
+    var desc = document.getElementById('g-desc').value;
+    var monto = document.getElementById('g-monto').value;
+    if(!desc || !monto) return alert("Falta descripción o monto");
+
+    var d={
+        desc: desc, 
+        cat: document.getElementById('g-cat').value, 
+        monto: monto, 
+        vinculo: document.getElementById('g-vinculo').value // Puede ir vacío
+    }; 
+    document.getElementById('loader').style.display='flex'; 
+    callAPI('registrarGasto', d).then(()=>location.reload()); 
+}
+
 function renderPed(){ 
     var c=document.getElementById('ped-list'); 
     c.innerHTML=''; 
-    // CORRECCION FINAL: Protección contra undefined
     (D.ped || []).forEach(p=>{ 
         c.innerHTML+=`<div class="card-k border-start border-4 ${p.estado==='Pendiente'?'border-warning':'border-success'}"><strong>${p.prod}</strong><br><small>${p.user} - ${p.fecha}</small></div>`
     }); 
