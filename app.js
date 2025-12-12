@@ -46,10 +46,9 @@ window.onload = function() {
   
   // --- PERSISTENCIA DE VISTA ---
   var lastView = localStorage.getItem('lastView') || 'pos';
-  // Restauramos la vista activa visualmente en el menú inferior
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
   if(btn) nav(lastView, btn);
-  else nav('pos', document.querySelector('.nav-btn')); // Fallback
+  else nav('pos', document.querySelector('.nav-btn'));
 
   loadData();
 };
@@ -58,7 +57,6 @@ function loadData(){
   callAPI('obtenerDatosCompletos').then(res => {
     D = res;
     
-    // Mapeo Seguro
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
@@ -68,7 +66,6 @@ function loadData(){
 
     document.getElementById('loader').style.display='none';
     
-    // Validar metricas y pintar con formato COP
     if(res.metricas) {
         document.getElementById('user-display').innerText = res.user;
         document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
@@ -82,8 +79,20 @@ function loadData(){
     renderPed();
     renderProvs();
     
+    // Categorias
     var dl = document.getElementById('list-cats'); dl.innerHTML='';
     (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
+    
+    // NUEVO: Autocompletar Productos en Pedidos
+    var dlp = document.getElementById('list-prods-all'); 
+    if(dlp) {
+        dlp.innerHTML = '';
+        (D.inv || []).forEach(p => { 
+            var o=document.createElement('option'); 
+            o.value=p.nombre; 
+            dlp.appendChild(o); 
+        });
+    }
 
     updateGastosSelect();
   });
@@ -109,8 +118,6 @@ function nav(v, btn){
   document.getElementById('view-'+v).style.display='block';
   document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  
-  // Guardar estado
   localStorage.setItem('lastView', v);
 }
 
@@ -257,11 +264,9 @@ function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarPr
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 function crearProducto(){ var d={nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo:document.getElementById('new-costo').value, id:document.getElementById('new-id').value||'GEN-'+Math.random()}; callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); }
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
-
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
-
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
@@ -272,37 +277,81 @@ function renderFin(){
     }); 
   }
 }
-
 function doAbono(){ 
-    var id=document.getElementById('ab-cli').value; 
-    if(!id)return alert("Seleccione un cliente"); 
-    var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; 
-    var cli=txt.split('(')[0].trim(); 
+    var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); 
+    var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); 
     document.getElementById('loader').style.display='flex'; 
     callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); 
 }
-
 function doGasto(){ 
-    var desc = document.getElementById('g-desc').value;
-    var monto = document.getElementById('g-monto').value;
+    var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value;
     if(!desc || !monto) return alert("Falta descripción o monto");
-
-    var d={
-        desc: desc, 
-        cat: document.getElementById('g-cat').value, 
-        monto: monto, 
-        vinculo: document.getElementById('g-vinculo').value // Puede ir vacío
-    }; 
-    document.getElementById('loader').style.display='flex'; 
-    callAPI('registrarGasto', d).then(()=>location.reload()); 
+    var d={ desc: desc, cat: document.getElementById('g-cat').value, monto: monto, vinculo: document.getElementById('g-vinculo').value }; 
+    document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
 }
 
+// --- LOGICA DE PEDIDOS MEJORADA ---
 function renderPed(){ 
-    var c=document.getElementById('ped-list'); 
-    c.innerHTML=''; 
+    var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
-        c.innerHTML+=`<div class="card-k border-start border-4 ${p.estado==='Pendiente'?'border-warning':'border-success'}"><strong>${p.prod}</strong><br><small>${p.user} - ${p.fecha}</small></div>`
+        var isPend = p.estado === 'Pendiente';
+        var btnAction = isPend 
+           ? `<button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="comprarPedido('${p.id}', '${p.prod}')">✅ Comprar</button>` 
+           : `<div class="badge bg-success mt-2 d-block">Comprado</div>`;
+        
+        c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
+           <div class="d-flex justify-content-between">
+              <div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div>
+              <div class="text-end"><small>${p.fecha}</small><br><span class="badge ${isPend?'bg-warning text-dark':'bg-success'}">${p.estado}</span></div>
+           </div>
+           ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
+           ${btnAction}
+        </div>`;
     }); 
 }
-function savePed(){ var p=document.getElementById('pe-prod').value; if(!p)return; callAPI('guardarPedido', {user:D.user, prod:p, notas:document.getElementById('pe-nota').value}).then(()=>location.reload()); }
+
+function savePed(){ 
+    var p=document.getElementById('pe-prod').value; 
+    if(!p) return alert("Escribe un producto");
+    
+    var d = {
+        user: D.user, 
+        prod: p, 
+        prov: document.getElementById('pe-prov').value,
+        costoEst: document.getElementById('pe-costo').value,
+        notas: document.getElementById('pe-nota').value
+    };
+    
+    document.getElementById('loader').style.display='flex';
+    callAPI('guardarPedido', d).then(()=>location.reload()); 
+}
+
+function comprarPedido(id, nombreProd) {
+    Swal.fire({
+        title: 'Confirmar Compra',
+        text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`,
+        input: 'number',
+        inputLabel: 'Costo Real de Compra',
+        inputPlaceholder: 'Ej: 50000',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, Registrar Gasto e Inventario',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+            if (!value || value <= 0) return 'Debes ingresar un costo válido para registrar el gasto.';
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loader').style.display = 'flex';
+            callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => {
+                 if(r.exito) {
+                     Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload());
+                 } else {
+                     alert(r.error);
+                     document.getElementById('loader').style.display = 'none';
+                 }
+            });
+        }
+    });
+}
+
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
