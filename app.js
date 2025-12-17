@@ -121,7 +121,6 @@ function nav(v, btn){
 // FUNCION MAESTRA PARA ARREGLAR IMAGENES DE DRIVE
 function fixDriveLink(url) {
     if (!url) return "";
-    // Detectar links de Google Drive standard y convertirlos a LH3 (CDN)
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
         if (m && m[1]) {
@@ -142,7 +141,6 @@ function renderPos(){
   res.slice(0,40).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     
-    // APLICAR FIX DE IMAGEN
     var fixedUrl = fixDriveLink(p.foto);
     var src = (fixedUrl && fixedUrl.length > 10) ? fixedUrl : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
@@ -273,7 +271,6 @@ function openEdit(p) {
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('img-preview-box').style.display='none'; 
     
-    // APLICAR FIX DE IMAGEN TAMBIEN EN MODAL
     var fixedUrl = fixDriveLink(p.foto);
     if(fixedUrl){ document.getElementById('img-preview-box').src=fixedUrl; document.getElementById('img-preview-box').style.display='block';} 
     
@@ -302,11 +299,14 @@ function renderInv(){
     }
 
     lista.slice(0, 50).forEach(p=>{
+        // BOTONES DE COPIADO RAPIDO
+        // Se asegura que los textos existan para evitar errores de undefined
+        var descClean = (p.desc || "").replace(/'/g, "").replace(/"/g, "");
         var btnsCopy = `
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.desc.replace(/'/g, "")}')" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${descClean}')" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
             <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
         </div>`;
 
@@ -328,7 +328,7 @@ function renderInv(){
 }
 
 function copiarDato(txt) {
-    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío");
+    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
     navigator.clipboard.writeText(txt).then(() => {
         const el = document.createElement('div');
         el.innerText = "Copiado: " + txt.substring(0,20) + "...";
