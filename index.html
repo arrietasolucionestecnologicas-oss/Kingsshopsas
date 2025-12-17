@@ -1,163 +1,238 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>King's Shop | Tienda Oficial</title>
-    <link rel="stylesheet" href="styles.css?v=5">
-    <script type="text/javascript" src="https://checkout.wompi.co/widget.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Kingshop POS</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3c72">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="style.css"> 
+  <style>
+      .btn-xs { padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; }
+  </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo-container">
-            <img src="logo.png" alt="King's Shop" class="logo-img" onerror="this.src='https://via.placeholder.com/70?text=KS'">
-            <div class="brand-name">KING'S SHOP</div>
-        </div>
-        
-        <nav>
-            <a onclick="showSection('inicio')" id="nav-inicio" class="active">Inicio</a>
-            <a onclick="showSection('productos')" id="nav-productos">Catálogo</a>
-            <a onclick="showSection('contacto')" id="nav-contacto">Contacto</a>
-        </nav>
+  <div id="loader"><div class="spinner-border text-primary"></div><h6 class="mt-3 text-muted fw-bold">Conectando API...</h6></div>
 
-        <div class="cart-icon" onclick="toggleCart()">
-            <i class="fas fa-shopping-bag"></i> 
-            <span id="cart-count" class="cart-count">0</span>
-        </div>
-    </header>
+  <div class="header">
+    <div><h4 class="m-0 fw-bold">👑 Kingshop</h4><small class="opacity-75" id="user-display">...</small></div>
+    <div class="d-flex gap-2">
+        <a class="btn-bi" href="dashboard.html"><i class="bi bi-graph-up-arrow"></i> Stats</a>
+        <button class="btn btn-light text-primary shadow-sm rounded-circle" style="width:45px; height:45px;" onclick="verBancos()"><i class="bi bi-bank2 fs-5"></i></button>
+    </div>
+  </div>
 
-    <section id="inicio" class="page-section active">
-        <div class="hero">
-            <h1>KING'S SHOP</h1>
-            <p>Elegancia y Tecnología al mejor precio</p>
-            <button class="btn-hero" onclick="showSection('productos')">EXPLORAR TIENDA</button>
+  <div class="container-fluid px-3">
+    <div id="view-pos" class="view-sec">
+      <div class="main-layout">
+        <div class="list-column">
+           <input type="text" id="pos-search" class="form-control mb-3 p-3 shadow-sm rounded-pill" placeholder="🔍 Buscar para vender..." onkeyup="renderPos()">
+           <div id="msg-empty-pos" class="text-center text-muted py-5" style="display:none;"><i class="bi bi-box-seam fs-1"></i><br>Sin productos</div>
+           <div id="pos-list"></div>
         </div>
-        
-        <div class="container">
-            <h2 class="section-title">Categorías Destacadas</h2>
-            <div class="products-grid">
-                <div class="product-card" onclick="filterAndShow('tecnologia')" style="cursor:pointer; align-items:center; justify-content:center; text-align:center;">
-                    <i class="fas fa-mobile-alt" style="font-size: 4rem; color: var(--gold); margin: 2rem 0 1rem 0;"></i>
-                    <h3 style="margin-bottom: 2rem;">Tecnología</h3>
-                </div>
-                <div class="product-card" onclick="filterAndShow('electro')" style="cursor:pointer; align-items:center; justify-content:center; text-align:center;">
-                    <i class="fas fa-plug" style="font-size: 4rem; color: var(--gold); margin: 2rem 0 1rem 0;"></i>
-                    <h3 style="margin-bottom: 2rem;">Hogar & Electro</h3>
-                </div>
-                <div class="product-card" onclick="filterAndShow('juguetes')" style="cursor:pointer; align-items:center; justify-content:center; text-align:center;">
-                    <i class="fas fa-gamepad" style="font-size: 4rem; color: var(--gold); margin: 2rem 0 1rem 0;"></i>
-                    <h3 style="margin-bottom: 2rem;">Juguetería</h3>
-                </div>
+        <div class="panel-column"><div id="desktop-cart-container"></div></div>
+      </div>
+    </div>
+
+    <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
+      <div class="d-flex gap-2 mb-3">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Filtrar Inventario..." onkeyup="renderInv()">
+        <button class="btn btn-info text-white" onclick="abrirModalProv()" title="Proveedores"><i class="fas fa-users"></i></button>
+        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA"><i class="fab fa-whatsapp"></i></button>
+        <button class="btn btn-dark" onclick="abrirModalNuevo()">+</button>
+      </div>
+      <div id="inv-list"></div>
+    </div>
+
+    <div id="view-ped" class="view-sec" style="display:none; padding:15px;">
+      <button class="btn btn-dark w-100 mb-3" onclick="abrirModalPed()">+ Nuevo Pedido</button>
+      <div id="ped-list"></div>
+    </div>
+
+    <div id="view-fin" class="view-sec" style="display:none; padding:15px;">
+      <div class="card-balance"><small class="opacity-75">Saldo Disponible</small><h1 class="fw-bold display-4 my-1" id="bal-caja">...</h1></div>
+      <div class="row g-2 mb-3">
+         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Ventas Mes</small><h6 class="fw-bold text-primary mb-0" id="bal-ventas">...</h6></div></div>
+         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Utilidad Real</small><h6 class="fw-bold text-success mb-0" id="bal-ganancia">...</h6></div></div>
+      </div>
+      <ul class="nav nav-pills nav-fill mb-3 bg-white rounded shadow-sm p-1">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#f-abono">Abono</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-gasto">Gasto</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-hist">Historial</a></li>
+      </ul>
+      <div class="tab-content">
+         <div class="tab-pane fade show active" id="f-abono">
+            <div class="card-k">
+               <h6 class="text-success fw-bold">Registrar Pago</h6>
+               <select id="ab-cli" class="form-select mb-2"></select>
+               <input type="number" id="ab-monto" class="form-control mb-2" placeholder="Monto">
+               <button class="btn btn-success w-100" onclick="doAbono()">REGISTRAR ABONO</button>
             </div>
-        </div>
-    </section>
-
-    <section id="productos" class="page-section">
-        <div class="container">
-            <h2 class="section-title">Nuestro Catálogo</h2>
-            
-            <div class="filters">
-                <button class="filter-btn active" onclick="filterProducts('todos', this)">Todo</button>
-                <button class="filter-btn" onclick="filterProducts('tecnologia', this)">Tecnología</button>
-                <button class="filter-btn" onclick="filterProducts('electro', this)">Electrodomésticos</button>
-                <button class="filter-btn" onclick="filterProducts('juguetes', this)">Juguetes</button>
-                <button class="filter-btn" onclick="filterProducts('perfumes', this)">Perfumes</button>
+         </div>
+         <div class="tab-pane fade" id="f-gasto">
+            <div class="card-k">
+               <h6 class="text-danger fw-bold">Registrar Gasto</h6>
+               <input type="text" id="g-desc" class="form-control mb-2" placeholder="Descripción (Ej: Mercancía)">
+               <select id="g-cat" class="form-select mb-2"><option>Transporte</option><option>Alimentación</option><option>Costo Mercancia</option><option>Servicios</option><option>Otros</option></select>
+               <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor (Ej: 4200000)">
+               <label class="small text-muted">Vincular a venta (Opcional):</label>
+               <select id="g-vinculo" class="form-select mb-2"><option value="">-- Ninguna --</option></select>
+               <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR GASTO</button>
             </div>
+         </div>
+         <div class="tab-pane fade" id="f-hist"><div class="card-k" id="hist-list"></div></div>
+      </div>
+    </div>
+  </div>
 
-            <div id="products-container" class="products-grid">
-                </div>
-        </div>
-    </section>
+  <div id="mobile-cart" class="mobile-panel"></div>
+  <button id="btn-float-cart" class="btn btn-warning rounded-circle shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="toggleMobileCart()">🛒</button>
 
-    <section id="contacto" class="page-section">
-        <div class="container">
-            <h2 class="section-title">Contáctanos</h2>
-            <div class="contact-container">
-                <div class="contact-item">
-                    <i class="fas fa-phone-alt icon-gold"></i>
-                    <div>
-                        <h4>Línea de Atención</h4>
-                        <p>+57 300 XXX XXXX</p>
-                    </div>
-                </div>
-                <div class="contact-item">
-                    <i class="fas fa-envelope icon-gold"></i>
-                    <div>
-                        <h4>Correo Electrónico</h4>
-                        <p>ventas@kingsshop.com</p>
-                    </div>
-                </div>
-                <div class="contact-item">
-                    <i class="fab fa-whatsapp icon-gold"></i>
-                    <div>
-                        <h4>Chat WhatsApp</h4>
-                        <p>Asesoría inmediata en línea</p>
-                        <a href="https://wa.me/573000000000" class="read-more-link" style="font-size: 1rem;">Iniciar Chat &rarr;</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+  <div class="nav-btm">
+    <button class="nav-btn active" onclick="nav('pos',this)"><i class="fas fa-store fa-lg"></i>Vender</button>
+    <button class="nav-btn" onclick="nav('inv',this)"><i class="fas fa-boxes fa-lg"></i>Inventario</button>
+    <button class="nav-btn" onclick="nav('ped',this)"><i class="fas fa-clipboard-list"></i>Pedidos</button>
+    <button class="nav-btn" onclick="nav('fin',this)"><i class="fas fa-chart-line fa-lg"></i>Finanzas</button>
+  </div>
 
-    <footer class="site-footer">
-        <div class="footer-grid">
-            <div class="footer-col">
-                <h3>Sobre King's Shop</h3>
-                <p>Somos una empresa líder en Barranquilla, dedicada a traer la mejor tecnología y artículos para el hogar con precios competitivos y garantía total.</p>
-            </div>
-            <div class="footer-col footer-links">
-                <h3>Enlaces Rápidos</h3>
-                <a onclick="showSection('inicio')">Inicio</a>
-                <a onclick="showSection('productos')">Catálogo Completo</a>
-                <a onclick="showSection('contacto')">Atención al Cliente</a>
-                <a href="#">Política de Garantía</a>
-            </div>
-            <div class="footer-col">
-                <h3>Síguenos</h3>
-                <p>Mantente al día con nuestras ofertas.</p>
-                <div style="font-size: 1.5rem;">
-                    <i class="fab fa-instagram" style="margin-right: 15px; cursor: pointer;"></i>
-                    <i class="fab fa-facebook" style="cursor: pointer;"></i>
-                </div>
-            </div>
-        </div>
-        <div class="copyright">
-            &copy; 2025 King's Shop SAS. Todos los derechos reservados.
-        </div>
-    </footer>
+  <template id="tpl-cart">
+    <div class="cotizador-panel">
+       <div class="d-flex justify-content-between mb-2 align-items-center">
+         <h5 class="fw-bold m-0">Cotización</h5>
+         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️</button>
+       </div>
+       <div class="d-flex justify-content-between gap-2 mb-2">
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">IVA 19%</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Manual</label></div>
+       </div>
+       <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">Selecciona productos...</div>
+       <div class="row g-2 mb-3">
+         <div class="col-4 text-center"><small>Util %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
+         <div class="col-4 text-center"><small>Int %</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
+         <div class="col-4 text-center"><small>Cuotas</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
+       </div>
+       <div class="alert alert-light border text-center py-2 mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+             <span>Total:</span>
+             <div class="text-end">
+                <strong id="res-cont" class="text-dark fs-5">$0</strong>
+                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-success text-end" style="display:none;" placeholder="Valor Manual" oninput="calcCart()">
+             </div>
+          </div>
+          <div id="row-cred" style="display:none; border-top:1px dashed #ccc; margin-top:5px; padding-top:5px;">
+             <div class="d-flex justify-content-between text-success"><span>Inicial (30%):</span><strong id="res-ini">$0</strong></div>
+             <div class="d-flex justify-content-between text-primary mt-1"><span>Restante:</span><strong id="res-cuota-val">$0</strong> <small id="res-cuota-txt">x 1</small></div>
+          </div>
+       </div>
+       <input id="c-cliente" class="form-control mb-2" placeholder="Nombre Cliente">
+       <select id="c-metodo" class="form-select mb-2" onchange="toggleIni()"><option>Contado</option><option>Crédito</option></select>
+       <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Inicial" disabled style="display:none; background:#e9ecef;">
+       <button class="btn btn-success w-100 fw-bold py-2" onclick="finalizarVenta()">✅ CONFIRMAR VENTA</button>
+    </div>
+  </template>
 
-    <div id="cart-modal" class="modal">
+  <div class="modal fade" id="modalProv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3">👥 Gestión de Proveedores</h6><div class="input-group mb-3"><input id="new-prov-name" class="form-control" placeholder="Nuevo Prov"><input id="new-prov-tel" class="form-control" placeholder="WhatsApp"><button class="btn btn-success" onclick="guardarProvManual()">💾</button></div><div id="list-provs" style="max-height:300px; overflow-y:auto;"></div></div></div></div></div>
+  
+  <div class="modal fade" id="modalEdicion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <span class="close-modal" onclick="toggleCart()" style="float:right; cursor:pointer; font-size:1.5rem;">&times;</span>
-            <h2 style="margin-bottom: 1.5rem; border-bottom: 2px solid var(--gold); padding-bottom: 10px;">Tu Carrito</h2>
-            <div id="cart-items"></div>
-            <div style="margin-top: 2rem; text-align: right; font-size: 1.2rem; font-weight: bold;">
-                Total: $<span id="cart-total">0</span>
-            </div>
-            <form id="wompi-form" style="margin-top: 1rem;">
-                <button type="button" class="btn-hero" onclick="toggleCart()" style="width:100%; font-size: 0.9rem;">SEGUIR COMPRANDO</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="product-detail-modal" class="product-modal-overlay">
-        <div class="product-modal-box">
-            <span class="pm-close" onclick="closeProductModal()">&times;</span>
-            <div class="pm-img-col">
-                <img id="pm-img" src="" alt="">
-            </div>
-            <div class="pm-info-col">
-                <span id="pm-cat" class="pm-cat">Categoría</span>
-                <h2 id="pm-title" class="pm-title">Título del Producto</h2>
-                <div id="pm-price" class="pm-price">$0</div>
-                <div id="pm-desc" class="pm-desc">Descripción completa...</div>
-                <button id="pm-btn-add" class="btn-add">AGREGAR AL CARRITO</button>
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3">Editar Producto</h6>
+                <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="inp-edit-nombre" class="form-control fw-bold"></div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="inp-edit-categoria" class="form-control"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control"></div>
+                </div>
+                <div class="mb-2 p-2 bg-light border rounded">
+                    <label class="small fw-bold text-success">Precio Público (Manual)</label>
+                    <input type="number" id="inp-edit-publico" class="form-control border-success" placeholder="0 = Usar formula automatica">
+                </div>
+                
+                <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="inp-edit-proveedor" class="form-control"></div>
+                <div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
+                <div class="mb-3 file-upload-wrapper"><input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()"><img id="img-preview-box" class="preview-img"><div class="placeholder-text"><div style="font-size:2rem;">📷</div><div>Subir Foto</div></div></div>
+                <div class="d-grid gap-2"><button class="btn btn-dark" onclick="guardarCambiosAvanzado()">Guardar</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar</button></div>
             </div>
         </div>
     </div>
+  </div>
+  
+  <div class="modal fade" id="modalNuevo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3">Nuevo Producto</h6>
+                <form onsubmit="event.preventDefault(); crearProducto();">
+                    <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="new-nombre" class="form-control" required></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small fw-bold text-success">Precio Público</label>
+                        <input type="number" id="new-publico" class="form-control border-success" placeholder="Opcional">
+                    </div>
 
-    <script src="main.js"></script>
+                    <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div>
+                    <div class="mb-3"><label class="small fw-bold">ID</label><input id="new-id" class="form-control bg-light" readonly></div>
+                    <button type="submit" class="btn btn-primary w-100">Crear</button>
+                </form>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalWA" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3 text-success">Importar WhatsApp</h6><input id="wa-prov" class="form-control mb-2" placeholder="Proveedor"><input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría"><textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pega el chat..."></textarea><button class="btn btn-success w-100" onclick="procesarWA()">Procesar</button></div></div></div></div>
+  
+  <div class="modal fade" id="modalPed" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold text-dark">Nuevo Pedido</h6>
+                <label class="small fw-bold">Producto *</label>
+                <input list="list-prods-all" id="pe-prod" class="form-control mb-2" placeholder="Nombre del producto...">
+                <label class="small fw-bold">Proveedor</label>
+                <input id="pe-prov" class="form-control mb-2" placeholder="Proveedor">
+                <label class="small fw-bold">Costo Estimado (Opcional)</label>
+                <input type="number" id="pe-costo" class="form-control mb-2" placeholder="$">
+                <label class="small fw-bold">Notas</label>
+                <input id="pe-nota" class="form-control mb-2" placeholder="Detalles extra...">
+                <button class="btn btn-dark w-100" onclick="savePed()">Solicitar Pedido</button>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalEditPed" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold text-dark">Editar Pedido</h6>
+                <label class="small fw-bold">Producto</label>
+                <input list="list-prods-all" id="ed-ped-prod" class="form-control mb-2">
+                <label class="small fw-bold">Proveedor</label>
+                <input id="ed-ped-prov" class="form-control mb-2">
+                <label class="small fw-bold">Costo Estimado</label>
+                <input type="number" id="ed-ped-costo" class="form-control mb-2">
+                <label class="small fw-bold">Notas</label>
+                <input id="ed-ped-nota" class="form-control mb-2">
+                <button class="btn btn-primary w-100" onclick="guardarEdicionPed()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <datalist id="list-cats"></datalist>
+  <datalist id="list-prods-all"></datalist>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="app.js?v=28"></script>
 </body>
 </html>
