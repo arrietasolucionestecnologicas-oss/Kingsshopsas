@@ -128,9 +128,9 @@ function renderPos(){
 
   res.slice(0,40).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
-    var src = (p.foto && p.foto.includes('http')) ? p.foto.replace('view','thumbnail') : '';
+    // CORRECCIÓN: Se usa p.foto directo, sin intentar reemplazar 'view' por 'thumbnail'
+    var src = (p.foto && p.foto.includes('http')) ? p.foto : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
-    // Mostrar precio publico si existe, sino costo o alerta
     var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
     
     var div = document.createElement('div');
@@ -142,10 +142,7 @@ function renderPos(){
 }
 
 function toggleCart(p, el) {
-   // Si tiene precio publico, lo usamos como base, sino calculamos sobre costo
    var precioBase = p.publico > 0 ? p.publico : p.costo;
-   // OJO: La logica original usaba costo. Ajustaremos calcCart para detectar esto.
-   // Por simplicidad, agregamos al carrito con las propiedades originales
    var idx = CART.findIndex(x=>x.id===p.id);
    if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); }
    else { CART.push(p); el.classList.add('active'); }
@@ -190,11 +187,9 @@ function calcCart() {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        base = isNaN(manualVal) ? 0 : manualVal;
    } else {
-       // Lógica Híbrida: Si el producto tiene Precio Publico Manual, usalo. Si no, usa Costo + Margen.
-       // Sumamos item por item
        base = CART.reduce((acc, item) => {
-           if(item.publico > 0) return acc + item.publico; // Precio ya definido
-           return acc + (item.costo * (1 + util/100)); // Costo + margen
+           if(item.publico > 0) return acc + item.publico; 
+           return acc + (item.costo * (1 + util/100)); 
        }, 0);
 
        if(conIva) base = base * 1.19;
@@ -228,20 +223,12 @@ function finalizarVenta() {
    var metodo = parent.querySelector('#c-metodo').value;
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
-   // Calculo de prorrata para asignar precio real a cada item para el backend
-   var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); // referencia de valor
+   var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
    var factor = calculatedValues.total / totalCostoRef; 
    if(isNaN(factor)) factor = 1;
 
    var itemsData = CART.map(p => {
-       // Si el usuario puso precio manual global, distribuimos proporcionalmente
-       // Precio base del item para calculo
        var baseItem = p.publico > 0 ? p.publico : p.costo;
-       // Si usamos logica automatica, el precio ya viene implicito en el total
-       // Ajustamos el precio de venta final de este item especifico
-       var precioVentaItem = baseItem * (calculatedValues.total / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo*1.3),0)); 
-       // Simplificacion: precioVenta = precio proporcional
-       // Mejor aproximacion:
        var peso = baseItem / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0);
        return { 
            nombre: p.nombre, 
@@ -265,11 +252,12 @@ function openEdit(p) {
     document.getElementById('inp-edit-nombre').value=p.nombre; 
     document.getElementById('inp-edit-categoria').value=p.cat; 
     document.getElementById('inp-edit-costo').value=p.costo; 
-    document.getElementById('inp-edit-publico').value=p.publico || 0; // NUEVO CAMPO
+    document.getElementById('inp-edit-publico').value=p.publico || 0; 
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('img-preview-box').style.display='none'; 
-    if(p.foto){document.getElementById('img-preview-box').src=p.foto.replace('view','thumbnail');document.getElementById('img-preview-box').style.display='block';} 
+    // CORRECCIÓN: Se usa p.foto directo, sin intentar reemplazar 'view' por 'thumbnail'
+    if(p.foto){document.getElementById('img-preview-box').src=p.foto; document.getElementById('img-preview-box').style.display='block';} 
     myModalEdit.show(); 
 }
 
@@ -284,20 +272,17 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- INVENTARIO MEJORADO: FILTRO + COPIAR ---
 function renderInv(){ 
-    var q = document.getElementById('inv-search').value.toLowerCase().trim(); // FILTRO REPARADO
+    var q = document.getElementById('inv-search').value.toLowerCase().trim(); 
     var c=document.getElementById('inv-list');
     c.innerHTML=''; 
     
     var lista = D.inv || [];
-    // Aplicamos filtro
     if(q) {
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
     }
 
     lista.slice(0, 50).forEach(p=>{
-        // BOTONES DE COPIADO RAPIDO
         var btnsCopy = `
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
@@ -326,7 +311,6 @@ function renderInv(){
 function copiarDato(txt) {
     if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío");
     navigator.clipboard.writeText(txt).then(() => {
-        // Feedback visual sutil (Toast nativo o alert simple)
         const el = document.createElement('div');
         el.innerText = "Copiado: " + txt.substring(0,20) + "...";
         el.style.position = 'fixed'; el.style.bottom = '20px'; el.style.left = '50%'; el.style.transform = 'translateX(-50%)';
@@ -346,7 +330,7 @@ function guardarCambiosAvanzado(){
        categoria:document.getElementById('inp-edit-categoria').value, 
        proveedor:document.getElementById('inp-edit-proveedor').value, 
        costo:document.getElementById('inp-edit-costo').value, 
-       publico:document.getElementById('inp-edit-publico').value, // NUEVO
+       publico:document.getElementById('inp-edit-publico').value, 
        descripcion:document.getElementById('inp-edit-desc').value, 
        urlExistente:prodEdit.foto||""
    };
@@ -362,7 +346,7 @@ function crearProducto(){
         categoria:document.getElementById('new-categoria').value, 
         proveedor:document.getElementById('new-proveedor').value, 
         costo:document.getElementById('new-costo').value, 
-        publico:document.getElementById('new-publico').value, // NUEVO
+        publico:document.getElementById('new-publico').value, 
         id:document.getElementById('new-id').value||'GEN-'+Math.random()
     }; 
     callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); 
