@@ -118,6 +118,19 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
+// FUNCION MAESTRA PARA ARREGLAR IMAGENES DE DRIVE
+function fixDriveLink(url) {
+    if (!url) return "";
+    // Detectar links de Google Drive standard y convertirlos a LH3 (CDN)
+    if (url.includes("drive.google.com") && url.includes("id=")) {
+        var m = url.match(/id=([a-zA-Z0-9_-]+)/);
+        if (m && m[1]) {
+            return "https://lh3.googleusercontent.com/d/" + m[1];
+        }
+    }
+    return url;
+}
+
 function renderPos(){
   var q = document.getElementById('pos-search').value.toLowerCase();
   var c = document.getElementById('pos-list'); c.innerHTML='';
@@ -128,9 +141,12 @@ function renderPos(){
 
   res.slice(0,40).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
-    // AQUI SE RELAJA LA VALIDACION PARA MOSTRAR CUALQUIER LINK LARGO
-    var src = (p.foto && p.foto.length > 10) ? p.foto : '';
+    
+    // APLICAR FIX DE IMAGEN
+    var fixedUrl = fixDriveLink(p.foto);
+    var src = (fixedUrl && fixedUrl.length > 10) ? fixedUrl : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
+    
     var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
     
     var div = document.createElement('div');
@@ -256,7 +272,11 @@ function openEdit(p) {
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('img-preview-box').style.display='none'; 
-    if(p.foto){document.getElementById('img-preview-box').src=p.foto; document.getElementById('img-preview-box').style.display='block';} 
+    
+    // APLICAR FIX DE IMAGEN TAMBIEN EN MODAL
+    var fixedUrl = fixDriveLink(p.foto);
+    if(fixedUrl){ document.getElementById('img-preview-box').src=fixedUrl; document.getElementById('img-preview-box').style.display='block';} 
+    
     myModalEdit.show(); 
 }
 
