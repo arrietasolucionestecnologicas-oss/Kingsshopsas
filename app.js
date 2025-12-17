@@ -299,14 +299,14 @@ function renderInv(){
     }
 
     lista.slice(0, 50).forEach(p=>{
-        // BOTONES DE COPIADO RAPIDO
-        // Se asegura que los textos existan para evitar errores de undefined
-        var descClean = (p.desc || "").replace(/'/g, "").replace(/"/g, "");
+        // FIX CRÍTICO: Se codifica la descripción para evitar que saltos de línea rompan el HTML
+        var descEncoded = encodeURIComponent(p.desc || "");
+        
         var btnsCopy = `
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${descClean}')" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato(decodeURIComponent('${descEncoded}'))" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
             <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
         </div>`;
 
