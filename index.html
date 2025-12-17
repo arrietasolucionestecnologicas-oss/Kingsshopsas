@@ -12,6 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
   <link rel="stylesheet" href="style.css"> 
+  <style>
+      .btn-xs { padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; }
+  </style>
 </head>
 <body>
 
@@ -39,7 +42,7 @@
 
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
       <div class="d-flex gap-2 mb-3">
-        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Filtrar Inventario..." onkeyup="renderInv()">
         <button class="btn btn-info text-white" onclick="abrirModalProv()" title="Proveedores"><i class="fas fa-users"></i></button>
         <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA"><i class="fab fa-whatsapp"></i></button>
         <button class="btn btn-dark" onclick="abrirModalNuevo()">+</button>
@@ -135,8 +138,56 @@
   </template>
 
   <div class="modal fade" id="modalProv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3">👥 Gestión de Proveedores</h6><div class="input-group mb-3"><input id="new-prov-name" class="form-control" placeholder="Nuevo Prov"><input id="new-prov-tel" class="form-control" placeholder="WhatsApp"><button class="btn btn-success" onclick="guardarProvManual()">💾</button></div><div id="list-provs" style="max-height:300px; overflow-y:auto;"></div></div></div></div></div>
-  <div class="modal fade" id="modalEdicion" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3">Editar Producto</h6><div class="mb-2"><label class="small fw-bold">Nombre</label><input id="inp-edit-nombre" class="form-control fw-bold"></div><div class="row g-2 mb-2"><div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="inp-edit-categoria" class="form-control"></div><div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control"></div></div><div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="inp-edit-proveedor" class="form-control"></div><div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div><div class="mb-3 file-upload-wrapper"><input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()"><img id="img-preview-box" class="preview-img"><div class="placeholder-text"><div style="font-size:2rem;">📷</div><div>Subir Foto</div></div></div><div class="d-grid gap-2"><button class="btn btn-dark" onclick="guardarCambiosAvanzado()">Guardar</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar</button></div></div></div></div></div>
-  <div class="modal fade" id="modalNuevo" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3">Nuevo Producto</h6><form onsubmit="event.preventDefault(); crearProducto();"><div class="mb-2"><label class="small fw-bold">Nombre</label><input id="new-nombre" class="form-control" required></div><div class="row g-2 mb-2"><div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div><div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control"></div></div><div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div><div class="mb-3"><label class="small fw-bold">ID</label><input id="new-id" class="form-control bg-light" readonly></div><button type="submit" class="btn btn-primary w-100">Crear</button></form></div></div></div></div>
+  
+  <div class="modal fade" id="modalEdicion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3">Editar Producto</h6>
+                <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="inp-edit-nombre" class="form-control fw-bold"></div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="inp-edit-categoria" class="form-control"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control"></div>
+                </div>
+                <div class="mb-2 p-2 bg-light border rounded">
+                    <label class="small fw-bold text-success">Precio Público (Manual)</label>
+                    <input type="number" id="inp-edit-publico" class="form-control border-success" placeholder="0 = Usar formula automatica">
+                </div>
+                
+                <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="inp-edit-proveedor" class="form-control"></div>
+                <div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
+                <div class="mb-3 file-upload-wrapper"><input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()"><img id="img-preview-box" class="preview-img"><div class="placeholder-text"><div style="font-size:2rem;">📷</div><div>Subir Foto</div></div></div>
+                <div class="d-grid gap-2"><button class="btn btn-dark" onclick="guardarCambiosAvanzado()">Guardar</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar</button></div>
+            </div>
+        </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="modalNuevo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3">Nuevo Producto</h6>
+                <form onsubmit="event.preventDefault(); crearProducto();">
+                    <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="new-nombre" class="form-control" required></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="small fw-bold text-success">Precio Público</label>
+                        <input type="number" id="new-publico" class="form-control border-success" placeholder="Opcional">
+                    </div>
+
+                    <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div>
+                    <div class="mb-3"><label class="small fw-bold">ID</label><input id="new-id" class="form-control bg-light" readonly></div>
+                    <button type="submit" class="btn btn-primary w-100">Crear</button>
+                </form>
+            </div>
+        </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalWA" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3 text-success">Importar WhatsApp</h6><input id="wa-prov" class="form-control mb-2" placeholder="Proveedor"><input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría"><textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pega el chat..."></textarea><button class="btn btn-success w-100" onclick="procesarWA()">Procesar</button></div></div></div></div>
   
   <div class="modal fade" id="modalPed" tabindex="-1">
