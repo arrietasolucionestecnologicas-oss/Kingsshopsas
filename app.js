@@ -128,8 +128,8 @@ function renderPos(){
 
   res.slice(0,40).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
-    // CORRECCIÓN: Se usa p.foto directo, sin intentar reemplazar 'view' por 'thumbnail'
-    var src = (p.foto && p.foto.includes('http')) ? p.foto : '';
+    // AQUI SE RELAJA LA VALIDACION PARA MOSTRAR CUALQUIER LINK LARGO
+    var src = (p.foto && p.foto.length > 10) ? p.foto : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
     var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
     
@@ -256,7 +256,6 @@ function openEdit(p) {
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('img-preview-box').style.display='none'; 
-    // CORRECCIÓN: Se usa p.foto directo, sin intentar reemplazar 'view' por 'thumbnail'
     if(p.foto){document.getElementById('img-preview-box').src=p.foto; document.getElementById('img-preview-box').style.display='block';} 
     myModalEdit.show(); 
 }
