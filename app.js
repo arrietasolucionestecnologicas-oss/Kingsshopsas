@@ -8,10 +8,9 @@ var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ul
 var CART = [];
 var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed;
 var prodEdit = null;
-var pedEditId = null; // ID del pedido que se esta editando
+var pedEditId = null; 
 var calculatedValues = { total: 0, inicial: 0 };
 
-// --- UTILIDAD DE FORMATO COLOMBIA ---
 const COP = new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
@@ -46,7 +45,6 @@ window.onload = function() {
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
   
-  // --- PERSISTENCIA DE VISTA ---
   var lastView = localStorage.getItem('lastView') || 'pos';
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
   if(btn) nav(lastView, btn);
@@ -58,7 +56,6 @@ window.onload = function() {
 function loadData(){
   callAPI('obtenerDatosCompletos').then(res => {
     D = res;
-    
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
@@ -133,16 +130,22 @@ function renderPos(){
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     var src = (p.foto && p.foto.includes('http')) ? p.foto.replace('view','thumbnail') : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
-    var priceTxt = p.costo > 0 ? COP.format(p.costo) : '<small class="text-danger">Consultar</small>';
+    // Mostrar precio publico si existe, sino costo o alerta
+    var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
+    
     var div = document.createElement('div');
     div.className = `card-product d-flex align-items-center ${active}`;
     div.onclick = function() { toggleCart(p, div); };
-    div.innerHTML = `<div class="check-mark">✓</div>${img}<div class="flex-grow-1" style="min-width:0;"><div class="fw-bold text-dark lh-1 mb-1 text-truncate">${p.nombre}</div><small class="text-muted d-block text-truncate">${p.prov}</small><div class="price-tag mt-1">${priceTxt}</div></div>`;
+    div.innerHTML = `<div class="check-mark">✓</div>${img}<div class="flex-grow-1" style="min-width:0;"><div class="fw-bold text-dark lh-1 mb-1 text-truncate">${p.nombre}</div><small class="text-muted d-block text-truncate">${p.prov}</small><div class="price-tag mt-1">${precioDisplay}</div></div>`;
     c.appendChild(div);
   });
 }
 
 function toggleCart(p, el) {
+   // Si tiene precio publico, lo usamos como base, sino calculamos sobre costo
+   var precioBase = p.publico > 0 ? p.publico : p.costo;
+   // OJO: La logica original usaba costo. Ajustaremos calcCart para detectar esto.
+   // Por simplicidad, agregamos al carrito con las propiedades originales
    var idx = CART.findIndex(x=>x.id===p.id);
    if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); }
    else { CART.push(p); el.classList.add('active'); }
@@ -187,8 +190,13 @@ function calcCart() {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        base = isNaN(manualVal) ? 0 : manualVal;
    } else {
-       var totalCosto = CART.reduce((a,b)=>a+b.costo,0);
-       base = totalCosto * (1 + util/100);
+       // Lógica Híbrida: Si el producto tiene Precio Publico Manual, usalo. Si no, usa Costo + Margen.
+       // Sumamos item por item
+       base = CART.reduce((acc, item) => {
+           if(item.publico > 0) return acc + item.publico; // Precio ya definido
+           return acc + (item.costo * (1 + util/100)); // Costo + margen
+       }, 0);
+
        if(conIva) base = base * 1.19;
        document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
        document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
@@ -219,8 +227,31 @@ function finalizarVenta() {
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
-   var factor = calculatedValues.total / CART.reduce((a,b)=>a+b.costo,0);
-   var d = { items: CART.map(p => ({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: p.costo * factor })), cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user };
+   
+   // Calculo de prorrata para asignar precio real a cada item para el backend
+   var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); // referencia de valor
+   var factor = calculatedValues.total / totalCostoRef; 
+   if(isNaN(factor)) factor = 1;
+
+   var itemsData = CART.map(p => {
+       // Si el usuario puso precio manual global, distribuimos proporcionalmente
+       // Precio base del item para calculo
+       var baseItem = p.publico > 0 ? p.publico : p.costo;
+       // Si usamos logica automatica, el precio ya viene implicito en el total
+       // Ajustamos el precio de venta final de este item especifico
+       var precioVentaItem = baseItem * (calculatedValues.total / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo*1.3),0)); 
+       // Simplificacion: precioVenta = precio proporcional
+       // Mejor aproximacion:
+       var peso = baseItem / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0);
+       return { 
+           nombre: p.nombre, 
+           cat: p.cat, 
+           costo: p.costo, 
+           precioVenta: calculatedValues.total * peso 
+       };
+   });
+
+   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user };
    document.getElementById('loader').style.display='flex';
    callAPI('procesarVentaCarrito', d).then(r => { if(r.exito) { location.reload(); } else { alert(r.error); document.getElementById('loader').style.display='none'; } });
 }
@@ -234,6 +265,7 @@ function openEdit(p) {
     document.getElementById('inp-edit-nombre').value=p.nombre; 
     document.getElementById('inp-edit-categoria').value=p.cat; 
     document.getElementById('inp-edit-costo').value=p.costo; 
+    document.getElementById('inp-edit-publico').value=p.publico || 0; // NUEVO CAMPO
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('img-preview-box').style.display='none'; 
@@ -251,18 +283,90 @@ function renderProvs() {
 }
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
-function renderInv(){ var c=document.getElementById('inv-list');c.innerHTML=''; (D.inv||[]).forEach(p=>{c.innerHTML+=`<div class="card-k d-flex justify-content-between align-items-center" onclick='openEdit(${JSON.stringify(p)})'><div><strong>${p.nombre}</strong><br><small>${p.cat}</small></div><button class="btn btn-sm btn-light border">✏️</button></div>`}); }
+
+// --- INVENTARIO MEJORADO: FILTRO + COPIAR ---
+function renderInv(){ 
+    var q = document.getElementById('inv-search').value.toLowerCase().trim(); // FILTRO REPARADO
+    var c=document.getElementById('inv-list');
+    c.innerHTML=''; 
+    
+    var lista = D.inv || [];
+    // Aplicamos filtro
+    if(q) {
+        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
+    }
+
+    lista.slice(0, 50).forEach(p=>{
+        // BOTONES DE COPIADO RAPIDO
+        var btnsCopy = `
+        <div class="d-flex gap-1 mt-2">
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.desc.replace(/'/g, "")}')" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
+            <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
+        </div>`;
+
+        var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
+
+        c.innerHTML+=`
+        <div class="card-k">
+            <div class="d-flex justify-content-between align-items-start" onclick='openEdit(${JSON.stringify(p)})'>
+                <div>
+                    <strong>${p.nombre}</strong><br>
+                    <small class="text-muted">${p.cat} | Costo: ${COP.format(p.costo)}</small>
+                    ${publicoHtml}
+                </div>
+                <button class="btn btn-sm btn-light border">✏️</button>
+            </div>
+            ${btnsCopy}
+        </div>`;
+    }); 
+}
+
+function copiarDato(txt) {
+    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío");
+    navigator.clipboard.writeText(txt).then(() => {
+        // Feedback visual sutil (Toast nativo o alert simple)
+        const el = document.createElement('div');
+        el.innerText = "Copiado: " + txt.substring(0,20) + "...";
+        el.style.position = 'fixed'; el.style.bottom = '20px'; el.style.left = '50%'; el.style.transform = 'translateX(-50%)';
+        el.style.background = '#333'; el.style.color = '#fff'; el.style.padding = '5px 10px'; el.style.borderRadius = '5px'; el.style.zIndex = 3000;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    });
+}
+
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
+
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; var btn=document.querySelector('#modalEdicion .btn-dark'); var txt=btn.innerText;
-   var d={id:prodEdit.id, nombre:document.getElementById('inp-edit-nombre').value, categoria:document.getElementById('inp-edit-categoria').value, proveedor:document.getElementById('inp-edit-proveedor').value, costo:document.getElementById('inp-edit-costo').value, descripcion:document.getElementById('inp-edit-desc').value, urlExistente:prodEdit.foto||""};
+   var d={
+       id:prodEdit.id, 
+       nombre:document.getElementById('inp-edit-nombre').value, 
+       categoria:document.getElementById('inp-edit-categoria').value, 
+       proveedor:document.getElementById('inp-edit-proveedor').value, 
+       costo:document.getElementById('inp-edit-costo').value, 
+       publico:document.getElementById('inp-edit-publico').value, // NUEVO
+       descripcion:document.getElementById('inp-edit-desc').value, 
+       urlExistente:prodEdit.foto||""
+   };
    var f=document.getElementById('inp-file-foto').files[0];
    var send=function(b64){ d.imagenBase64=b64; if(f){d.mimeType=f.type;d.nombreArchivo=f.name;} callAPI('guardarProductoAvanzado', d).then(r=>{btn.innerText=txt;btn.disabled=false;if(r.exito){myModalEdit.hide();location.reload();}else alert(r.error)}); };
    if(f){ btn.innerText="Subiendo...";btn.disabled=true; var r=new FileReader(); r.onload=e=>send(e.target.result.split(',')[1]); r.readAsDataURL(f); } else { send(); }
 }
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
-function crearProducto(){ var d={nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo:document.getElementById('new-costo').value, id:document.getElementById('new-id').value||'GEN-'+Math.random()}; callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); }
+function crearProducto(){ 
+    var d={
+        nombre:document.getElementById('new-nombre').value, 
+        categoria:document.getElementById('new-categoria').value, 
+        proveedor:document.getElementById('new-proveedor').value, 
+        costo:document.getElementById('new-costo').value, 
+        publico:document.getElementById('new-publico').value, // NUEVO
+        id:document.getElementById('new-id').value||'GEN-'+Math.random()
+    }; 
+    callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); 
+}
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
@@ -290,7 +394,6 @@ function doGasto(){
     document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
 }
 
-// --- LOGICA DE PEDIDOS MEJORADA (EDIT/DELETE) ---
 function renderPed(){ 
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
