@@ -90,7 +90,6 @@ function loadData(){
         });
     });
 
-    // Llenar select de categorías en modal edición si existe
     var editCat = document.getElementById('inp-edit-categoria');
     if(editCat){
         editCat.innerHTML = '';
@@ -280,9 +279,11 @@ function openEdit(p) {
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     
-    // CARGAR CHECKBOX WEB
+    // Checkbox WEB
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
 
+    // LÓGICA DE FOTO MEJORADA
+    document.getElementById('inp-file-foto').value = ""; // LIMPIAR INPUT SIEMPRE
     document.getElementById('img-preview-box').style.display='none'; 
     
     var fixedUrl = fixDriveLink(p.foto);
@@ -366,12 +367,32 @@ function guardarCambiosAvanzado(){
        publico:document.getElementById('inp-edit-publico').value, 
        descripcion:document.getElementById('inp-edit-desc').value, 
        urlExistente:prodEdit.foto||"",
-       enWeb: document.getElementById('inp-edit-web').checked // ENVIAR CHECKBOX
+       enWeb: document.getElementById('inp-edit-web').checked
    };
+   
    var f=document.getElementById('inp-file-foto').files[0];
-   var send=function(b64){ d.imagenBase64=b64; if(f){d.mimeType=f.type;d.nombreArchivo=f.name;} callAPI('guardarProductoAvanzado', d).then(r=>{btn.innerText=txt;btn.disabled=false;if(r.exito){myModalEdit.hide();location.reload();}else alert(r.error)}); };
-   if(f){ btn.innerText="Subiendo...";btn.disabled=true; var r=new FileReader(); r.onload=e=>send(e.target.result.split(',')[1]); r.readAsDataURL(f); } else { send(); }
+   
+   var send=function(b64){ 
+       if(b64) d.imagenBase64=b64; 
+       if(f){d.mimeType=f.type;d.nombreArchivo=f.name;} 
+       
+       callAPI('guardarProductoAvanzado', d).then(r=>{
+           btn.innerText=txt; btn.disabled=false;
+           if(r.exito){ myModalEdit.hide(); location.reload(); }
+           else alert(r.error)
+       }); 
+   };
+
+   if(f){ 
+       btn.innerText="Subiendo..."; btn.disabled=true; 
+       var r=new FileReader(); 
+       r.onload=e=>send(e.target.result.split(',')[1]); 
+       r.readAsDataURL(f); 
+   } else { 
+       send(null); 
+   }
 }
+
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 function crearProducto(){ 
