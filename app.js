@@ -81,6 +81,7 @@ function loadData(){
     
     renderPos(); 
     renderInv(); 
+    renderWeb(); // NEW
     renderFin(); 
     renderPed();
     renderProvs();
@@ -256,11 +257,10 @@ function abrirModalNuevo() {
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
-// --- FUNCION CLAVE: CALCULO AUTOMATICO 30% ---
 function calcGain(idCosto, idPublico) {
     var costo = parseFloat(document.getElementById(idCosto).value);
     if(costo > 0) {
-        var ganancia = costo * 1.30; // 30% de ganancia sobre el costo
+        var ganancia = costo * 1.30; 
         document.getElementById(idPublico).value = Math.round(ganancia);
     }
 }
@@ -293,6 +293,77 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
+// --- RENDER WEB VIEW (NEW) ---
+function renderWeb() {
+    var q = document.getElementById('web-search').value.toLowerCase().trim();
+    var c = document.getElementById('web-list');
+    c.innerHTML = '';
+    
+    var lista = (D.inv || []).filter(p => p.enWeb === true);
+    
+    if(q) {
+        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
+    }
+
+    if(lista.length === 0) {
+        c.innerHTML = `<div class="text-center text-muted p-5">
+            <div style="font-size:2rem">🌐</div>
+            <p>No hay productos en Web.<br>Actívalos desde Inventario.</p>
+        </div>`;
+        return;
+    }
+
+    lista.slice(0, 50).forEach(p => {
+        var fixedUrl = fixDriveLink(p.foto);
+        var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
+        
+        c.innerHTML += `
+        <div class="card-k">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2 align-items-center">
+                    ${img}
+                    <div>
+                        <strong>${p.nombre}</strong><br>
+                        <small class="badge bg-primary">${p.catWeb}</small> 
+                        <small class="text-muted">| ${COP.format(p.publico)}</small>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">
+                    Desactivar
+                </button>
+            </div>
+        </div>`;
+    });
+}
+
+function toggleWebStatus(id) {
+    var idx = D.inv.findIndex(x => x.id === id);
+    if(idx > -1) {
+        var p = D.inv[idx];
+        p.enWeb = !p.enWeb; // Flip boolean
+        
+        // Optimistic UI
+        renderWeb();
+        renderInv(); // Update icon there too
+        showToast("Producto actualizado", "info");
+
+        // Send to API
+        var payload = {
+           id: p.id,
+           nombre: p.nombre,
+           categoria: p.cat,
+           proveedor: p.prov,
+           costo: p.costo,
+           publico: p.publico,
+           descripcion: p.desc,
+           urlExistente: p.foto || "", 
+           enWeb: p.enWeb,
+           catWeb: p.catWeb
+       };
+       callAPI('guardarProductoAvanzado', payload);
+    }
+}
+
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim(); 
     var c=document.getElementById('inv-list');
@@ -306,7 +377,6 @@ function renderInv(){
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato(decodeURIComponent('${descEncoded}'))" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
             <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
         </div>`;
         var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
@@ -322,7 +392,6 @@ function copiarDato(txt) {
 
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
 
-// --- OPTIMISTIC UI UPDATE ---
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
    
@@ -397,7 +466,6 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
-// --- OPTIMISTIC CREATION FULL ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -413,7 +481,6 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
-    // UI Update local
     D.inv.unshift({
         id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
         costo: d.costo, publico: d.publico, desc: d.descripcion,
