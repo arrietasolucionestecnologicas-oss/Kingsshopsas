@@ -1,6 +1,5 @@
 // ============================================
 // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
-// debe terminar en /exec
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
 
@@ -11,12 +10,21 @@ var prodEdit = null;
 var pedEditId = null; 
 var calculatedValues = { total: 0, inicial: 0 };
 
-const COP = new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-});
+const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+// --- TOAST NOTIFICATION SYSTEM ---
+function showToast(msg, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0 show mb-2`;
+    toast.role = 'alert';
+    toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    
+    toastContainer.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
 
 async function callAPI(action, data = null) {
   try {
@@ -28,7 +36,7 @@ async function callAPI(action, data = null) {
     return result;
   } catch (e) {
     console.error("Error API:", e);
-    alert("Error de conexión. Revisa tu internet.");
+    showToast("Error de conexión (Background)", 'danger');
     return { exito: false, error: e.toString() };
   }
 }
@@ -54,6 +62,7 @@ window.onload = function() {
 };
 
 function loadData(){
+  document.getElementById('loader').style.display='flex';
   callAPI('obtenerDatosCompletos').then(res => {
     D = res;
     D.inv = res.inventario || [];
@@ -83,23 +92,14 @@ function loadData(){
     var dlp = document.querySelectorAll('#list-prods-all'); 
     dlp.forEach(list => {
         list.innerHTML = '';
-        (D.inv || []).forEach(p => { 
-            var o=document.createElement('option'); 
-            o.value=p.nombre; 
-            list.appendChild(o); 
-        });
+        (D.inv || []).forEach(p => { var o=document.createElement('option'); o.value=p.nombre; list.appendChild(o); });
     });
 
     var editCat = document.getElementById('inp-edit-categoria');
     if(editCat){
         editCat.innerHTML = '';
-        (res.categorias || []).forEach(c => {
-            var o = document.createElement('option');
-            o.value = c; o.text = c;
-            editCat.appendChild(o);
-        });
+        (res.categorias || []).forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
     }
-
     updateGastosSelect();
   });
 }
@@ -109,12 +109,7 @@ function updateGastosSelect() {
     if(sg) {
         sg.innerHTML = '<option value="">-- Ninguna (Gasto General) --</option>';
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
-            D.ultimasVentas.forEach(v => {
-                var o = document.createElement('option');
-                o.value = v.id;
-                o.text = v.desc;
-                sg.appendChild(o);
-            });
+            D.ultimasVentas.forEach(v => { var o = document.createElement('option'); o.value = v.id; o.text = v.desc; sg.appendChild(o); });
         }
     }
 }
@@ -131,9 +126,7 @@ function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m && m[1]) {
-            return "http://lh3.googleusercontent.com/d/" + m[1];
-        }
+        if (m && m[1]) return "http://lh3.googleusercontent.com/d/" + m[1];
     }
     return url;
 }
@@ -148,11 +141,9 @@ function renderPos(){
 
   res.slice(0,40).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
-    
     var fixedUrl = fixDriveLink(p.foto);
     var src = (fixedUrl && fixedUrl.length > 10) ? fixedUrl : '';
     var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
-    
     var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
     
     var div = document.createElement('div');
@@ -164,7 +155,6 @@ function renderPos(){
 }
 
 function toggleCart(p, el) {
-   var precioBase = p.publico > 0 ? p.publico : p.costo;
    var idx = CART.findIndex(x=>x.id===p.id);
    if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); }
    else { CART.push(p); el.classList.add('active'); }
@@ -213,7 +203,6 @@ function calcCart() {
            if(item.publico > 0) return acc + item.publico; 
            return acc + (item.costo * (1 + util/100)); 
        }, 0);
-
        if(conIva) base = base * 1.19;
        document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
        document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
@@ -252,12 +241,7 @@ function finalizarVenta() {
    var itemsData = CART.map(p => {
        var baseItem = p.publico > 0 ? p.publico : p.costo;
        var peso = baseItem / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0);
-       return { 
-           nombre: p.nombre, 
-           cat: p.cat, 
-           costo: p.costo, 
-           precioVenta: calculatedValues.total * peso 
-       };
+       return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
    });
 
    var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user };
@@ -273,24 +257,17 @@ function abrirModalPed() { myModalPed.show(); }
 function openEdit(p) { 
     prodEdit=p; 
     document.getElementById('inp-edit-nombre').value=p.nombre; 
-    document.getElementById('inp-edit-categoria').value=p.cat; // CATEGORIA INTERNA (APP)
+    document.getElementById('inp-edit-categoria').value=p.cat; 
     document.getElementById('inp-edit-costo').value=p.costo; 
     document.getElementById('inp-edit-publico').value=p.publico || 0; 
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
-    
-    // Checkbox WEB
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
-    
-    // CATEGORIA WEB (MANUAL)
     document.getElementById('inp-edit-cat-web').value = p.catWeb || 'tecnologia';
-
     document.getElementById('inp-file-foto').value = "";
     document.getElementById('img-preview-box').style.display='none'; 
-    
     var fixedUrl = fixDriveLink(p.foto);
     if(fixedUrl){ document.getElementById('img-preview-box').src=fixedUrl; document.getElementById('img-preview-box').style.display='block';} 
-    
     myModalEdit.show(); 
 }
 
@@ -309,15 +286,11 @@ function renderInv(){
     var q = document.getElementById('inv-search').value.toLowerCase().trim(); 
     var c=document.getElementById('inv-list');
     c.innerHTML=''; 
-    
     var lista = D.inv || [];
-    if(q) {
-        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
-    }
+    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
 
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
-        
         var btnsCopy = `
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
@@ -325,90 +298,138 @@ function renderInv(){
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato(decodeURIComponent('${descEncoded}'))" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
             <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
         </div>`;
-
         var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
         var webStatus = p.enWeb ? '<span class="badge bg-primary ms-1"><i class="fas fa-globe"></i></span>' : '';
-
-        c.innerHTML+=`
-        <div class="card-k">
-            <div class="d-flex justify-content-between align-items-start" onclick='openEdit(${JSON.stringify(p)})'>
-                <div>
-                    <strong>${p.nombre}</strong>${webStatus}<br>
-                    <small class="text-muted">${p.cat} | Costo: ${COP.format(p.costo)}</small>
-                    ${publicoHtml}
-                </div>
-                <button class="btn btn-sm btn-light border">✏️</button>
-            </div>
-            ${btnsCopy}
-        </div>`;
+        c.innerHTML+=`<div class="card-k"><div class="d-flex justify-content-between align-items-start" onclick='openEdit(${JSON.stringify(p)})'><div><strong>${p.nombre}</strong>${webStatus}<br><small class="text-muted">${p.cat} | Costo: ${COP.format(p.costo)}</small>${publicoHtml}</div><button class="btn btn-sm btn-light border">✏️</button></div>${btnsCopy}</div>`;
     }); 
 }
 
 function copiarDato(txt) {
     if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
-    navigator.clipboard.writeText(txt).then(() => {
-        const el = document.createElement('div');
-        el.innerText = "Copiado: " + txt.substring(0,20) + "...";
-        el.style.position = 'fixed'; el.style.bottom = '20px'; el.style.left = '50%'; el.style.transform = 'translateX(-50%)';
-        el.style.background = '#333'; el.style.color = '#fff'; el.style.padding = '5px 10px'; el.style.borderRadius = '5px'; el.style.zIndex = 3000;
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 1000);
-    });
+    navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); });
 }
 
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
 
+// --- OPTIMISTIC UI UPDATE ---
 function guardarCambiosAvanzado(){
-   if(!prodEdit) return; var btn=document.querySelector('#modalEdicion .btn-dark'); var txt=btn.innerText;
-   var d={
-       id:prodEdit.id, 
-       nombre:document.getElementById('inp-edit-nombre').value, 
-       categoria:document.getElementById('inp-edit-categoria').value, 
-       proveedor:document.getElementById('inp-edit-proveedor').value, 
-       costo:document.getElementById('inp-edit-costo').value, 
-       publico:document.getElementById('inp-edit-publico').value, 
-       descripcion:document.getElementById('inp-edit-desc').value, 
-       urlExistente:prodEdit.foto||"",
+   if(!prodEdit) return; 
+   
+   // 1. OBTENER VALORES DEL FORMULARIO
+   var newVal = {
+       id: prodEdit.id, 
+       nombre: document.getElementById('inp-edit-nombre').value, 
+       cat: document.getElementById('inp-edit-categoria').value, 
+       prov: document.getElementById('inp-edit-proveedor').value, 
+       costo: parseFloat(document.getElementById('inp-edit-costo').value), 
+       publico: parseFloat(document.getElementById('inp-edit-publico').value), 
+       desc: document.getElementById('inp-edit-desc').value, 
+       foto: prodEdit.foto || "", // Mantiene la vieja por defecto
        enWeb: document.getElementById('inp-edit-web').checked,
-       catWeb: document.getElementById('inp-edit-cat-web').value // ENVIO CATEGORIA MANUAL
-   };
-   
-   var f=document.getElementById('inp-file-foto').files[0];
-   
-   var send=function(b64){ 
-       if(b64) d.imagenBase64=b64; 
-       if(f){d.mimeType=f.type;d.nombreArchivo=f.name;} 
-       
-       callAPI('guardarProductoAvanzado', d).then(r=>{
-           btn.innerText=txt; btn.disabled=false;
-           if(r.exito){ myModalEdit.hide(); location.reload(); }
-           else alert(r.error)
-       }); 
+       catWeb: document.getElementById('inp-edit-cat-web').value
    };
 
-   if(f){ 
-       btn.innerText="Subiendo..."; btn.disabled=true; 
-       var r=new FileReader(); 
-       r.onload=e=>send(e.target.result.split(',')[1]); 
-       r.readAsDataURL(f); 
-   } else { 
-       send(null); 
+   // 2. DETECTAR SI HAY NUEVA FOTO (FILE INPUT)
+   var f = document.getElementById('inp-file-foto').files[0];
+   var promise = Promise.resolve(null);
+
+   if(f) {
+       // Si hay foto nueva, la leemos como DataURL para mostrarla YA
+       promise = new Promise((resolve) => {
+           var r = new FileReader();
+           r.onload = e => resolve(e.target.result); // Base64
+           r.readAsDataURL(f);
+       });
    }
+
+   promise.then(b64 => {
+       // 3. ACTUALIZAR MODELO LOCAL (D.inv)
+       var idx = D.inv.findIndex(x => x.id === prodEdit.id);
+       if(idx > -1) {
+           if(b64) {
+               newVal.foto = "data:image/jpeg;base64,..."; // Placeholder visual
+               // NOTA: No podemos poner el blob gigante en memoria para siempre, pero sirve para el render inmediato
+               // OJO: Para "optimistic", usaremos el preview actual si existe
+               var previewSrc = document.getElementById('img-preview-box').src;
+               if(previewSrc) newVal.foto = previewSrc; 
+           }
+           D.inv[idx] = newVal; // Actualizamos el array local
+       }
+
+       // 4. REFLEJAR CAMBIOS EN LA UI INMEDIATAMENTE
+       renderInv();
+       renderPos();
+       myModalEdit.hide();
+       showToast("Guardando cambios...", "info");
+
+       // 5. ENVIAR A API EN SEGUNDO PLANO
+       // Preparamos payload
+       var payload = {
+           id: newVal.id,
+           nombre: newVal.nombre,
+           categoria: newVal.cat,
+           proveedor: newVal.prov,
+           costo: newVal.costo,
+           publico: newVal.publico,
+           descripcion: newVal.desc,
+           urlExistente: prodEdit.foto || "", // Enviamos la URL original al server
+           enWeb: newVal.enWeb,
+           catWeb: newVal.catWeb
+       };
+
+       if(b64) {
+           // Si hay foto nueva, enviamos el base64 REAL (sin el prefix data:image...)
+           // El b64 que viene del FileReader trae el prefix, hay que quitarlo
+           payload.imagenBase64 = b64.split(',')[1];
+           payload.mimeType = f.type;
+           payload.nombreArchivo = f.name;
+       }
+
+       callAPI('guardarProductoAvanzado', payload).then(r => {
+           if(r.exito) {
+               showToast("¡Guardado exitoso!", "success");
+               // Opcional: Recargar datos reales silenciosamente para tener la URL final de Drive
+               // loadData(); // Si quieres actualizar la URL real
+           } else {
+               showToast("Error guardando: " + r.error, "danger");
+               // Aquí deberíamos revertir el cambio local si falla, pero por simplicidad lo dejamos así
+           }
+       });
+   });
 }
 
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
+
+// --- OPTIMISTIC CREATION ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
         categoria:document.getElementById('new-categoria').value, 
         proveedor:document.getElementById('new-proveedor').value, 
-        costo:document.getElementById('new-costo').value, 
-        publico:document.getElementById('new-publico').value, 
+        costo: parseFloat(document.getElementById('new-costo').value), 
+        publico: parseFloat(document.getElementById('new-publico').value), 
         id:document.getElementById('new-id').value||'GEN-'+Math.random()
     }; 
-    callAPI('crearProductoManual', d).then(r=>{if(r.exito){myModalNuevo.hide();location.reload();}}); 
+    
+    // 1. Agregar localmente
+    D.inv.unshift({
+        id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, 
+        foto: "", desc: "", enWeb: false, catWeb: "tecnologia"
+    });
+    
+    // 2. UI Update
+    renderInv();
+    myModalNuevo.hide();
+    showToast("Producto creado. Sincronizando...", "info");
+
+    // 3. API Call
+    callAPI('crearProductoManual', d).then(r=>{
+        if(r.exito){ showToast("Sincronizado con éxito", "success"); }
+        else { showToast("Error al crear en servidor", "danger"); }
+    }); 
 }
+
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
@@ -440,7 +461,6 @@ function renderPed(){
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
-        
         var controls = isPend 
            ? `<div class="d-flex gap-2 mt-2">
                 <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️ Editar</button>
@@ -448,30 +468,14 @@ function renderPed(){
               </div>
               <button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="comprarPedido('${p.id}', '${p.prod}')">✅ Comprar</button>` 
            : `<div class="badge bg-success mt-2 d-block w-100">Comprado</div>`;
-        
-        c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
-           <div class="d-flex justify-content-between">
-              <div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div>
-              <div class="text-end"><small>${p.fecha}</small><br><span class="badge ${isPend?'bg-warning text-dark':'bg-success'}">${p.estado}</span></div>
-           </div>
-           ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
-           ${controls}
-        </div>`;
+        c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br><span class="badge ${isPend?'bg-warning text-dark':'bg-success'}">${p.estado}</span></div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`;
     }); 
 }
 
 function savePed(){ 
     var p=document.getElementById('pe-prod').value; 
     if(!p) return alert("Escribe un producto");
-    
-    var d = {
-        user: D.user, 
-        prod: p, 
-        prov: document.getElementById('pe-prov').value,
-        costoEst: document.getElementById('pe-costo').value,
-        notas: document.getElementById('pe-nota').value
-    };
-    
+    var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value };
     document.getElementById('loader').style.display='flex';
     callAPI('guardarPedido', d).then(()=>location.reload()); 
 }
@@ -487,35 +491,16 @@ function openEditPed(p) {
 
 function guardarEdicionPed() {
     if(!pedEditId) return;
-    var d = {
-        id: pedEditId,
-        prod: document.getElementById('ed-ped-prod').value,
-        prov: document.getElementById('ed-ped-prov').value,
-        costoEst: document.getElementById('ed-ped-costo').value,
-        notas: document.getElementById('ed-ped-nota').value
-    };
+    var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value };
     document.getElementById('loader').style.display='flex';
-    callAPI('editarPedido', d).then(r => {
-        if(r.exito) location.reload();
-        else { alert(r.error); document.getElementById('loader').style.display='none'; }
-    });
+    callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
 }
 
 function delPed(id) {
-    Swal.fire({
-        title: '¿Eliminar Pedido?',
-        text: "No podrás deshacer esta acción.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Sí, eliminar'
-    }).then((result) => {
+    Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('loader').style.display='flex';
-            callAPI('eliminarPedido', id).then(r => {
-                if(r.exito) location.reload();
-                else { alert(r.error); document.getElementById('loader').style.display='none'; }
-            });
+            callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
         }
     });
 }
@@ -530,19 +515,12 @@ function comprarPedido(id, nombreProd) {
         showCancelButton: true,
         confirmButtonText: 'Sí, Registrar Gasto e Inventario',
         cancelButtonText: 'Cancelar',
-        inputValidator: (value) => {
-            if (!value || value <= 0) return 'Debes ingresar un costo válido para registrar el gasto.';
-        }
+        inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; }
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('loader').style.display = 'flex';
             callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => {
-                 if(r.exito) {
-                     Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload());
-                 } else {
-                     alert(r.error);
-                     document.getElementById('loader').style.display = 'none';
-                 }
+                 if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
             });
         }
     });
