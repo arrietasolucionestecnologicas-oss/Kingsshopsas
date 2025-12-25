@@ -50,8 +50,12 @@
     .nav-btn { background: none; border: none; color: #aaa; display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; }
     .nav-btn.active { color: var(--p); font-weight: bold; }
 
-    .file-upload-wrapper { position: relative; width: 100%; height: 150px; border: 2px dashed #ccc; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa; overflow: hidden; }
-    .preview-img { position: absolute; width: 100%; height: 100%; object-fit: cover; z-index: 1; display: none; }
+    /* CORRECCIÓN CRÍTICA DE IMAGEN */
+    .file-upload-wrapper { position: relative; width: 100%; height: 200px; border: 2px dashed #ccc; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa; overflow: hidden; }
+    .preview-img { position: absolute; width: 100%; height: 100%; object-fit: contain; z-index: 5; display: none; background: white; }
+    /* El input debe estar ENCIMA de la imagen para recibir el clic */
+    .file-input-overlay { position: absolute; top:0; left:0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 100; }
+    .placeholder-text { z-index: 1; pointer-events: none; }
 
     #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
 
@@ -213,8 +217,8 @@
                 </div>
 
                 <div class="mb-3 file-upload-wrapper">
-                    <input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()" style="position:absolute; width:100%; height:100%; opacity:0; cursor:pointer;">
-                    <img id="img-preview-box" class="preview-img" style="display:none;">
+                    <input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()" class="file-input-overlay">
+                    <img id="img-preview-box" class="preview-img">
                     <div class="placeholder-text text-center text-muted">
                         <div style="font-size:2rem;">📷</div>
                         <div>Toca para cambiar foto</div>
@@ -297,6 +301,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
