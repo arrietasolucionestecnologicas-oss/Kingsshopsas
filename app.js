@@ -81,7 +81,7 @@ function loadData(){
     
     renderPos(); 
     renderInv(); 
-    renderWeb(); // NEW
+    renderWeb();
     renderFin(); 
     renderPed();
     renderProvs();
@@ -257,6 +257,7 @@ function abrirModalNuevo() {
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
+// --- FUNCION CLAVE: CALCULO AUTOMATICO 30% ---
 function calcGain(idCosto, idPublico) {
     var costo = parseFloat(document.getElementById(idCosto).value);
     if(costo > 0) {
@@ -377,6 +378,7 @@ function renderInv(){
         <div class="d-flex gap-1 mt-2">
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
             <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
+            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato(decodeURIComponent('${descEncoded}'))" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
             <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
         </div>`;
         var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
@@ -392,6 +394,7 @@ function copiarDato(txt) {
 
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
 
+// --- OPTIMISTIC UI UPDATE ---
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
    
@@ -466,6 +469,7 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
+// --- OPTIMISTIC CREATION FULL ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -481,6 +485,7 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
+    // UI Update local
     D.inv.unshift({
         id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
         costo: d.costo, publico: d.publico, desc: d.descripcion,
