@@ -211,7 +211,16 @@
                     <input class="form-check-input" type="checkbox" id="inp-edit-web" style="cursor:pointer;">
                     <label class="form-check-label fw-bold small text-primary" for="inp-edit-web">🌐 Mostrar en Página Web</label>
                 </div>
-                <div class="mb-3 file-upload-wrapper"><input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()"><img id="img-preview-box" class="preview-img"><div class="placeholder-text"><div style="font-size:2rem;">📷</div><div>Subir Foto</div></div></div>
+
+                <div class="mb-3 file-upload-wrapper">
+                    <input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()" style="position:absolute; width:100%; height:100%; opacity:0; cursor:pointer;">
+                    <img id="img-preview-box" class="preview-img" style="display:none;">
+                    <div class="placeholder-text text-center text-muted">
+                        <div style="font-size:2rem;">📷</div>
+                        <div>Toca para cambiar foto</div>
+                    </div>
+                </div>
+
                 <div class="d-grid gap-2"><button class="btn btn-dark" onclick="guardarCambiosAvanzado()">Guardar</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar</button></div>
             </div>
         </div>
@@ -288,6 +297,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
