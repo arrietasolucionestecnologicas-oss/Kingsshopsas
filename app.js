@@ -78,8 +78,7 @@ function loadData(){
     renderPed();
     renderProvs();
     
-    var dl = document.getElementById('list-cats'); dl.innerHTML='';
-    (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); });
+    var dl = document.getElementById('list-cats'); if(dl) { dl.innerHTML=''; (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); }
     
     var dlp = document.querySelectorAll('#list-prods-all'); 
     dlp.forEach(list => {
@@ -90,6 +89,17 @@ function loadData(){
             list.appendChild(o); 
         });
     });
+
+    // Llenar select de categorías en modal edición si existe
+    var editCat = document.getElementById('inp-edit-categoria');
+    if(editCat){
+        editCat.innerHTML = '';
+        (res.categorias || []).forEach(c => {
+            var o = document.createElement('option');
+            o.value = c; o.text = c;
+            editCat.appendChild(o);
+        });
+    }
 
     updateGastosSelect();
   });
@@ -118,13 +128,12 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// FUNCION MAESTRA PARA ARREGLAR IMAGENES DE DRIVE
 function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
         if (m && m[1]) {
-            return "https://lh3.googleusercontent.com/d/" + m[1];
+            return "http://lh3.googleusercontent.com/d/" + m[1];
         }
     }
     return url;
@@ -261,6 +270,7 @@ function abrirModalProv() { renderProvs(); myModalProv.show(); }
 function abrirModalNuevo() { document.getElementById('new-id').value=''; myModalNuevo.show(); }
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
+
 function openEdit(p) { 
     prodEdit=p; 
     document.getElementById('inp-edit-nombre').value=p.nombre; 
@@ -269,6 +279,10 @@ function openEdit(p) {
     document.getElementById('inp-edit-publico').value=p.publico || 0; 
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
+    
+    // CARGAR CHECKBOX WEB
+    document.getElementById('inp-edit-web').checked = p.enWeb || false;
+
     document.getElementById('img-preview-box').style.display='none'; 
     
     var fixedUrl = fixDriveLink(p.foto);
@@ -299,7 +313,6 @@ function renderInv(){
     }
 
     lista.slice(0, 50).forEach(p=>{
-        // FIX CRÍTICO: Se codifica la descripción para evitar que saltos de línea rompan el HTML
         var descEncoded = encodeURIComponent(p.desc || "");
         
         var btnsCopy = `
@@ -311,12 +324,13 @@ function renderInv(){
         </div>`;
 
         var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
+        var webStatus = p.enWeb ? '<span class="badge bg-primary ms-1"><i class="fas fa-globe"></i></span>' : '';
 
         c.innerHTML+=`
         <div class="card-k">
             <div class="d-flex justify-content-between align-items-start" onclick='openEdit(${JSON.stringify(p)})'>
                 <div>
-                    <strong>${p.nombre}</strong><br>
+                    <strong>${p.nombre}</strong>${webStatus}<br>
                     <small class="text-muted">${p.cat} | Costo: ${COP.format(p.costo)}</small>
                     ${publicoHtml}
                 </div>
@@ -351,7 +365,8 @@ function guardarCambiosAvanzado(){
        costo:document.getElementById('inp-edit-costo').value, 
        publico:document.getElementById('inp-edit-publico').value, 
        descripcion:document.getElementById('inp-edit-desc').value, 
-       urlExistente:prodEdit.foto||""
+       urlExistente:prodEdit.foto||"",
+       enWeb: document.getElementById('inp-edit-web').checked // ENVIAR CHECKBOX
    };
    var f=document.getElementById('inp-file-foto').files[0];
    var send=function(b64){ d.imagenBase64=b64; if(f){d.mimeType=f.type;d.nombreArchivo=f.name;} callAPI('guardarProductoAvanzado', d).then(r=>{btn.innerText=txt;btn.disabled=false;if(r.exito){myModalEdit.hide();location.reload();}else alert(r.error)}); };
