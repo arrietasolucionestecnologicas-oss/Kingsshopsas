@@ -273,16 +273,18 @@ function abrirModalPed() { myModalPed.show(); }
 function openEdit(p) { 
     prodEdit=p; 
     document.getElementById('inp-edit-nombre').value=p.nombre; 
-    document.getElementById('inp-edit-categoria').value=p.cat; 
+    document.getElementById('inp-edit-categoria').value=p.cat; // CATEGORIA INTERNA (APP)
     document.getElementById('inp-edit-costo').value=p.costo; 
     document.getElementById('inp-edit-publico').value=p.publico || 0; 
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     
-    // CARGAR CHECKBOX WEB
+    // Checkbox WEB
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
+    
+    // CATEGORIA WEB (MANUAL)
+    document.getElementById('inp-edit-cat-web').value = p.catWeb || 'tecnologia';
 
-    // RESET INPUT FOTO
     document.getElementById('inp-file-foto').value = "";
     document.getElementById('img-preview-box').style.display='none'; 
     
@@ -367,7 +369,8 @@ function guardarCambiosAvanzado(){
        publico:document.getElementById('inp-edit-publico').value, 
        descripcion:document.getElementById('inp-edit-desc').value, 
        urlExistente:prodEdit.foto||"",
-       enWeb: document.getElementById('inp-edit-web').checked
+       enWeb: document.getElementById('inp-edit-web').checked,
+       catWeb: document.getElementById('inp-edit-cat-web').value // ENVIO CATEGORIA MANUAL
    };
    
    var f=document.getElementById('inp-file-foto').files[0];
