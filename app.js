@@ -279,11 +279,11 @@ function openEdit(p) {
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     
-    // Checkbox WEB
+    // CARGAR CHECKBOX WEB
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
 
-    // LÓGICA DE FOTO MEJORADA
-    document.getElementById('inp-file-foto').value = ""; // LIMPIAR INPUT SIEMPRE
+    // RESET INPUT FOTO
+    document.getElementById('inp-file-foto').value = "";
     document.getElementById('img-preview-box').style.display='none'; 
     
     var fixedUrl = fixDriveLink(p.foto);
