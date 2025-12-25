@@ -16,12 +16,10 @@ const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP',
 function showToast(msg, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
-    
     const toast = document.createElement('div');
     toast.className = `toast align-items-center text-white bg-${type} border-0 show mb-2`;
     toast.role = 'alert';
     toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-    
     toastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
@@ -95,9 +93,11 @@ function loadData(){
         (D.inv || []).forEach(p => { var o=document.createElement('option'); o.value=p.nombre; list.appendChild(o); });
     });
 
-    // Llenar select de categorías en modal edición (INTERNAL CATEGORY)
-    // El select de WEB se llena fijo en HTML
-    
+    var editCat = document.getElementById('inp-edit-categoria');
+    if(editCat){
+        editCat.innerHTML = '';
+        (res.categorias || []).forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
+    }
     updateGastosSelect();
   });
 }
@@ -248,9 +248,22 @@ function finalizarVenta() {
 }
 
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
-function abrirModalNuevo() { document.getElementById('new-id').value=''; myModalNuevo.show(); }
+function abrirModalNuevo() { 
+    document.getElementById('new-id').value=''; 
+    document.getElementById('new-file-foto').value = ""; // RESET FOTO
+    myModalNuevo.show(); 
+}
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
+
+// --- FUNCION CLAVE: CALCULO AUTOMATICO 30% ---
+function calcGain(idCosto, idPublico) {
+    var costo = parseFloat(document.getElementById(idCosto).value);
+    if(costo > 0) {
+        var ganancia = costo * 1.30; // 30% de ganancia sobre el costo
+        document.getElementById(idPublico).value = Math.round(ganancia);
+    }
+}
 
 function openEdit(p) { 
     prodEdit=p; 
@@ -313,7 +326,6 @@ function previewFile(){ var f=document.getElementById('inp-file-foto').files[0];
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
    
-   // 1. OBTENER VALORES
    var newVal = {
        id: prodEdit.id, 
        nombre: document.getElementById('inp-edit-nombre').value, 
@@ -327,7 +339,6 @@ function guardarCambiosAvanzado(){
        catWeb: document.getElementById('inp-edit-cat-web').value
    };
 
-   // 2. DETECTAR FOTO NUEVA
    var f = document.getElementById('inp-file-foto').files[0];
    var promise = Promise.resolve(null);
 
@@ -340,7 +351,6 @@ function guardarCambiosAvanzado(){
    }
 
    promise.then(b64 => {
-       // 3. ACTUALIZAR MODELO LOCAL
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
        if(idx > -1) {
            if(b64) {
@@ -350,13 +360,11 @@ function guardarCambiosAvanzado(){
            D.inv[idx] = newVal; 
        }
 
-       // 4. REFLEJAR EN UI
        renderInv();
        renderPos();
        myModalEdit.hide();
        showToast("Guardando cambios...", "info");
 
-       // 5. ENVIAR A API (BACKGROUND)
        var payload = {
            id: newVal.id,
            nombre: newVal.nombre,
@@ -389,7 +397,7 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
-// --- OPTIMISTIC CREATION ---
+// --- OPTIMISTIC CREATION FULL ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -397,25 +405,45 @@ function crearProducto(){
         proveedor:document.getElementById('new-proveedor').value, 
         costo: parseFloat(document.getElementById('new-costo').value), 
         publico: parseFloat(document.getElementById('new-publico').value), 
+        descripcion: document.getElementById('new-desc').value,
+        enWeb: document.getElementById('new-web').checked,
+        catWeb: document.getElementById('new-cat-web').value,
         id:document.getElementById('new-id').value||'GEN-'+Math.random()
     }; 
     
-    // 1. Agregar localmente
+    var f = document.getElementById('new-file-foto').files[0];
+    
+    // UI Update local
     D.inv.unshift({
-        id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, 
-        foto: "", desc: "", enWeb: false, catWeb: "tecnologia"
+        id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
+        costo: d.costo, publico: d.publico, desc: d.descripcion,
+        foto: "", enWeb: d.enWeb, catWeb: d.catWeb
     });
     
-    // 2. UI Update
     renderInv();
     myModalNuevo.hide();
-    showToast("Producto creado. Sincronizando...", "info");
+    showToast("Creando producto...", "info");
 
-    // 3. API Call
-    callAPI('crearProductoManual', d).then(r=>{
-        if(r.exito){ showToast("Sincronizado con éxito", "success"); }
-        else { showToast("Error al crear en servidor", "danger"); }
-    }); 
+    var promise = Promise.resolve(null);
+    if(f) {
+        promise = new Promise((resolve) => {
+           var r = new FileReader();
+           r.onload = e => resolve(e.target.result.split(',')[1]); 
+           r.readAsDataURL(f);
+       });
+    }
+
+    promise.then(b64 => {
+        if(b64) {
+            d.imagenBase64 = b64;
+            d.mimeType = f.type;
+            d.nombreArchivo = f.name;
+        }
+        callAPI('crearProductoManual', d).then(r=>{
+            if(r.exito){ showToast("Producto sincronizado", "success"); }
+            else { showToast("Error al crear en servidor", "danger"); }
+        });
+    });
 }
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
