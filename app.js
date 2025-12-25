@@ -95,11 +95,9 @@ function loadData(){
         (D.inv || []).forEach(p => { var o=document.createElement('option'); o.value=p.nombre; list.appendChild(o); });
     });
 
-    var editCat = document.getElementById('inp-edit-categoria');
-    if(editCat){
-        editCat.innerHTML = '';
-        (res.categorias || []).forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
-    }
+    // Llenar select de categorías en modal edición (INTERNAL CATEGORY)
+    // El select de WEB se llena fijo en HTML
+    
     updateGastosSelect();
   });
 }
@@ -315,7 +313,7 @@ function previewFile(){ var f=document.getElementById('inp-file-foto').files[0];
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
    
-   // 1. OBTENER VALORES DEL FORMULARIO
+   // 1. OBTENER VALORES
    var newVal = {
        id: prodEdit.id, 
        nombre: document.getElementById('inp-edit-nombre').value, 
@@ -324,46 +322,41 @@ function guardarCambiosAvanzado(){
        costo: parseFloat(document.getElementById('inp-edit-costo').value), 
        publico: parseFloat(document.getElementById('inp-edit-publico').value), 
        desc: document.getElementById('inp-edit-desc').value, 
-       foto: prodEdit.foto || "", // Mantiene la vieja por defecto
+       foto: prodEdit.foto || "", 
        enWeb: document.getElementById('inp-edit-web').checked,
        catWeb: document.getElementById('inp-edit-cat-web').value
    };
 
-   // 2. DETECTAR SI HAY NUEVA FOTO (FILE INPUT)
+   // 2. DETECTAR FOTO NUEVA
    var f = document.getElementById('inp-file-foto').files[0];
    var promise = Promise.resolve(null);
 
    if(f) {
-       // Si hay foto nueva, la leemos como DataURL para mostrarla YA
        promise = new Promise((resolve) => {
            var r = new FileReader();
-           r.onload = e => resolve(e.target.result); // Base64
+           r.onload = e => resolve(e.target.result); 
            r.readAsDataURL(f);
        });
    }
 
    promise.then(b64 => {
-       // 3. ACTUALIZAR MODELO LOCAL (D.inv)
+       // 3. ACTUALIZAR MODELO LOCAL
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
        if(idx > -1) {
            if(b64) {
-               newVal.foto = "data:image/jpeg;base64,..."; // Placeholder visual
-               // NOTA: No podemos poner el blob gigante en memoria para siempre, pero sirve para el render inmediato
-               // OJO: Para "optimistic", usaremos el preview actual si existe
                var previewSrc = document.getElementById('img-preview-box').src;
                if(previewSrc) newVal.foto = previewSrc; 
            }
-           D.inv[idx] = newVal; // Actualizamos el array local
+           D.inv[idx] = newVal; 
        }
 
-       // 4. REFLEJAR CAMBIOS EN LA UI INMEDIATAMENTE
+       // 4. REFLEJAR EN UI
        renderInv();
        renderPos();
        myModalEdit.hide();
        showToast("Guardando cambios...", "info");
 
-       // 5. ENVIAR A API EN SEGUNDO PLANO
-       // Preparamos payload
+       // 5. ENVIAR A API (BACKGROUND)
        var payload = {
            id: newVal.id,
            nombre: newVal.nombre,
@@ -372,14 +365,12 @@ function guardarCambiosAvanzado(){
            costo: newVal.costo,
            publico: newVal.publico,
            descripcion: newVal.desc,
-           urlExistente: prodEdit.foto || "", // Enviamos la URL original al server
+           urlExistente: prodEdit.foto || "", 
            enWeb: newVal.enWeb,
            catWeb: newVal.catWeb
        };
 
        if(b64) {
-           // Si hay foto nueva, enviamos el base64 REAL (sin el prefix data:image...)
-           // El b64 que viene del FileReader trae el prefix, hay que quitarlo
            payload.imagenBase64 = b64.split(',')[1];
            payload.mimeType = f.type;
            payload.nombreArchivo = f.name;
@@ -388,11 +379,8 @@ function guardarCambiosAvanzado(){
        callAPI('guardarProductoAvanzado', payload).then(r => {
            if(r.exito) {
                showToast("¡Guardado exitoso!", "success");
-               // Opcional: Recargar datos reales silenciosamente para tener la URL final de Drive
-               // loadData(); // Si quieres actualizar la URL real
            } else {
                showToast("Error guardando: " + r.error, "danger");
-               // Aquí deberíamos revertir el cambio local si falla, pero por simplicidad lo dejamos así
            }
        });
    });
