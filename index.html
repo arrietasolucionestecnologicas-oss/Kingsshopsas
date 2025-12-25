@@ -108,6 +108,12 @@
       <div id="inv-list"></div>
     </div>
 
+    <div id="view-web" class="view-sec" style="display:none; padding:15px;">
+        <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-globe"></i> Gestión Web</h5>
+        <input type="text" id="web-search" class="form-control mb-3" placeholder="🔍 Filtrar productos en web..." onkeyup="renderWeb()">
+        <div id="web-list"></div>
+    </div>
+
     <div id="view-ped" class="view-sec" style="display:none; padding:15px;">
       <button class="btn btn-dark w-100 mb-3" onclick="abrirModalPed()">+ Nuevo Pedido</button>
       <div id="ped-list"></div>
@@ -153,10 +159,10 @@
   <button id="btn-float-cart" class="btn btn-warning rounded-circle shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="toggleMobileCart()">🛒</button>
 
   <div class="nav-btm">
-    <button class="nav-btn active" onclick="nav('pos',this)"><i class="fas fa-store fa-lg"></i>Vender</button>
-    <button class="nav-btn" onclick="nav('inv',this)"><i class="fas fa-boxes fa-lg"></i>Inventario</button>
-    <button class="nav-btn" onclick="nav('ped',this)"><i class="fas fa-clipboard-list"></i>Pedidos</button>
-    <button class="nav-btn" onclick="nav('fin',this)"><i class="fas fa-chart-line fa-lg"></i>Finanzas</button>
+    <button class="nav-btn active" onclick="nav('pos',this)"><i class="fas fa-store fa-lg"></i></button>
+    <button class="nav-btn" onclick="nav('inv',this)"><i class="fas fa-boxes fa-lg"></i></button>
+    <button class="nav-btn" onclick="nav('web',this)"><i class="fas fa-globe fa-lg text-primary"></i></button> <button class="nav-btn" onclick="nav('ped',this)"><i class="fas fa-clipboard-list"></i></button>
+    <button class="nav-btn" onclick="nav('fin',this)"><i class="fas fa-chart-line fa-lg"></i></button>
   </div>
 
   <template id="tpl-cart">
@@ -208,10 +214,10 @@
                         <label class="small fw-bold">Categoría</label>
                         <input list="list-cats" id="inp-edit-categoria" class="form-control">
                     </div>
-                    <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico')"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control"></div>
                 </div>
                 <div class="mb-2 p-2 bg-light border rounded">
-                    <label class="small fw-bold text-success">Precio Público (Auto +30%)</label>
+                    <label class="small fw-bold text-success">Precio Público (Manual)</label>
                     <input type="number" id="inp-edit-publico" class="form-control border-success" placeholder="0 = Usar formula automatica">
                 </div>
 
@@ -256,37 +262,16 @@
                     <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="new-nombre" class="form-control" required></div>
                     <div class="row g-2 mb-2">
                         <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
-                        <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico')"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control"></div>
                     </div>
-                    <div class="mb-2 p-2 bg-light border rounded">
-                        <label class="small fw-bold text-success">Precio Público (Auto +30%)</label>
-                        <input type="number" id="new-publico" class="form-control border-success">
+                    <div class="mb-2">
+                        <label class="small fw-bold text-success">Precio Público</label>
+                        <input type="number" id="new-publico" class="form-control border-success" placeholder="Opcional">
                     </div>
 
                     <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div>
-                    <div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="new-desc" class="form-control"></textarea></div>
-                    <div class="mb-3"><label class="small fw-bold">ID (Auto)</label><input id="new-id" class="form-control bg-light" readonly></div>
-
-                    <div class="p-3 bg-light rounded border my-3">
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="new-web" style="cursor:pointer;">
-                            <label class="form-check-label fw-bold small text-primary" for="new-web">🌐 Mostrar en Página Web</label>
-                        </div>
-                        <label class="small fw-bold text-primary">Categoría Web:</label>
-                        <select id="new-cat-web" class="form-select form-select-sm border-primary">
-                            <option value="tecnologia">Tecnología</option>
-                            <option value="electro">Hogar y Electrodomésticos</option>
-                            <option value="juguetes">Juguetes</option>
-                            <option value="perfumes">Perfumes</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="small fw-bold">Foto:</label>
-                        <input type="file" id="new-file-foto" accept="image/*" class="form-control">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary w-100">Crear Producto</button>
+                    <div class="mb-3"><label class="small fw-bold">ID</label><input id="new-id" class="form-control bg-light" readonly></div>
+                    <button type="submit" class="btn btn-primary w-100">Crear</button>
                 </form>
             </div>
         </div>
@@ -338,6 +323,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=35"></script>
 </body>
 </html>
