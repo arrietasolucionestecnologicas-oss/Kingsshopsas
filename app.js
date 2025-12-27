@@ -166,22 +166,43 @@ function updateCartUI() {
    var btnFloat = document.getElementById('btn-float-cart');
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
+   
+   // FIX: Si el carrito se vacía, forzar cierre del modal móvil
+   if(count === 0) {
+       document.getElementById('mobile-cart').classList.remove('visible');
+   }
+
    var names = CART.map(x=>x.nombre).join(', ');
    document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
 }
 
 function toggleManual() {
-    var isManual = document.querySelector('#c-manual').checked;
-    var inpTotal = document.querySelector('#res-cont-input');
-    var txtTotal = document.querySelector('#res-cont');
-    var inpUtil = document.querySelector('#c-util');
-    if(isManual) { inpTotal.style.display = 'inline-block'; txtTotal.style.display = 'none'; inpUtil.disabled = true; } 
-    else { inpTotal.style.display = 'none'; txtTotal.style.display = 'inline-block'; inpUtil.disabled = false; }
+    // FIX: Detectar contexto móvil/escritorio para evitar conflicto de IDs
+    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+
+    var isManual = parent.querySelector('#c-manual').checked;
+    var inpTotal = parent.querySelector('#res-cont-input');
+    var txtTotal = parent.querySelector('#res-cont');
+    var inpUtil = parent.querySelector('#c-util');
+
+    if(isManual) { 
+        inpTotal.style.display = 'inline-block'; 
+        txtTotal.style.display = 'none'; 
+        inpUtil.disabled = true; 
+        // FIX: Foco automático para teclado móvil
+        setTimeout(() => { inpTotal.focus(); }, 100);
+    } else { 
+        inpTotal.style.display = 'none'; 
+        txtTotal.style.display = 'inline-block'; 
+        inpUtil.disabled = false; 
+    }
     calcCart();
 }
 
 function calcCart() {
    if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(0)); return; }
+   
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
@@ -203,6 +224,7 @@ function calcCart() {
            return acc + (item.costo * (1 + util/100)); 
        }, 0);
        if(conIva) base = base * 1.19;
+       // Actualizamos visuales en ambas vistas para consistencia
        document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
        document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
    }
@@ -360,8 +382,8 @@ function toggleWebStatus(id) {
            urlExistente: p.foto || "", 
            enWeb: p.enWeb,
            catWeb: p.catWeb
-       };
-       callAPI('guardarProductoAvanzado', payload);
+        };
+        callAPI('guardarProductoAvanzado', payload);
     }
 }
 
