@@ -50,6 +50,14 @@ window.onload = function() {
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
+
+  // --- MODIFICACIÓN: HABILITAR EDICIÓN DE INICIAL ---
+  // Buscamos los inputs de inicial inyectados y los habilitamos manualmente
+  document.querySelectorAll('#c-inicial').forEach(el => {
+      el.removeAttribute('disabled');
+      el.style.background = '#fff'; // Quitar el gris de deshabilitado
+      el.oninput = calcCart;        // Asignar evento de recalculo al escribir
+  });
   
   var lastView = localStorage.getItem('lastView') || 'pos';
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
@@ -167,7 +175,6 @@ function updateCartUI() {
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
    
-   // FIX: Si el carrito se vacía, forzar cierre del modal móvil
    if(count === 0) {
        document.getElementById('mobile-cart').classList.remove('visible');
    }
@@ -177,7 +184,6 @@ function updateCartUI() {
 }
 
 function toggleManual() {
-    // FIX: Detectar contexto móvil/escritorio para evitar conflicto de IDs
     var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
     var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
 
@@ -190,7 +196,6 @@ function toggleManual() {
         inpTotal.style.display = 'inline-block'; 
         txtTotal.style.display = 'none'; 
         inpUtil.disabled = true; 
-        // FIX: Foco automático para teclado móvil
         setTimeout(() => { inpTotal.focus(); }, 100);
     } else { 
         inpTotal.style.display = 'none'; 
@@ -224,23 +229,57 @@ function calcCart() {
            return acc + (item.costo * (1 + util/100)); 
        }, 0);
        if(conIva) base = base * 1.19;
-       // Actualizamos visuales en ambas vistas para consistencia
        document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
        document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
    }
    calculatedValues.total = base;
-   var rowCred = parent.querySelectorAll('#row-cred'); var inpInicial = parent.querySelectorAll('#c-inicial');
+   
+   var rowCred = parent.querySelectorAll('#row-cred'); 
+   var inpInicial = parent.querySelectorAll('#c-inicial');
+
    if(metodo === "Crédito") {
-       var inicial = base * 0.30; calculatedValues.inicial = inicial;
-       var saldoRestante = base - inicial; var saldoConInteres = saldoRestante * (1 + inter/100); var valorCuota = saldoConInteres / cuotas;
+       // --- LÓGICA DE INICIAL MANUAL ---
+       var activeEl = document.activeElement;
+       // Detectamos si el usuario está escribiendo en el input de inicial
+       var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
+       
+       var inicial = 0;
+       if(isTypingInicial) {
+           // Si el usuario escribe, respetamos su valor
+           inicial = parseFloat(parent.querySelector('#c-inicial').value);
+           if(isNaN(inicial)) inicial = 0;
+       } else {
+           // Si no está escribiendo (ej: cambio de total), recalculamos el 30% por defecto
+           inicial = base * 0.30;
+       }
+       
+       calculatedValues.inicial = inicial;
+       
+       var saldoRestante = base - inicial;
+       if(saldoRestante < 0) saldoRestante = 0;
+
+       var saldoConInteres = saldoRestante * (1 + inter/100); 
+       var valorCuota = saldoConInteres / cuotas;
+       
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
            e.querySelector('#res-ini').innerText = COP.format(Math.round(inicial)); 
            e.querySelector('#res-cuota-val').innerText = COP.format(Math.round(valorCuota)); 
            e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} cuotas`; 
        });
-       inpInicial.forEach(e => { e.value = Math.round(inicial); e.style.display='block'; });
-   } else { rowCred.forEach(e => e.style.display = 'none'); inpInicial.forEach(e => e.style.display='none'); }
+       
+       inpInicial.forEach(e => { 
+           // Solo sobrescribimos el valor visual si el usuario NO está escribiendo
+           if(!isTypingInicial) e.value = Math.round(inicial); 
+           e.style.display='block'; 
+           // Aseguramos que se vea editable
+           e.disabled = false;
+           e.style.background = '#fff';
+       });
+   } else { 
+       rowCred.forEach(e => e.style.display = 'none'); 
+       inpInicial.forEach(e => e.style.display='none'); 
+   }
 }
 
 function toggleMobileCart() { document.getElementById('mobile-cart').classList.toggle('visible'); }
