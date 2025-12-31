@@ -138,6 +138,7 @@ function fixDriveLink(url) {
     return url;
 }
 
+// --- ACTUALIZADO: RENDERIZADO TIPO GRID (POS PROFESIONAL) ---
 function renderPos(){
   var q = document.getElementById('pos-search').value.toLowerCase();
   var c = document.getElementById('pos-list'); c.innerHTML='';
@@ -150,21 +151,41 @@ function renderPos(){
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     var fixedUrl = fixDriveLink(p.foto);
     var src = (fixedUrl && fixedUrl.length > 10) ? fixedUrl : '';
-    var img = src ? `<img src="${src}" class="product-thumb">` : `<div class="product-thumb">📷</div>`;
-    var precioDisplay = p.publico > 0 ? `<span class="text-success">${COP.format(p.publico)}</span>` : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
+    
+    // Nueva estructura de tarjeta vertical
+    var imgHtml = src 
+        ? `<img src="${src}" class="pos-img">` 
+        : `<i class="bi bi-box-seam pos-icon"></i>`;
+        
+    var precioDisplay = p.publico > 0 
+        ? `<div class="pos-price">${COP.format(p.publico)}</div>` 
+        : `<div class="pos-cost">Costo: ${COP.format(p.costo)}</div>`;
     
     var div = document.createElement('div');
-    div.className = `card-product d-flex align-items-center ${active}`;
+    div.className = `card-pos ${active}`;
     div.onclick = function() { toggleCart(p, div); };
-    div.innerHTML = `<div class="check-mark">✓</div>${img}<div class="flex-grow-1" style="min-width:0;"><div class="fw-bold text-dark lh-1 mb-1 text-truncate">${p.nombre}</div><small class="text-muted d-block text-truncate">${p.prov}</small><div class="price-tag mt-1">${precioDisplay}</div></div>`;
+    
+    div.innerHTML = `
+        <div class="overlay-check"><i class="bi bi-check-lg"></i></div>
+        <div class="pos-img-container">${imgHtml}</div>
+        <div class="pos-body">
+            <div class="pos-title" title="${p.nombre}">${p.nombre}</div>
+            ${precioDisplay}
+        </div>
+    `;
     c.appendChild(div);
   });
 }
 
 function toggleCart(p, el) {
    var idx = CART.findIndex(x=>x.id===p.id);
-   if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); }
-   else { CART.push(p); el.classList.add('active'); }
+   if(idx > -1) { 
+       CART.splice(idx,1); 
+       el.classList.remove('active'); 
+   } else { 
+       CART.push(p); 
+       el.classList.add('active'); 
+   }
    updateCartUI();
 }
 
