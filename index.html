@@ -13,19 +13,16 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
   <style>
-    /* CSS INCRUSTADO PARA EVITAR ERRORES DE CARGA */
     :root { --p: #1e3c72; --s: #2ecc71; --d: #e74c3c; --bg: #f0f2f5; --accent: #D4AF37; }
     body { background: var(--bg); padding-bottom: 90px; font-family: 'Montserrat', sans-serif; overflow-x: hidden; }
 
     .header { background: var(--p); color:white; padding:15px 20px; border-radius: 0 0 20px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; }
 
-    /* LAYOUT VENTAS */
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
     .list-column { flex: 1; }
     .panel-column { width: 350px; position: sticky; top: 10px; display: none; } 
     @media (min-width: 992px) { .panel-column { display: block; } }
 
-    /* TARJETA PRODUCTO */
     .card-product { background: white; border: none; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; transition: 0.1s; position: relative; border-left: 4px solid transparent; }
     .card-product:hover { transform: translateY(-2px); }
     .card-product.active { border-left-color: var(--accent); background: #fffbf0; border: 1px solid var(--accent); }
@@ -35,18 +32,15 @@
     .product-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 12px; flex-shrink: 0; border: 1px solid #eee; background: #fff; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 1.5rem; }
     .price-tag { font-weight: 700; color: #2e7d32; font-size: 1.1rem; }
 
-    /* PANEL COTIZADOR */
     .cotizador-panel { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
     .input-line { border:none; border-bottom: 2px solid #eee; width:100%; text-align:center; font-weight:bold; outline:none; }
 
-    /* PANEL MOVIL */
     .mobile-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 5000; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 30px rgba(0,0,0,0.2); transform: translateY(110%); transition: transform 0.3s; }
     .mobile-panel.visible { transform: translateY(0); }
 
     .card-k { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: none; }
     .card-balance { padding: 25px; color: white; border-radius: 20px; text-align: center; background: linear-gradient(135deg, #11998e, #38ef7d); box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3); margin-bottom: 15px; }
 
-    /* NAVEGACION INFERIOR MEJORADA */
     .nav-btm { 
         position: fixed; bottom: 0; width: 100%; background: white; 
         display: flex; justify-content: space-between; 
@@ -65,7 +59,6 @@
 
     .file-upload-wrapper { position: relative; width: 100%; height: 200px; border: 2px dashed #ccc; border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #fafafa; overflow: hidden; }
     .preview-img { position: absolute; width: 100%; height: 100%; object-fit: contain; z-index: 5; display: none; background: white; }
-    /* El input debe estar ENCIMA de la imagen para recibir el clic */
     .file-input-overlay { position: absolute; top:0; left:0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 100; }
     .placeholder-text { z-index: 1; pointer-events: none; }
 
@@ -74,17 +67,13 @@
     .btn-bi { background: rgba(255,255,255,0.2); border:none; color:white; border-radius: 8px; padding: 5px 10px; font-size: 0.8rem; text-decoration: none; transition: 0.2s; }
     .btn-bi:hover { background: rgba(255,255,255,0.4); color: white; }
 
-    /* TOAST NOTIFICACIONES */
     #toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; }
 
-    /* PROVEEDORES LIST */
     .prov-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     .prov-item:last-child { border-bottom: none; }
     .btn-wa-mini { background: #25D366; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 
     .btn-xs { padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; }
-    
-    /* CARTERA STYLES */
     .card-debt { border-left: 4px solid #e74c3c; position: relative; }
     .card-debt .badge-debt { background: #e74c3c; color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
   </style>
@@ -153,6 +142,7 @@
       </div>
       <ul class="nav nav-pills nav-fill mb-3 bg-white rounded shadow-sm p-1">
         <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#f-abono">Cobrar</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-ingreso">Ingreso Extra</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-gasto">Gasto</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-hist">Historial</a></li>
       </ul>
@@ -165,6 +155,22 @@
                <button class="btn btn-success w-100" onclick="doAbono()">REGISTRAR ABONO</button>
             </div>
          </div>
+         
+         <div class="tab-pane fade" id="f-ingreso">
+            <div class="card-k">
+               <h6 class="text-primary fw-bold">Registrar Ingreso Extra</h6>
+               <input type="text" id="inc-desc" class="form-control mb-2" placeholder="Descripción (Ej: Préstamo Banco)">
+               <select id="inc-cat" class="form-select mb-2">
+                   <option value="Venta Externa">Venta Externa</option>
+                   <option value="Prestamo">Préstamo</option>
+                   <option value="Inyeccion Capital">Inyección Capital</option>
+                   <option value="Otros">Otros</option>
+               </select>
+               <input type="number" id="inc-monto" class="form-control mb-2" placeholder="Monto que entra">
+               <button class="btn btn-primary w-100" onclick="doIngresoExtra()">REGISTRAR INGRESO</button>
+            </div>
+         </div>
+
          <div class="tab-pane fade" id="f-gasto">
             <div class="card-k">
                <h6 class="text-danger fw-bold">Registrar Gasto</h6>
@@ -176,6 +182,7 @@
                <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR GASTO</button>
             </div>
          </div>
+         
          <div class="tab-pane fade" id="f-hist"><div class="card-k" id="hist-list"></div></div>
       </div>
     </div>
@@ -187,7 +194,7 @@
   <div class="nav-btm">
     <button class="nav-btn active" onclick="nav('pos',this)">
         <i class="fas fa-store"></i>
-        <span>Vender</span>
+        <span>Ventas</span>
     </button>
     <button class="nav-btn" onclick="nav('inv',this)">
         <i class="fas fa-boxes"></i>
@@ -390,6 +397,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=40"></script>
+  <script src="app.js?v=42"></script>
 </body>
 </html>
