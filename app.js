@@ -92,7 +92,7 @@ function loadData(){
     renderFin(); 
     renderPed();
     renderProvs();
-    renderCartera(); // NUEVA FUNCIÓN VISUAL
+    renderCartera();
     
     var dl = document.getElementById('list-cats'); if(dl) { dl.innerHTML=''; (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); }
     
@@ -348,7 +348,6 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- NUEVA FUNCIÓN PARA RENDERIZAR CARTERA ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -620,6 +619,21 @@ function doAbono(){
     document.getElementById('loader').style.display='flex'; 
     callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); 
 }
+// NUEVA FUNCIÓN PARA INGRESO EXTRA
+function doIngresoExtra() {
+    var desc = document.getElementById('inc-desc').value;
+    var cat = document.getElementById('inc-cat').value;
+    var monto = document.getElementById('inc-monto').value;
+    
+    if(!desc || !monto) return alert("Falta descripción o monto");
+    
+    document.getElementById('loader').style.display = 'flex';
+    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => {
+        if(r.exito) location.reload();
+        else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
+    });
+}
+
 function doGasto(){ 
     var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value;
     if(!desc || !monto) return alert("Falta descripción o monto");
@@ -631,14 +645,29 @@ function renderPed(){
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
-        var controls = isPend 
-           ? `<div class="d-flex gap-2 mt-2">
-                <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️ Editar</button>
-                <button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>
-              </div>
-              <button class="btn btn-sm btn-outline-success w-100 mt-2" onclick="comprarPedido('${p.id}', '${p.prod}')">✅ Comprar</button>` 
-           : `<div class="badge bg-success mt-2 d-block w-100">Comprado</div>`;
-        c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br><span class="badge ${isPend?'bg-warning text-dark':'bg-success'}">${p.estado}</span></div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`;
+        // CAMBIO: Mostrar botones SIEMPRE, no solo si es pendiente
+        var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
+        var controls = `
+          <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button>
+            <button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>
+            ${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}
+          </div>`;
+        
+        c.innerHTML+=`
+        <div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <strong>${p.prod}</strong><br>
+                    <small class="text-muted">${p.prov || 'Sin Prov.'}</small>
+                </div>
+                <div class="text-end">
+                    <small>${p.fecha}</small><br>${badge}
+                </div>
+            </div>
+            ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
+            ${controls}
+        </div>`;
     }); 
 }
 
