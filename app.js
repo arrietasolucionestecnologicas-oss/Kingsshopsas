@@ -52,11 +52,10 @@ window.onload = function() {
   document.getElementById('mobile-cart').innerHTML = tpl;
 
   // --- MODIFICACIÓN: HABILITAR EDICIÓN DE INICIAL ---
-  // Buscamos los inputs de inicial inyectados y los habilitamos manualmente
   document.querySelectorAll('#c-inicial').forEach(el => {
       el.removeAttribute('disabled');
-      el.style.background = '#fff'; // Quitar el gris de deshabilitado
-      el.oninput = calcCart;        // Asignar evento de recalculo al escribir
+      el.style.background = '#fff'; 
+      el.oninput = calcCart;        
   });
   
   var lastView = localStorage.getItem('lastView') || 'pos';
@@ -93,6 +92,7 @@ function loadData(){
     renderFin(); 
     renderPed();
     renderProvs();
+    renderCartera(); // NUEVA FUNCIÓN VISUAL
     
     var dl = document.getElementById('list-cats'); if(dl) { dl.innerHTML=''; (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); }
     
@@ -238,18 +238,14 @@ function calcCart() {
    var inpInicial = parent.querySelectorAll('#c-inicial');
 
    if(metodo === "Crédito") {
-       // --- LÓGICA DE INICIAL MANUAL ---
        var activeEl = document.activeElement;
-       // Detectamos si el usuario está escribiendo en el input de inicial
        var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
        
        var inicial = 0;
        if(isTypingInicial) {
-           // Si el usuario escribe, respetamos su valor
            inicial = parseFloat(parent.querySelector('#c-inicial').value);
            if(isNaN(inicial)) inicial = 0;
        } else {
-           // Si no está escribiendo (ej: cambio de total), recalculamos el 30% por defecto
            inicial = base * 0.30;
        }
        
@@ -269,10 +265,8 @@ function calcCart() {
        });
        
        inpInicial.forEach(e => { 
-           // Solo sobrescribimos el valor visual si el usuario NO está escribiendo
            if(!isTypingInicial) e.value = Math.round(inicial); 
            e.style.display='block'; 
-           // Aseguramos que se vea editable
            e.disabled = false;
            e.style.background = '#fff';
        });
@@ -318,7 +312,6 @@ function abrirModalNuevo() {
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
-// --- FUNCION CLAVE: CALCULO AUTOMATICO 30% ---
 function calcGain(idCosto, idPublico) {
     var costo = parseFloat(document.getElementById(idCosto).value);
     if(costo > 0) {
@@ -355,7 +348,40 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDER WEB VIEW (NEW) ---
+// --- NUEVA FUNCIÓN PARA RENDERIZAR CARTERA ---
+function renderCartera() {
+    var c = document.getElementById('cartera-list');
+    var bal = document.getElementById('bal-cartera');
+    if(!c) return;
+    
+    c.innerHTML = '';
+    var totalDeuda = 0;
+    
+    if(!D.deudores || D.deudores.length === 0) {
+        c.innerHTML = '<div class="text-center text-muted p-5">👏 Excelente, no hay deudas pendientes.</div>';
+    } else {
+        D.deudores.forEach(d => {
+            totalDeuda += d.saldo;
+            c.innerHTML += `
+            <div class="card-k card-debt">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-1">${d.cliente}</h6>
+                        <small class="text-muted">${d.producto}</small>
+                        <div class="mt-1"><span class="badge-debt">Debe</span></div>
+                    </div>
+                    <div class="text-end">
+                        <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
+                        <small class="text-muted" style="font-size:0.7rem">ID: ${d.idVenta.split('-').pop()}</small>
+                    </div>
+                </div>
+            </div>`;
+        });
+    }
+    
+    if(bal) bal.innerText = COP.format(totalDeuda);
+}
+
 function renderWeb() {
     var q = document.getElementById('web-search').value.toLowerCase().trim();
     var c = document.getElementById('web-list');
@@ -402,14 +428,12 @@ function toggleWebStatus(id) {
     var idx = D.inv.findIndex(x => x.id === id);
     if(idx > -1) {
         var p = D.inv[idx];
-        p.enWeb = !p.enWeb; // Flip boolean
+        p.enWeb = !p.enWeb; 
         
-        // Optimistic UI
         renderWeb();
-        renderInv(); // Update icon there too
+        renderInv(); 
         showToast("Producto actualizado", "info");
 
-        // Send to API
         var payload = {
            id: p.id,
            nombre: p.nombre,
@@ -455,7 +479,6 @@ function copiarDato(txt) {
 
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
 
-// --- OPTIMISTIC UI UPDATE ---
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
    
@@ -530,7 +553,6 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
-// --- OPTIMISTIC CREATION FULL ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -546,7 +568,6 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
-    // UI Update local
     D.inv.unshift({
         id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
         costo: d.costo, publico: d.publico, desc: d.descripcion,
