@@ -138,40 +138,43 @@ function fixDriveLink(url) {
     return url;
 }
 
-// --- ACTUALIZADO: RENDERIZADO TIPO GRID (POS PROFESIONAL) ---
+// --- VENTA (POS) TIPO BUSCADOR PROFESIONAL ---
 function renderPos(){
-  var q = document.getElementById('pos-search').value.toLowerCase();
-  var c = document.getElementById('pos-list'); c.innerHTML='';
+  var q = document.getElementById('pos-search').value.toLowerCase().trim();
+  var c = document.getElementById('pos-list'); 
+  var placeholder = document.getElementById('pos-placeholder');
+  c.innerHTML='';
+  
+  if(!q) {
+      // Si no escribe nada, mostramos pantalla limpia
+      placeholder.style.display = 'block';
+      return;
+  }
+  placeholder.style.display = 'none';
+
   var lista = D.inv || [];
   var res = lista.filter(p => (p.nombre && p.nombre.toLowerCase().includes(q)) || (p.cat && p.cat.toLowerCase().includes(q)));
-  if(res.length === 0) document.getElementById('msg-empty-pos').style.display = 'block';
-  else document.getElementById('msg-empty-pos').style.display = 'none';
+  
+  if(res.length === 0) {
+      c.innerHTML = '<div class="text-center text-muted py-3">No encontrado</div>';
+      return;
+  }
 
-  res.slice(0,40).forEach(p => {
+  // Renderizado Compacto (Lista Texto)
+  res.slice(0,20).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
-    var fixedUrl = fixDriveLink(p.foto);
-    var src = (fixedUrl && fixedUrl.length > 10) ? fixedUrl : '';
-    
-    // Nueva estructura de tarjeta vertical
-    var imgHtml = src 
-        ? `<img src="${src}" class="pos-img">` 
-        : `<i class="bi bi-box-seam pos-icon"></i>`;
-        
-    var precioDisplay = p.publico > 0 
-        ? `<div class="pos-price">${COP.format(p.publico)}</div>` 
-        : `<div class="pos-cost">Costo: ${COP.format(p.costo)}</div>`;
-    
+    var precioDisplay = p.publico > 0 ? COP.format(p.publico) : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
+    var descCorto = p.cat + (p.prov ? ` • ${p.prov}` : '');
+
     var div = document.createElement('div');
-    div.className = `card-pos ${active}`;
+    div.className = `pos-row-lite ${active}`;
     div.onclick = function() { toggleCart(p, div); };
-    
     div.innerHTML = `
-        <div class="overlay-check"><i class="bi bi-check-lg"></i></div>
-        <div class="pos-img-container">${imgHtml}</div>
-        <div class="pos-body">
-            <div class="pos-title" title="${p.nombre}">${p.nombre}</div>
-            ${precioDisplay}
+        <div class="info">
+            <div class="name">${p.nombre}</div>
+            <div class="meta">${descCorto}</div>
         </div>
+        <div class="price">${precioDisplay}</div>
     `;
     c.appendChild(div);
   });
@@ -470,25 +473,41 @@ function toggleWebStatus(id) {
     }
 }
 
+// --- ACTUALIZADO: RENDERIZADO CATÁLOGO (GRID + COPY BUTTONS) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim(); 
-    var c=document.getElementById('inv-list');
+    var c = document.getElementById('inv-list');
     c.innerHTML=''; 
     var lista = D.inv || [];
     if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
 
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
-        var btnsCopy = `
-        <div class="d-flex gap-1 mt-2">
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.id}')" title="Copiar ID"><i class="fas fa-barcode"></i></button>
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato('${p.nombre}')" title="Copiar Nombre"><i class="fas fa-tag"></i></button>
-            <button class="btn btn-xs btn-outline-secondary" onclick="copiarDato(decodeURIComponent('${descEncoded}'))" title="Copiar Desc"><i class="fas fa-align-left"></i></button>
-            <button class="btn btn-xs btn-outline-success fw-bold" onclick="copiarDato('${p.publico}')" title="Copiar Precio Web">$</button>
-        </div>`;
-        var publicoHtml = p.publico > 0 ? `<div class="text-success fw-bold">P.Público: ${COP.format(p.publico)}</div>` : `<div class="text-muted small">Sin precio público</div>`;
-        var webStatus = p.enWeb ? '<span class="badge bg-primary ms-1"><i class="fas fa-globe"></i></span>' : '';
-        c.innerHTML+=`<div class="card-k"><div class="d-flex justify-content-between align-items-start" onclick='openEdit(${JSON.stringify(p)})'><div><strong>${p.nombre}</strong>${webStatus}<br><small class="text-muted">${p.cat} | Costo: ${COP.format(p.costo)}</small>${publicoHtml}</div><button class="btn btn-sm btn-light border">✏️</button></div>${btnsCopy}</div>`;
+        var fixedUrl = fixDriveLink(p.foto);
+        var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
+        var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
+
+        // Estructura Tarjeta Grid
+        var div = document.createElement('div');
+        div.className = 'card-catalog';
+        div.innerHTML = `
+            <div class="cat-img-box">
+                ${imgHtml}
+                <div class="btn-edit-float" onclick='openEdit(${JSON.stringify(p)})'><i class="fas fa-pencil-alt"></i></div>
+            </div>
+            <div class="cat-body">
+                <div class="cat-title">${p.nombre}</div>
+                <div class="cat-price">${precioDisplay}</div>
+                <small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small>
+            </div>
+            <div class="cat-actions">
+                <div class="btn-copy-mini" onclick="copiarDato('${p.id}')">ID</div>
+                <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
+                <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
+                <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
+            </div>
+        `;
+        c.appendChild(div);
     }); 
 }
 
