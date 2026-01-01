@@ -711,6 +711,7 @@ function renderPed(){
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
+        // CAMBIO: Mostrar botones SIEMPRE, no solo si es pendiente
         var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
         var controls = `
           <div class="d-flex gap-2 mt-2">
