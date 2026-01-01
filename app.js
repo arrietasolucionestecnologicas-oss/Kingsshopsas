@@ -146,7 +146,6 @@ function renderPos(){
   c.innerHTML='';
   
   if(!q) {
-      // Si no escribe nada, mostramos pantalla limpia
       placeholder.style.display = 'block';
       return;
   }
@@ -160,7 +159,6 @@ function renderPos(){
       return;
   }
 
-  // Renderizado Compacto (Lista Texto)
   res.slice(0,20).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     var precioDisplay = p.publico > 0 ? COP.format(p.publico) : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
@@ -198,6 +196,20 @@ function updateCartUI() {
    var btnFloat = document.getElementById('btn-float-cart');
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
+   
+   // Pre-llenar fecha con HOY si está vacío
+   var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+   var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   if(!parent) parent = document.getElementById('desktop-cart-container');
+   
+   var dateInput = parent.querySelector('#c-fecha');
+   if(dateInput && !dateInput.value) {
+       var today = new Date();
+       var yyyy = today.getFullYear();
+       var mm = String(today.getMonth() + 1).padStart(2, '0');
+       var dd = String(today.getDate()).padStart(2, '0');
+       dateInput.value = `${yyyy}-${mm}-${dd}`;
+   }
    
    if(count === 0) {
        document.getElementById('mobile-cart').classList.remove('visible');
@@ -310,6 +322,10 @@ function finalizarVenta() {
    var cli = parent.querySelector('#c-cliente').value;
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
+   
+   // CAPTURAR FECHA PERSONALIZADA
+   var fechaVal = parent.querySelector('#c-fecha').value;
+   
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
    var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
@@ -322,7 +338,15 @@ function finalizarVenta() {
        return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
    });
 
-   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user };
+   var d = { 
+       items: itemsData, 
+       cliente: cli, 
+       metodo: metodo, 
+       inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
+       vendedor: D.user,
+       fechaPersonalizada: fechaVal // Enviamos la fecha
+   };
+   
    document.getElementById('loader').style.display='flex';
    callAPI('procesarVentaCarrito', d).then(r => { if(r.exito) { location.reload(); } else { alert(r.error); document.getElementById('loader').style.display='none'; } });
 }
@@ -385,17 +409,19 @@ function renderCartera() {
     } else {
         D.deudores.forEach(d => {
             totalDeuda += d.saldo;
+            var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
+            
             c.innerHTML += `
             <div class="card-k card-debt">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="fw-bold mb-1">${d.cliente}</h6>
-                        <small class="text-muted">${d.producto}</small>
-                        <div class="mt-1"><span class="badge-debt">Debe</span></div>
+                        <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
+                        ${fechaTxt}
                     </div>
                     <div class="text-end">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
-                        <small class="text-muted" style="font-size:0.7rem">ID: ${d.idVenta.split('-').pop()}</small>
+                        <div class="mt-1"><span class="badge-debt">Pendiente</span></div>
                     </div>
                 </div>
             </div>`;
@@ -685,7 +711,6 @@ function renderPed(){
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
-        // CAMBIO: Mostrar botones SIEMPRE, no solo si es pendiente
         var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
         var controls = `
           <div class="d-flex gap-2 mt-2">
