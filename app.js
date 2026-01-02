@@ -1,5 +1,5 @@
 // ============================================
-// ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
+// ⚠️ URL DE LA API - (USAR LA MISMA QUE EN VERSIONES ANTERIORES)
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
 
@@ -51,7 +51,7 @@ window.onload = function() {
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
 
-  // --- MODIFICACIÓN: HABILITAR EDICIÓN DE INICIAL ---
+  // --- HABILITAR EDICIÓN DE INICIAL ---
   document.querySelectorAll('#c-inicial').forEach(el => {
       el.removeAttribute('disabled');
       el.style.background = '#fff'; 
@@ -84,6 +84,15 @@ function loadData(){
         document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
         document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
         document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
+    }
+    
+    // POPULAR FILTRO PROVEEDORES
+    var provSelect = document.getElementById('filter-prov');
+    if(provSelect) {
+        provSelect.innerHTML = '<option value="">Todos</option>';
+        D.proveedores.forEach(p => {
+            provSelect.innerHTML += `<option value="${p.nombre}">${p.nombre}</option>`;
+        });
     }
     
     renderPos(); 
@@ -368,6 +377,17 @@ function calcGain(idCosto, idPublico) {
     }
 }
 
+// --- FUNCIÓN BLINDADA: EDICIÓN POR ID ---
+// Esta función recibe solo el ID para evitar errores con comillas
+function prepararEdicion(id) {
+    var p = D.inv.find(x => x.id === id);
+    if (p) {
+        openEdit(p);
+    } else {
+        alert("Producto no encontrado en memoria");
+    }
+}
+
 function openEdit(p) { 
     prodEdit=p; 
     document.getElementById('inp-edit-nombre').value=p.nombre; 
@@ -499,13 +519,23 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- ACTUALIZADO: RENDERIZADO CATÁLOGO (GRID + COPY BUTTONS) ---
+// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO PROVEEDOR ---
 function renderInv(){ 
-    var q = document.getElementById('inv-search').value.toLowerCase().trim(); 
+    var q = document.getElementById('inv-search').value.toLowerCase().trim();
+    // LEEMOS EL FILTRO
+    var filterProv = document.getElementById('filter-prov').value;
+    
     var c = document.getElementById('inv-list');
     c.innerHTML=''; 
     var lista = D.inv || [];
-    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
+    
+    // FILTRO COMPUESTO
+    if(q) { 
+        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
+    }
+    if(filterProv) {
+        lista = lista.filter(p => p.prov === filterProv);
+    }
 
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
@@ -519,7 +549,7 @@ function renderInv(){
         div.innerHTML = `
             <div class="cat-img-box">
                 ${imgHtml}
-                <div class="btn-edit-float" onclick='openEdit(${JSON.stringify(p)})'><i class="fas fa-pencil-alt"></i></div>
+                <div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
             </div>
             <div class="cat-body">
                 <div class="cat-title">${p.nombre}</div>
@@ -618,6 +648,7 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
+// --- FUNCIÓN ARREGLADA: CREACIÓN ROBUSTA CON IMAGEN ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -633,31 +664,37 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
-    D.inv.unshift({
-        id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
-        costo: d.costo, publico: d.publico, desc: d.descripcion,
-        foto: "", enWeb: d.enWeb, catWeb: d.catWeb
-    });
-    
-    renderInv();
-    myModalNuevo.hide();
-    showToast("Creando producto...", "info");
-
+    // 1. Añadimos localmente primero (feedback inmediato)
+    // Pero si hay foto, necesitamos leerla para mostrarla localmente
     var promise = Promise.resolve(null);
     if(f) {
         promise = new Promise((resolve) => {
            var r = new FileReader();
-           r.onload = e => resolve(e.target.result.split(',')[1]); 
+           r.onload = e => resolve(e.target.result); 
            r.readAsDataURL(f);
        });
     }
 
     promise.then(b64 => {
+        // Actualizar UI local
+        var localProd = {
+            id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
+            costo: d.costo, publico: d.publico, desc: d.descripcion,
+            foto: b64 || "", // Si hay base64, mostrarlo ya
+            enWeb: d.enWeb, catWeb: d.catWeb
+        };
+        D.inv.unshift(localProd);
+        renderInv();
+        myModalNuevo.hide();
+        showToast("Creando producto...", "info");
+
+        // Preparar payload para API
         if(b64) {
-            d.imagenBase64 = b64;
+            d.imagenBase64 = b64.split(',')[1]; // Solo la data
             d.mimeType = f.type;
             d.nombreArchivo = f.name;
         }
+
         callAPI('crearProductoManual', d).then(r=>{
             if(r.exito){ showToast("Producto sincronizado", "success"); }
             else { showToast("Error al crear en servidor", "danger"); }
