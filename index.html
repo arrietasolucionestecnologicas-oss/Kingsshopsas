@@ -25,7 +25,13 @@
         --d: #e74c3c; /* Rojo error */
     }
 
-    body { background: var(--bg); padding-bottom: 90px; font-family: 'Montserrat', sans-serif; overflow-x: hidden; color: var(--dark); }
+    body { 
+        background: var(--bg); 
+        padding-bottom: 90px; 
+        font-family: 'Montserrat', sans-serif; 
+        overflow-x: hidden; 
+        color: var(--dark); 
+    }
 
     /* HEADER */
     .header { 
@@ -34,7 +40,9 @@
         padding: 15px 20px; 
         border-radius: 0 0 20px 20px; 
         box-shadow: 0 4px 20px rgba(0,0,0,0.4); 
-        display: flex; justify-content: space-between; align-items: center; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
         border-bottom: 2px solid var(--gold);
     }
 
@@ -88,6 +96,7 @@
     }
     .cat-img-box img { width: 100%; height: 100%; object-fit: cover; }
     
+    /* Botón Editar Flotante */
     .btn-edit-float {
         position: absolute; top: 5px; right: 5px;
         background: rgba(255,255,255,0.95); border-radius: 50%;
@@ -132,6 +141,7 @@
     }
     .card-balance h1 { color: white; }
 
+    /* NAVEGACIÓN INFERIOR */
     .nav-btm { 
         position: fixed; bottom: 0; width: 100%; background: white; 
         display: flex; justify-content: space-between; 
@@ -145,6 +155,7 @@
     }
     .nav-btn i { font-size: 1.3rem; margin-bottom: 3px; }
     .nav-btn span { font-weight: 500; }
+    /* Activo: Dorado */
     .nav-btn.active { color: var(--gold); transform: translateY(-2px); }
     .nav-btn.active span { font-weight: 700; color: var(--primary); }
 
@@ -155,6 +166,7 @@
 
     #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
 
+    /* Botones Header Transparentes */
     .btn-bi { background: rgba(255,255,255,0.1); border:1px solid rgba(212, 175, 55, 0.5); color:var(--gold); border-radius: 8px; padding: 5px 10px; font-size: 0.8rem; text-decoration: none; transition: 0.2s; }
     .btn-bi:hover { background: var(--gold); color: var(--primary); border-color: var(--gold); }
 
@@ -168,7 +180,7 @@
     .card-debt { border-left: 4px solid var(--d); position: relative; }
     .card-debt .badge-debt { background: var(--d); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
 
-    /* OVERRIDES BOOTSTRAP */
+    /* --- OVERRIDES DE COLORES BOOTSTRAP --- */
     .btn-primary, .btn-dark { background-color: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .btn-primary:hover, .btn-dark:hover { background-color: #333 !important; border-color: #333 !important; color: var(--gold) !important; }
     
@@ -179,6 +191,7 @@
     .text-success { color: #198754 !important; } 
     
     #btn-float-cart { background-color: var(--gold); color: var(--primary); border: none; }
+    
     .form-control:focus { box-shadow: 0 0 0 2px var(--gold) !important; border-color: var(--gold) !important; }
     
     .nav-pills .nav-link.active { background-color: var(--primary) !important; color: var(--gold) !important; }
@@ -221,7 +234,12 @@
 
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
       <div class="d-flex gap-2 mb-3">
-        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar en Catálogo..." onkeyup="renderInv()">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()">
+        
+        <select id="filter-prov" class="form-select" style="max-width: 150px; border-color: var(--gold);" onchange="renderInv()">
+            <option value="">Todos</option>
+        </select>
+
         <button class="btn btn-info" onclick="abrirModalProv()" title="Proveedores"><i class="fas fa-users"></i></button>
         <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA"><i class="fab fa-whatsapp"></i></button>
         <button class="btn btn-primary" onclick="abrirModalNuevo()">+ NUEVO</button>
@@ -519,6 +537,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=48"></script>
+  <script src="app.js?v=54"></script>
 </body>
 </html>
