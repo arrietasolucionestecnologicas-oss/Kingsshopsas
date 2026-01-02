@@ -1,5 +1,5 @@
 // ============================================
-// ⚠️ URL DE LA API - (USAR LA MISMA QUE EN VERSIONES ANTERIORES)
+// ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbza8m9l6c_RS-3GJArGDHLwBbfkIiWGA1lbBL3yPoBdsYOPG03p7TQ4qrit61vsim5Y/exec"; 
 
@@ -51,7 +51,7 @@ window.onload = function() {
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
 
-  // --- HABILITAR EDICIÓN DE INICIAL ---
+  // --- MODIFICACIÓN: HABILITAR EDICIÓN DE INICIAL ---
   document.querySelectorAll('#c-inicial').forEach(el => {
       el.removeAttribute('disabled');
       el.style.background = '#fff'; 
@@ -377,17 +377,6 @@ function calcGain(idCosto, idPublico) {
     }
 }
 
-// --- FUNCIÓN BLINDADA: EDICIÓN POR ID ---
-// Esta función recibe solo el ID para evitar errores con comillas
-function prepararEdicion(id) {
-    var p = D.inv.find(x => x.id === id);
-    if (p) {
-        openEdit(p);
-    } else {
-        alert("Producto no encontrado en memoria");
-    }
-}
-
 function openEdit(p) { 
     prodEdit=p; 
     document.getElementById('inp-edit-nombre').value=p.nombre; 
@@ -549,7 +538,7 @@ function renderInv(){
         div.innerHTML = `
             <div class="cat-img-box">
                 ${imgHtml}
-                <div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
+                <div class="btn-edit-float" onclick='openEdit(${JSON.stringify(p)})'><i class="fas fa-pencil-alt"></i></div>
             </div>
             <div class="cat-body">
                 <div class="cat-title">${p.nombre}</div>
