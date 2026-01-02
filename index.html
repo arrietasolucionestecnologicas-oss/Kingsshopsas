@@ -180,6 +180,20 @@
     .card-debt { border-left: 4px solid var(--d); position: relative; }
     .card-debt .badge-debt { background: var(--d); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
 
+    /* --- NUEVO: SCROLL HORIZONTAL (INSTAGRAM STYLE) --- */
+    .scroll-menu {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch; /* Suavidad en iPhone */
+    }
+    /* Ocultar barra de scroll para que se vea limpio */
+    .scroll-menu::-webkit-scrollbar { display: none; }
+    .scroll-menu > * { flex: 0 0 auto; /* Evitar que se encojan */ }
+
     /* --- OVERRIDES DE COLORES BOOTSTRAP --- */
     .btn-primary, .btn-dark { background-color: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .btn-primary:hover, .btn-dark:hover { background-color: #333 !important; border-color: #333 !important; color: var(--gold) !important; }
@@ -233,17 +247,18 @@
     </div>
 
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
-      <div class="d-flex gap-2 mb-3">
-        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()">
+      <div class="scroll-menu">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()" style="width: 150px;">
         
-        <select id="filter-prov" class="form-select" style="max-width: 150px; border-color: var(--gold);" onchange="renderInv()">
+        <select id="filter-prov" class="form-select" style="width: 150px; border-color: var(--gold);" onchange="renderInv()">
             <option value="">Todos</option>
         </select>
 
-        <button class="btn btn-info" onclick="abrirModalProv()" title="Proveedores"><i class="fas fa-users"></i></button>
-        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA"><i class="fab fa-whatsapp"></i></button>
-        <button class="btn btn-primary" onclick="abrirModalNuevo()">+ NUEVO</button>
+        <button class="btn btn-primary" onclick="abrirModalNuevo()" style="white-space: nowrap;">+ NUEVO</button>
+        <button class="btn btn-info" onclick="abrirModalProv()" title="Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Provs</button>
+        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar</button>
       </div>
+      
       <div id="inv-list" class="catalog-grid"></div>
     </div>
 
@@ -537,6 +552,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=54"></script>
+  <script src="app.js?v=55"></script>
 </body>
 </html>
