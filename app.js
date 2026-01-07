@@ -12,6 +12,69 @@ var calculatedValues = { total: 0, inicial: 0 };
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
+// --- GESTIÓN DE ESTADO OFFLINE/ONLINE ---
+function updateOnlineStatus() {
+    const status = document.getElementById('offline-indicator');
+    if(navigator.onLine) {
+        status.style.display = 'none';
+        sincronizarCola(); // Intentar subir ventas pendientes al volver internet
+    } else {
+        status.style.display = 'block';
+    }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
+// --- LOCAL STORAGE HELPERS ---
+function saveLocalData(data) {
+    localStorage.setItem('kingshop_data', JSON.stringify(data));
+    localStorage.setItem('kingshop_last_sync', new Date().toISOString());
+}
+
+function loadLocalData() {
+    const raw = localStorage.getItem('kingshop_data');
+    return raw ? JSON.parse(raw) : null;
+}
+
+function guardarEnCola(accion, datos) {
+    let cola = JSON.parse(localStorage.getItem('kingshop_queue') || "[]");
+    cola.push({ action: accion, data: datos, timestamp: Date.now() });
+    localStorage.setItem('kingshop_queue', JSON.stringify(cola));
+    showToast("Guardado sin internet. Se subirá luego.", "warning");
+}
+
+async function sincronizarCola() {
+    let cola = JSON.parse(localStorage.getItem('kingshop_queue') || "[]");
+    if (cola.length === 0) return;
+
+    showToast(`Sincronizando ${cola.length} acciones pendientes...`, "info");
+    
+    // Procesar uno por uno para no saturar
+    let nuevaCola = [];
+    for (let item of cola) {
+        try {
+            // Intentar enviar
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: item.action, data: item.data })
+            });
+            const res = await response.json();
+            if (!res.exito) throw new Error(res.error);
+        } catch (e) {
+            console.error("Fallo al sincronizar item:", item, e);
+            nuevaCola.push(item); // Si falla, se queda en la cola
+        }
+    }
+    
+    localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
+    if (nuevaCola.length === 0) {
+        showToast("¡Sincronización completada!", "success");
+        loadData(); // Recargar datos frescos
+    } else {
+        showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
+    }
+}
+
 // --- TOAST NOTIFICATION SYSTEM ---
 function showToast(msg, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
@@ -24,7 +87,37 @@ function showToast(msg, type = 'success') {
     setTimeout(() => toast.remove(), 3000);
 }
 
+// --- COMPRESOR DE IMÁGENES ---
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = event => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const elem = document.createElement('canvas');
+                const scaleFactor = maxWidth / img.width;
+                elem.width = maxWidth;
+                elem.height = img.height * scaleFactor;
+                const ctx = elem.getContext('2d');
+                ctx.drawImage(img, 0, 0, elem.width, elem.height);
+                resolve(elem.toDataURL(file.type, quality));
+            }
+            img.onerror = error => reject(error);
+        }
+        reader.onerror = error => reject(error);
+    });
+}
+
+// --- CALL API INTELIGENTE (OFFLINE AWARE) ---
 async function callAPI(action, data = null) {
+  // Si no hay internet y es una acción de escritura (guardar/vender), usar cola
+  if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
+      guardarEnCola(action, data);
+      return { exito: true, offline: true }; // Simular éxito
+  }
+
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -34,7 +127,12 @@ async function callAPI(action, data = null) {
     return result;
   } catch (e) {
     console.error("Error API:", e);
-    showToast("Error de conexión (Background)", 'danger');
+    // Si falla la red al intentar enviar, guardar en cola
+    if (action !== 'obtenerDatosCompletos') {
+        guardarEnCola(action, data);
+        return { exito: true, offline: true };
+    }
+    showToast("Error de conexión", 'danger');
     return { exito: false, error: e.toString() };
   }
 }
@@ -51,7 +149,6 @@ window.onload = function() {
   document.getElementById('desktop-cart-container').innerHTML = tpl;
   document.getElementById('mobile-cart').innerHTML = tpl;
 
-  // --- MODIFICACIÓN: HABILITAR EDICIÓN DE INICIAL ---
   document.querySelectorAll('#c-inicial').forEach(el => {
       el.removeAttribute('disabled');
       el.style.background = '#fff'; 
@@ -63,12 +160,38 @@ window.onload = function() {
   if(btn) nav(lastView, btn);
   else nav('pos', document.querySelector('.nav-btn'));
 
+  updateOnlineStatus();
   loadData();
 };
 
 function loadData(){
   document.getElementById('loader').style.display='flex';
+  
+  // ESTRATEGIA: Intentar cargar de red. Si falla, cargar de local.
   callAPI('obtenerDatosCompletos').then(res => {
+    if(res && res.inventario) {
+        // ÉXITO ONLINE: Guardar en local y usar
+        saveLocalData(res);
+        renderData(res);
+    } else {
+        // FALLO: Usar local
+        console.log("Usando datos locales por fallo de red");
+        const local = loadLocalData();
+        if(local) renderData(local);
+    }
+    document.getElementById('loader').style.display='none';
+  }).catch(() => {
+      // SI FALLA FETCH TOTAL (Offline)
+      const local = loadLocalData();
+      if(local) {
+          renderData(local);
+          showToast("Modo Offline: Datos locales cargados", "warning");
+      }
+      document.getElementById('loader').style.display='none';
+  });
+}
+
+function renderData(res) {
     D = res;
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
@@ -77,16 +200,13 @@ function loadData(){
     D.ped = res.pedidos || [];
     D.deudores = res.deudores || [];
 
-    document.getElementById('loader').style.display='none';
-    
     if(res.metricas) {
-        document.getElementById('user-display').innerText = res.user;
+        document.getElementById('user-display').innerText = res.user || "Offline User";
         document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
         document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
         document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
     }
     
-    // POPULAR FILTRO PROVEEDORES
     var provSelect = document.getElementById('filter-prov');
     if(provSelect) {
         provSelect.innerHTML = '<option value="">Todos</option>';
@@ -117,7 +237,6 @@ function loadData(){
         (res.categorias || []).forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
     }
     updateGastosSelect();
-  });
 }
 
 function updateGastosSelect() {
@@ -206,7 +325,6 @@ function updateCartUI() {
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
    
-   // Pre-llenar fecha con HOY si está vacío
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container');
@@ -332,7 +450,6 @@ function finalizarVenta() {
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
    
-   // CAPTURAR FECHA PERSONALIZADA
    var fechaVal = parent.querySelector('#c-fecha').value;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
@@ -352,18 +469,30 @@ function finalizarVenta() {
        cliente: cli, 
        metodo: metodo, 
        inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
-       vendedor: D.user,
-       fechaPersonalizada: fechaVal // Enviamos la fecha
+       vendedor: D.user || "Offline User",
+       fechaPersonalizada: fechaVal 
    };
    
    document.getElementById('loader').style.display='flex';
-   callAPI('procesarVentaCarrito', d).then(r => { if(r.exito) { location.reload(); } else { alert(r.error); document.getElementById('loader').style.display='none'; } });
+   callAPI('procesarVentaCarrito', d).then(r => { 
+       if(r.exito) { 
+           if(r.offline) {
+               alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
+               location.reload(); // Recargar para limpiar carro
+           } else {
+               location.reload(); 
+           }
+       } else { 
+           alert(r.error); 
+           document.getElementById('loader').style.display='none'; 
+       } 
+   });
 }
 
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
 function abrirModalNuevo() { 
     document.getElementById('new-id').value=''; 
-    document.getElementById('new-file-foto').value = ""; // RESET FOTO
+    document.getElementById('new-file-foto').value = ""; 
     myModalNuevo.show(); 
 }
 function abrirModalWA() { myModalWA.show(); }
@@ -374,6 +503,16 @@ function calcGain(idCosto, idPublico) {
     if(costo > 0) {
         var ganancia = costo * 1.30; 
         document.getElementById(idPublico).value = Math.round(ganancia);
+    }
+}
+
+// --- FUNCIÓN BLINDADA: EDICIÓN POR ID ---
+function prepararEdicion(id) {
+    var p = D.inv.find(x => x.id === id);
+    if (p) {
+        openEdit(p);
+    } else {
+        alert("Producto no encontrado en memoria");
     }
 }
 
@@ -538,7 +677,7 @@ function renderInv(){
         div.innerHTML = `
             <div class="cat-img-box">
                 ${imgHtml}
-                <div class="btn-edit-float" onclick='openEdit(${JSON.stringify(p)})'><i class="fas fa-pencil-alt"></i></div>
+                <div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
             </div>
             <div class="cat-body">
                 <div class="cat-title">${p.nombre}</div>
@@ -583,19 +722,18 @@ function guardarCambiosAvanzado(){
    var promise = Promise.resolve(null);
 
    if(f) {
-       promise = new Promise((resolve) => {
-           var r = new FileReader();
-           r.onload = e => resolve(e.target.result); 
-           r.readAsDataURL(f);
-       });
+       // USAR COMPRESIÓN AL EDITAR TAMBIÉN
+       promise = compressImage(f);
    }
 
    promise.then(b64 => {
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
        if(idx > -1) {
            if(b64) {
+               // En preview mostramos b64 directo, el split se hace al enviar
                var previewSrc = document.getElementById('img-preview-box').src;
-               if(previewSrc) newVal.foto = previewSrc; 
+               // El canvas toDataURL devuelve el string completo
+               if(b64) newVal.foto = b64; 
            }
            D.inv[idx] = newVal; 
        }
@@ -620,7 +758,7 @@ function guardarCambiosAvanzado(){
 
        if(b64) {
            payload.imagenBase64 = b64.split(',')[1];
-           payload.mimeType = f.type;
+           payload.mimeType = f.type; 
            payload.nombreArchivo = f.name;
        }
 
@@ -637,7 +775,7 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
-// --- FUNCIÓN ARREGLADA: CREACIÓN ROBUSTA CON IMAGEN ---
+// --- FUNCIÓN ARREGLADA: CREACIÓN CON COMPRESIÓN ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -653,15 +791,10 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
-    // 1. Añadimos localmente primero (feedback inmediato)
-    // Pero si hay foto, necesitamos leerla para mostrarla localmente
+    // 1. Promesa de compresión
     var promise = Promise.resolve(null);
     if(f) {
-        promise = new Promise((resolve) => {
-           var r = new FileReader();
-           r.onload = e => resolve(e.target.result); 
-           r.readAsDataURL(f);
-       });
+        promise = compressImage(f); // USAR COMPRESOR
     }
 
     promise.then(b64 => {
@@ -669,7 +802,7 @@ function crearProducto(){
         var localProd = {
             id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
             costo: d.costo, publico: d.publico, desc: d.descripcion,
-            foto: b64 || "", // Si hay base64, mostrarlo ya
+            foto: b64 || "", 
             enWeb: d.enWeb, catWeb: d.catWeb
         };
         D.inv.unshift(localProd);
@@ -679,7 +812,7 @@ function crearProducto(){
 
         // Preparar payload para API
         if(b64) {
-            d.imagenBase64 = b64.split(',')[1]; // Solo la data
+            d.imagenBase64 = b64.split(',')[1]; 
             d.mimeType = f.type;
             d.nombreArchivo = f.name;
         }
