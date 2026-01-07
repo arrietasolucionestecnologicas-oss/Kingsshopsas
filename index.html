@@ -46,6 +46,17 @@
         border-bottom: 2px solid var(--gold);
     }
 
+    /* INDICADOR OFFLINE */
+    #offline-indicator {
+        background-color: #ffc107;
+        color: #000;
+        text-align: center;
+        padding: 5px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        display: none; /* Se activa con JS */
+    }
+
     /* LAYOUT VENTAS */
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
     .list-column { flex: 1; }
@@ -141,7 +152,19 @@
     }
     .card-balance h1 { color: white; }
 
-    /* NAVEGACIÓN INFERIOR */
+    /* SCROLL HORIZONTAL */
+    .scroll-menu {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding-bottom: 5px;
+        margin-bottom: 15px;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch; 
+    }
+    .scroll-menu::-webkit-scrollbar { display: none; }
+    .scroll-menu > * { flex: 0 0 auto; }
+
     .nav-btm { 
         position: fixed; bottom: 0; width: 100%; background: white; 
         display: flex; justify-content: space-between; 
@@ -155,7 +178,6 @@
     }
     .nav-btn i { font-size: 1.3rem; margin-bottom: 3px; }
     .nav-btn span { font-weight: 500; }
-    /* Activo: Dorado */
     .nav-btn.active { color: var(--gold); transform: translateY(-2px); }
     .nav-btn.active span { font-weight: 700; color: var(--primary); }
 
@@ -166,7 +188,6 @@
 
     #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center; }
 
-    /* Botones Header Transparentes */
     .btn-bi { background: rgba(255,255,255,0.1); border:1px solid rgba(212, 175, 55, 0.5); color:var(--gold); border-radius: 8px; padding: 5px 10px; font-size: 0.8rem; text-decoration: none; transition: 0.2s; }
     .btn-bi:hover { background: var(--gold); color: var(--primary); border-color: var(--gold); }
 
@@ -180,21 +201,7 @@
     .card-debt { border-left: 4px solid var(--d); position: relative; }
     .card-debt .badge-debt { background: var(--d); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
 
-    /* --- NUEVO: SCROLL HORIZONTAL (INSTAGRAM STYLE) --- */
-    .scroll-menu {
-        display: flex;
-        overflow-x: auto;
-        gap: 10px;
-        padding-bottom: 5px;
-        margin-bottom: 15px;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch; /* Suavidad en iPhone */
-    }
-    /* Ocultar barra de scroll para que se vea limpio */
-    .scroll-menu::-webkit-scrollbar { display: none; }
-    .scroll-menu > * { flex: 0 0 auto; /* Evitar que se encojan */ }
-
-    /* --- OVERRIDES DE COLORES BOOTSTRAP --- */
+    /* OVERRIDES BOOTSTRAP */
     .btn-primary, .btn-dark { background-color: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .btn-primary:hover, .btn-dark:hover { background-color: #333 !important; border-color: #333 !important; color: var(--gold) !important; }
     
@@ -205,7 +212,6 @@
     .text-success { color: #198754 !important; } 
     
     #btn-float-cart { background-color: var(--gold); color: var(--primary); border: none; }
-    
     .form-control:focus { box-shadow: 0 0 0 2px var(--gold) !important; border-color: var(--gold) !important; }
     
     .nav-pills .nav-link.active { background-color: var(--primary) !important; color: var(--gold) !important; }
@@ -225,6 +231,8 @@
         <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="verBancos()"><i class="bi bi-bank2 fs-5"></i></button>
     </div>
   </div>
+  
+  <div id="offline-indicator">⚠️ Sin conexión - Modo Offline Activo</div>
 
   <div class="container-fluid px-3">
     <div id="view-pos" class="view-sec">
@@ -249,16 +257,13 @@
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
       <div class="scroll-menu">
         <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()" style="width: 150px;">
-        
         <select id="filter-prov" class="form-select" style="width: 150px; border-color: var(--gold);" onchange="renderInv()">
             <option value="">Todos</option>
         </select>
-
         <button class="btn btn-primary" onclick="abrirModalNuevo()" style="white-space: nowrap;">+ NUEVO</button>
         <button class="btn btn-info" onclick="abrirModalProv()" title="Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Provs</button>
         <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar</button>
       </div>
-      
       <div id="inv-list" class="catalog-grid"></div>
     </div>
 
@@ -552,6 +557,15 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="app.js?v=55"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registrado', reg))
+          .catch(err => console.log('SW fallo', err));
+      });
+    }
+  </script>
+  <script src="app.js?v=57"></script>
 </body>
 </html>
