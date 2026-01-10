@@ -1,17 +1,8 @@
 // ============================================
-// ⚠️ PEGA AQUÍ LA NUEVA URL DE GOOGLE APPS SCRIPT (v61)
+// ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // ============================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbx2P2M77oje0uwwcJPnUkY2jakGMBUSSdJx-veS_ZmC55_tRzwBdjmz_gRLEvJ0xebG/exec"; 
 
-// --- BASE DE DATOS LOCAL (DEXIE) ---
-// Esto hace que la app sea Offline-First Real
-const db = new Dexie("KingshopDB");
-db.version(1).stores({
-    kv: 'key', // Almacén rápido para todo el JSON de Google
-    queue: '++id, action, data, timestamp' // Cola de ventas sin internet
-});
-
-// VARIABLES GLOBALES (Estructura Original Intacta)
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
 var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed;
@@ -21,83 +12,79 @@ var calculatedValues = { total: 0, inicial: 0 };
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-// --- GESTIÓN DE CONEXIÓN ---
-function updateStatus() {
-    const el = document.getElementById('offline-indicator');
+// --- GESTIÓN DE ESTADO OFFLINE/ONLINE ---
+function updateOnlineStatus() {
+    const status = document.getElementById('offline-indicator');
     if(navigator.onLine) {
-        if(el) el.style.display = 'none';
-        processQueue(); // Si vuelve internet, subimos lo pendiente
+        status.style.display = 'none';
+        sincronizarCola(); // Intentar subir ventas pendientes al volver internet
     } else {
-        if(el) el.style.display = 'block';
+        status.style.display = 'block';
     }
 }
-window.addEventListener('online', updateStatus);
-window.addEventListener('offline', updateStatus);
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
 
-// --- CALL API INTELIGENTE (EL CORAZÓN DEL SISTEMA) ---
-async function callAPI(action, data = null) {
-    // 1. Si NO hay internet y es una escritura (Venta, Gasto, etc.) -> Guardar en Cola
-    if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
-        await db.queue.add({ action: action, data: data, timestamp: Date.now() });
-        showToast("Guardado sin internet. Se subirá automáticamente.", "warning");
-        return { exito: true, offline: true };
-    }
-
-    // 2. Si hay internet, intentar conectar
-    try {
-        // TRUCO ANTI-BLOQUEO: "Content-Type": "text/plain" engaña al navegador para saltar CORS
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: action, data: data }),
-            headers: { "Content-Type": "text/plain" } 
-        });
-        const result = await response.json();
-        return result;
-    } catch (e) {
-        console.error("Fallo de red:", e);
-        // Si falla la red justo al enviar, guardar en cola también
-        if (action !== 'obtenerDatosCompletos') {
-            await db.queue.add({ action: action, data: data, timestamp: Date.now() });
-            showToast("Red inestable. Guardado en cola.", "warning");
-            return { exito: true, offline: true };
-        }
-        return { exito: false, error: e.toString() };
-    }
+// --- LOCAL STORAGE HELPERS ---
+function saveLocalData(data) {
+    localStorage.setItem('kingshop_data', JSON.stringify(data));
+    localStorage.setItem('kingshop_last_sync', new Date().toISOString());
 }
 
-// --- PROCESADOR DE COLA (SYNC) ---
-async function processQueue() {
-    const count = await db.queue.count();
-    if (count === 0) return;
+function loadLocalData() {
+    const raw = localStorage.getItem('kingshop_data');
+    return raw ? JSON.parse(raw) : null;
+}
 
-    showToast(`Sincronizando ${count} acciones pendientes...`, "info");
-    const items = await db.queue.toArray();
+function guardarEnCola(accion, datos) {
+    let cola = JSON.parse(localStorage.getItem('kingshop_queue') || "[]");
+    cola.push({ action: accion, data: datos, timestamp: Date.now() });
+    localStorage.setItem('kingshop_queue', JSON.stringify(cola));
+    showToast("Guardado sin internet. Se subirá luego.", "warning");
+}
 
-    for (const item of items) {
+async function sincronizarCola() {
+    let cola = JSON.parse(localStorage.getItem('kingshop_queue') || "[]");
+    if (cola.length === 0) return;
+
+    showToast(`Sincronizando ${cola.length} acciones pendientes...`, "info");
+    
+    // Procesar uno por uno para no saturar
+    let nuevaCola = [];
+    for (let item of cola) {
         try {
-            // Reintentar envío a Google
-            const res = await fetch(API_URL, {
+            // Intentar enviar
+            const response = await fetch(API_URL, {
                 method: 'POST',
-                body: JSON.stringify({ action: item.action, data: item.data }),
-                headers: { "Content-Type": "text/plain" }
+                body: JSON.stringify({ action: item.action, data: item.data })
             });
-            const json = await res.json();
-            
-            // Si Google responde OK, borramos de la cola
-            if (json.exito || json.error) { // Incluso si da error lógico, sacamos de cola para no atascar
-                await db.queue.delete(item.id); 
-            }
+            const res = await response.json();
+            if (!res.exito) throw new Error(res.error);
         } catch (e) {
-            console.log("Sigue sin conexión estable, reintentaremos luego.");
+            console.error("Fallo al sincronizar item:", item, e);
+            nuevaCola.push(item); // Si falla, se queda en la cola
         }
     }
     
-    // Verificar si terminamos
-    const remaining = await db.queue.count();
-    if(remaining === 0) {
-        showToast("¡Todo sincronizado!", "success");
-        loadData(); // Refrescar datos para ver los cambios
+    localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
+    if (nuevaCola.length === 0) {
+        showToast("¡Sincronización completada!", "success");
+        loadData(); // Recargar datos frescos
+    } else {
+        showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
     }
+}
+
+// --- TOAST NOTIFICATION SYSTEM ---
+function showToast(msg, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0 show mb-2`;
+    toast.role = 'alert';
+    toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+    toastContainer.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // --- COMPRESOR DE IMÁGENES ---
@@ -123,91 +110,88 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
-function showToast(msg, type = 'success') {
-    const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) return;
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type} border-0 show mb-2`;
-    toast.role = 'alert';
-    toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-    toastContainer.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+// --- CALL API INTELIGENTE (OFFLINE AWARE) ---
+async function callAPI(action, data = null) {
+  // Si no hay internet y es una acción de escritura (guardar/vender), usar cola
+  if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
+      guardarEnCola(action, data);
+      return { exito: true, offline: true }; // Simular éxito
+  }
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: action, data: data })
+    });
+    const result = await response.json();
+    return result;
+  } catch (e) {
+    console.error("Error API:", e);
+    // Si falla la red al intentar enviar, guardar en cola
+    if (action !== 'obtenerDatosCompletos') {
+        guardarEnCola(action, data);
+        return { exito: true, offline: true };
+    }
+    showToast("Error de conexión", 'danger');
+    return { exito: false, error: e.toString() };
+  }
 }
 
-// --- INICIALIZACIÓN ---
 window.onload = function() {
-  // Cargar Modales
-  try {
-      myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
-      myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
-      myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
-      myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
-      myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
-      myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
-  } catch(e) { console.log("Modales no listos"); }
+  myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
+  myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
+  myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
+  myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
+  myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
+  myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
   
-  // Renderizar plantilla del carrito
-  var tplEl = document.getElementById('tpl-cart');
-  if(tplEl) {
-      var tpl = tplEl.innerHTML;
-      document.getElementById('desktop-cart-container').innerHTML = tpl;
-      document.getElementById('mobile-cart').innerHTML = tpl;
+  var tpl = document.getElementById('tpl-cart').innerHTML;
+  document.getElementById('desktop-cart-container').innerHTML = tpl;
+  document.getElementById('mobile-cart').innerHTML = tpl;
 
-      document.querySelectorAll('#c-inicial').forEach(el => {
-           el.removeAttribute('disabled');
-           el.style.background = '#fff'; 
-           el.oninput = calcCart;        
-      });
-  }
+  document.querySelectorAll('#c-inicial').forEach(el => {
+      el.removeAttribute('disabled');
+      el.style.background = '#fff'; 
+      el.oninput = calcCart;        
+  });
   
-  // Recuperar última vista
   var lastView = localStorage.getItem('lastView') || 'pos';
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
   if(btn) nav(lastView, btn);
   else nav('pos', document.querySelector('.nav-btn'));
 
-  updateStatus();
+  updateOnlineStatus();
   loadData();
 };
 
-// --- CARGA DE DATOS HÍBRIDA (Local + Nube) ---
-async function loadData() {
-    var loader = document.getElementById('loader');
-    if(loader) loader.style.display='flex';
-
-    // 1. CARGA INSTANTÁNEA (Local)
-    const localData = await db.kv.get('full_data');
-    if (localData) {
-        console.log("Cargando desde IndexedDB local...");
-        renderData(localData);
-        if(loader) loader.style.display='none'; // Quitamos loader rápido
+function loadData(){
+  document.getElementById('loader').style.display='flex';
+  
+  // ESTRATEGIA: Intentar cargar de red. Si falla, cargar de local.
+  callAPI('obtenerDatosCompletos').then(res => {
+    if(res && res.inventario) {
+        // ÉXITO ONLINE: Guardar en local y usar
+        saveLocalData(res);
+        renderData(res);
+    } else {
+        // FALLO: Usar local
+        console.log("Usando datos locales por fallo de red");
+        const local = loadLocalData();
+        if(local) renderData(local);
     }
-
-    // 2. CARGA DE FONDO (Nube)
-    if (navigator.onLine) {
-        try {
-            const res = await callAPI('obtenerDatosCompletos');
-            
-            if (res && res.inventario) {
-                // Si la respuesta es válida, actualizamos la DB Local
-                await db.kv.put(res, 'full_data');
-                console.log("Datos actualizados desde Nube");
-                renderData(res); 
-                // showToast("Datos actualizados", "info"); // Opcional
-            } else {
-                console.warn("Respuesta vacía del servidor:", res);
-            }
-        } catch (e) {
-            console.log("Fallo al actualizar desde nube, manteniendo versión local.");
-        }
-    }
-    
-    // Si no había datos locales y ya terminamos, quitar loader
-    if (!localData && loader) loader.style.display='none';
+    document.getElementById('loader').style.display='none';
+  }).catch(() => {
+      // SI FALLA FETCH TOTAL (Offline)
+      const local = loadLocalData();
+      if(local) {
+          renderData(local);
+          showToast("Modo Offline: Datos locales cargados", "warning");
+      }
+      document.getElementById('loader').style.display='none';
+  });
 }
 
 function renderData(res) {
-    if(!res) return;
     D = res;
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
@@ -217,20 +201,12 @@ function renderData(res) {
     D.deudores = res.deudores || [];
 
     if(res.metricas) {
-        const uDisp = document.getElementById('user-display');
-        if(uDisp) uDisp.innerText = res.user || "Usuario";
-        
-        const balC = document.getElementById('bal-caja');
-        if(balC) balC.innerText = COP.format(res.metricas.saldo||0);
-        
-        const balV = document.getElementById('bal-ventas');
-        if(balV) balV.innerText = COP.format(res.metricas.ventaMes||0);
-        
-        const balG = document.getElementById('bal-ganancia');
-        if(balG) balG.innerText = COP.format(res.metricas.gananciaMes||0);
+        document.getElementById('user-display').innerText = res.user || "Offline User";
+        document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
+        document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
+        document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
     }
     
-    // Llenar filtro proveedores
     var provSelect = document.getElementById('filter-prov');
     if(provSelect) {
         provSelect.innerHTML = '<option value="">Todos</option>';
@@ -247,7 +223,6 @@ function renderData(res) {
     renderProvs();
     renderCartera();
     
-    // Llenar datalists para autocompletado
     var dl = document.getElementById('list-cats'); if(dl) { dl.innerHTML=''; (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); }
     
     var dlp = document.querySelectorAll('#list-prods-all'); 
@@ -267,7 +242,7 @@ function renderData(res) {
 function updateGastosSelect() {
     var sg = document.getElementById('g-vinculo');
     if(sg) {
-        sg.innerHTML = '<option value="">-- Ninguna --</option>';
+        sg.innerHTML = '<option value="">-- Ninguna (Gasto General) --</option>';
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
             D.ultimasVentas.forEach(v => { var o = document.createElement('option'); o.value = v.id; o.text = v.desc; sg.appendChild(o); });
         }
@@ -291,23 +266,20 @@ function fixDriveLink(url) {
     return url;
 }
 
-// --- RENDERIZADO DEL POS (BUSCADOR) ---
+// --- VENTA (POS) TIPO BUSCADOR PROFESIONAL ---
 function renderPos(){
-  var searchInp = document.getElementById('pos-search');
-  if(!searchInp) return;
-  var q = searchInp.value.toLowerCase().trim();
+  var q = document.getElementById('pos-search').value.toLowerCase().trim();
   var c = document.getElementById('pos-list'); 
   var placeholder = document.getElementById('pos-placeholder');
   c.innerHTML='';
   
   if(!q) {
-      if(placeholder) placeholder.style.display = 'block';
+      placeholder.style.display = 'block';
       return;
   }
-  if(placeholder) placeholder.style.display = 'none';
+  placeholder.style.display = 'none';
 
   var lista = D.inv || [];
-  // Buscamos por nombre O categoría
   var res = lista.filter(p => (p.nombre && p.nombre.toLowerCase().includes(q)) || (p.cat && p.cat.toLowerCase().includes(q)));
   
   if(res.length === 0) {
@@ -350,10 +322,8 @@ function updateCartUI() {
    var count = CART.length;
    calcCart();
    var btnFloat = document.getElementById('btn-float-cart');
-   if(btnFloat) {
-       btnFloat.style.display = count > 0 ? 'block' : 'none';
-       btnFloat.innerText = "🛒 " + count;
-   }
+   btnFloat.style.display = count > 0 ? 'block' : 'none';
+   btnFloat.innerText = "🛒 " + count;
    
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -441,10 +411,12 @@ function calcCart() {
        } else {
            inicial = base * 0.30;
        }
+       
        calculatedValues.inicial = inicial;
        
        var saldoRestante = base - inicial;
        if(saldoRestante < 0) saldoRestante = 0;
+
        var saldoConInteres = saldoRestante * (1 + inter/100); 
        var valorCuota = saldoConInteres / cuotas;
        
@@ -501,20 +473,18 @@ function finalizarVenta() {
        fechaPersonalizada: fechaVal 
    };
    
-   var loader = document.getElementById('loader');
-   if(loader) loader.style.display='flex';
-   
+   document.getElementById('loader').style.display='flex';
    callAPI('procesarVentaCarrito', d).then(r => { 
        if(r.exito) { 
            if(r.offline) {
-               alert("Guardado OFFLINE. Se subirá al tener conexión.");
-               location.reload(); 
+               alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
+               location.reload(); // Recargar para limpiar carro
            } else {
                location.reload(); 
            }
        } else { 
            alert(r.error); 
-           if(loader) loader.style.display='none'; 
+           document.getElementById('loader').style.display='none'; 
        } 
    });
 }
@@ -536,9 +506,14 @@ function calcGain(idCosto, idPublico) {
     }
 }
 
+// --- FUNCIÓN BLINDADA: EDICIÓN POR ID ---
 function prepararEdicion(id) {
     var p = D.inv.find(x => x.id === id);
-    if (p) { openEdit(p); } else { alert("Error: Producto no encontrado en memoria"); }
+    if (p) {
+        openEdit(p);
+    } else {
+        alert("Producto no encontrado en memoria");
+    }
 }
 
 function openEdit(p) { 
@@ -573,104 +548,287 @@ function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
     if(!c) return;
-    c.innerHTML = ''; var totalDeuda = 0;
+    
+    c.innerHTML = '';
+    var totalDeuda = 0;
+    
     if(!D.deudores || D.deudores.length === 0) {
         c.innerHTML = '<div class="text-center text-muted p-5">👏 Excelente, no hay deudas pendientes.</div>';
     } else {
         D.deudores.forEach(d => {
             totalDeuda += d.saldo;
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
-            c.innerHTML += `<div class="card-k card-debt"><div class="d-flex justify-content-between align-items-center"><div><h6 class="fw-bold mb-1">${d.cliente}</h6><small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>${fechaTxt}</div><div class="text-end"><h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5><div class="mt-1"><span class="badge-debt">Pendiente</span></div></div></div></div>`;
+            
+            c.innerHTML += `
+            <div class="card-k card-debt">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-1">${d.cliente}</h6>
+                        <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
+                        ${fechaTxt}
+                    </div>
+                    <div class="text-end">
+                        <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
+                        <div class="mt-1"><span class="badge-debt">Pendiente</span></div>
+                    </div>
+                </div>
+            </div>`;
         });
     }
+    
     if(bal) bal.innerText = COP.format(totalDeuda);
 }
 
 function renderWeb() {
     var q = document.getElementById('web-search').value.toLowerCase().trim();
-    var c = document.getElementById('web-list'); c.innerHTML = '';
+    var c = document.getElementById('web-list');
+    c.innerHTML = '';
+    
     var lista = (D.inv || []).filter(p => p.enWeb === true);
-    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)); }
-    if(lista.length === 0) { c.innerHTML = `<div class="text-center text-muted p-5"><div style="font-size:2rem">🌐</div><p>No hay productos en Web.<br>Actívalos desde Inventario.</p></div>`; return; }
+    
+    if(q) {
+        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
+    }
+
+    if(lista.length === 0) {
+        c.innerHTML = `<div class="text-center text-muted p-5">
+            <div style="font-size:2rem">🌐</div>
+            <p>No hay productos en Web.<br>Actívalos desde Inventario.</p>
+        </div>`;
+        return;
+    }
+
     lista.slice(0, 50).forEach(p => {
         var fixedUrl = fixDriveLink(p.foto);
         var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
-        c.innerHTML += `<div class="card-k"><div class="d-flex justify-content-between align-items-center"><div class="d-flex gap-2 align-items-center">${img}<div><strong>${p.nombre}</strong><br><small class="badge bg-primary">${p.catWeb}</small> <small class="text-muted">| ${COP.format(p.publico)}</small></div></div><button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">Desactivar</button></div></div>`;
+        
+        c.innerHTML += `
+        <div class="card-k">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2 align-items-center">
+                    ${img}
+                    <div>
+                        <strong>${p.nombre}</strong><br>
+                        <small class="badge bg-primary">${p.catWeb}</small> 
+                        <small class="text-muted">| ${COP.format(p.publico)}</small>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">
+                    Desactivar
+                </button>
+            </div>
+        </div>`;
     });
 }
 
 function toggleWebStatus(id) {
     var idx = D.inv.findIndex(x => x.id === id);
     if(idx > -1) {
-        var p = D.inv[idx]; p.enWeb = !p.enWeb; renderWeb(); renderInv(); showToast("Producto actualizado", "info");
-        var payload = { id: p.id, nombre: p.nombre, categoria: p.cat, proveedor: p.prov, costo: p.costo, publico: p.publico, descripcion: p.desc, urlExistente: p.foto || "", enWeb: p.enWeb, catWeb: p.catWeb };
+        var p = D.inv[idx];
+        p.enWeb = !p.enWeb; 
+        
+        renderWeb();
+        renderInv(); 
+        showToast("Producto actualizado", "info");
+
+        var payload = {
+           id: p.id,
+           nombre: p.nombre,
+           categoria: p.cat,
+           proveedor: p.prov,
+           costo: p.costo,
+           publico: p.publico,
+           descripcion: p.desc,
+           urlExistente: p.foto || "", 
+           enWeb: p.enWeb,
+           catWeb: p.catWeb
+        };
         callAPI('guardarProductoAvanzado', payload);
     }
 }
 
+// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO PROVEEDOR ---
 function renderInv(){ 
-    var searchInp = document.getElementById('inv-search');
-    if(!searchInp) return;
-    var q = searchInp.value.toLowerCase().trim();
+    var q = document.getElementById('inv-search').value.toLowerCase().trim();
+    // LEEMOS EL FILTRO
     var filterProv = document.getElementById('filter-prov').value;
-    var c = document.getElementById('inv-list'); c.innerHTML=''; 
+    
+    var c = document.getElementById('inv-list');
+    c.innerHTML=''; 
     var lista = D.inv || [];
-    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
-    if(filterProv) { lista = lista.filter(p => p.prov === filterProv); }
+    
+    // FILTRO COMPUESTO
+    if(q) { 
+        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
+    }
+    if(filterProv) {
+        lista = lista.filter(p => p.prov === filterProv);
+    }
+
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
         var fixedUrl = fixDriveLink(p.foto);
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
-        var div = document.createElement('div'); div.className = 'card-catalog';
-        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copiarDato('${p.id}')">ID</div><div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div><div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div><div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div></div>`;
+
+        // Estructura Tarjeta Grid
+        var div = document.createElement('div');
+        div.className = 'card-catalog';
+        div.innerHTML = `
+            <div class="cat-img-box">
+                ${imgHtml}
+                <div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
+            </div>
+            <div class="cat-body">
+                <div class="cat-title">${p.nombre}</div>
+                <div class="cat-price">${precioDisplay}</div>
+                <small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small>
+            </div>
+            <div class="cat-actions">
+                <div class="btn-copy-mini" onclick="copiarDato('${p.id}')">ID</div>
+                <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
+                <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
+                <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
+            </div>
+        `;
         c.appendChild(div);
     }); 
 }
 
-function copiarDato(txt) { if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío"); navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); }); }
+function copiarDato(txt) {
+    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
+    navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); });
+}
+
 function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
 
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
-   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value, costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
+   
+   var newVal = {
+       id: prodEdit.id, 
+       nombre: document.getElementById('inp-edit-nombre').value, 
+       cat: document.getElementById('inp-edit-categoria').value, 
+       prov: document.getElementById('inp-edit-proveedor').value, 
+       costo: parseFloat(document.getElementById('inp-edit-costo').value), 
+       publico: parseFloat(document.getElementById('inp-edit-publico').value), 
+       desc: document.getElementById('inp-edit-desc').value, 
+       foto: prodEdit.foto || "", 
+       enWeb: document.getElementById('inp-edit-web').checked,
+       catWeb: document.getElementById('inp-edit-cat-web').value
+   };
+
    var f = document.getElementById('inp-file-foto').files[0];
    var promise = Promise.resolve(null);
-   if(f) { promise = compressImage(f); }
+
+   if(f) {
+       // USAR COMPRESIÓN AL EDITAR TAMBIÉN
+       promise = compressImage(f);
+   }
+
    promise.then(b64 => {
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
-       if(idx > -1) { if(b64) { var previewSrc = document.getElementById('img-preview-box').src; if(b64) newVal.foto = b64; } D.inv[idx] = newVal; }
-       renderInv(); renderPos(); myModalEdit.hide(); showToast("Guardando cambios...", "info");
-       var payload = { id: newVal.id, nombre: newVal.nombre, categoria: newVal.cat, proveedor: newVal.prov, costo: newVal.costo, publico: newVal.publico, descripcion: newVal.desc, urlExistente: prodEdit.foto || "", enWeb: newVal.enWeb, catWeb: newVal.catWeb };
-       if(b64) { payload.imagenBase64 = b64.split(',')[1]; payload.mimeType = f.type; payload.nombreArchivo = f.name; }
-       callAPI('guardarProductoAvanzado', payload).then(r => { if(r.exito) { showToast("¡Guardado exitoso!", "success"); } else { showToast("Error guardando: " + r.error, "danger"); } });
+       if(idx > -1) {
+           if(b64) {
+               // En preview mostramos b64 directo, el split se hace al enviar
+               var previewSrc = document.getElementById('img-preview-box').src;
+               // El canvas toDataURL devuelve el string completo
+               if(b64) newVal.foto = b64; 
+           }
+           D.inv[idx] = newVal; 
+       }
+
+       renderInv();
+       renderPos();
+       myModalEdit.hide();
+       showToast("Guardando cambios...", "info");
+
+       var payload = {
+           id: newVal.id,
+           nombre: newVal.nombre,
+           categoria: newVal.cat,
+           proveedor: newVal.prov,
+           costo: newVal.costo,
+           publico: newVal.publico,
+           descripcion: newVal.desc,
+           urlExistente: prodEdit.foto || "", 
+           enWeb: newVal.enWeb,
+           catWeb: newVal.catWeb
+       };
+
+       if(b64) {
+           payload.imagenBase64 = b64.split(',')[1];
+           payload.mimeType = f.type; 
+           payload.nombreArchivo = f.name;
+       }
+
+       callAPI('guardarProductoAvanzado', payload).then(r => {
+           if(r.exito) {
+               showToast("¡Guardado exitoso!", "success");
+           } else {
+               showToast("Error guardando: " + r.error, "danger");
+           }
+       });
    });
 }
 
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
+// --- FUNCIÓN ARREGLADA: CREACIÓN CON COMPRESIÓN ---
 function crearProducto(){ 
-    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
+    var d={
+        nombre:document.getElementById('new-nombre').value, 
+        categoria:document.getElementById('new-categoria').value, 
+        proveedor:document.getElementById('new-proveedor').value, 
+        costo: parseFloat(document.getElementById('new-costo').value), 
+        publico: parseFloat(document.getElementById('new-publico').value), 
+        descripcion: document.getElementById('new-desc').value,
+        enWeb: document.getElementById('new-web').checked,
+        catWeb: document.getElementById('new-cat-web').value,
+        id:document.getElementById('new-id').value||'GEN-'+Math.random()
+    }; 
+    
     var f = document.getElementById('new-file-foto').files[0];
+    
+    // 1. Promesa de compresión
     var promise = Promise.resolve(null);
-    if(f) { promise = compressImage(f); }
+    if(f) {
+        promise = compressImage(f); // USAR COMPRESOR
+    }
+
     promise.then(b64 => {
-        var localProd = { id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, desc: d.descripcion, foto: b64 || "", enWeb: d.enWeb, catWeb: d.catWeb };
-        D.inv.unshift(localProd); renderInv(); myModalNuevo.hide(); showToast("Creando producto...", "info");
-        if(b64) { d.imagenBase64 = b64.split(',')[1]; d.mimeType = f.type; d.nombreArchivo = f.name; }
-        callAPI('crearProductoManual', d).then(r=>{ if(r.exito){ showToast("Producto sincronizado", "success"); } else { showToast("Error al crear en servidor", "danger"); } });
+        // Actualizar UI local
+        var localProd = {
+            id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
+            costo: d.costo, publico: d.publico, desc: d.descripcion,
+            foto: b64 || "", 
+            enWeb: d.enWeb, catWeb: d.catWeb
+        };
+        D.inv.unshift(localProd);
+        renderInv();
+        myModalNuevo.hide();
+        showToast("Creando producto...", "info");
+
+        // Preparar payload para API
+        if(b64) {
+            d.imagenBase64 = b64.split(',')[1]; 
+            d.mimeType = f.type;
+            d.nombreArchivo = f.name;
+        }
+
+        callAPI('crearProductoManual', d).then(r=>{
+            if(r.exito){ showToast("Producto sincronizado", "success"); }
+            else { showToast("Error al crear en servidor", "danger"); }
+        });
     });
 }
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 function renderFin(){ 
-  var s=document.getElementById('ab-cli'); if(!s) return;
-  s.innerHTML='<option value="">Seleccione...</option>'; 
+  var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
-  var h=document.getElementById('hist-list'); 
-  if(!h) return;
-  h.innerHTML=''; 
+  var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
@@ -683,34 +841,113 @@ function renderFin(){
 function doAbono(){ 
     var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); 
     var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); 
-    var loader = document.getElementById('loader'); if(loader) loader.style.display='flex'; 
+    document.getElementById('loader').style.display='flex'; 
     callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); 
 }
+// NUEVA FUNCIÓN PARA INGRESO EXTRA
 function doIngresoExtra() {
-    var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value;
+    var desc = document.getElementById('inc-desc').value;
+    var cat = document.getElementById('inc-cat').value;
+    var monto = document.getElementById('inc-monto').value;
+    
     if(!desc || !monto) return alert("Falta descripción o monto");
-    var loader = document.getElementById('loader'); if(loader) loader.style.display = 'flex';
-    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); if(loader) loader.style.display = 'none'; } });
+    
+    document.getElementById('loader').style.display = 'flex';
+    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => {
+        if(r.exito) location.reload();
+        else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
+    });
 }
+
 function doGasto(){ 
     var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value;
     if(!desc || !monto) return alert("Falta descripción o monto");
     var d={ desc: desc, cat: document.getElementById('g-cat').value, monto: monto, vinculo: document.getElementById('g-vinculo').value }; 
-    var loader = document.getElementById('loader'); if(loader) loader.style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
+    document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
 }
+
 function renderPed(){ 
-    var c=document.getElementById('ped-list'); if(!c) return;
-    c.innerHTML=''; 
+    var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
+        // CAMBIO: Mostrar botones SIEMPRE, no solo si es pendiente
         var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
-        var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}</div>`;
-        c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`;
+        var controls = `
+          <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button>
+            <button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>
+            ${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}
+          </div>`;
+        
+        c.innerHTML+=`
+        <div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <strong>${p.prod}</strong><br>
+                    <small class="text-muted">${p.prov || 'Sin Prov.'}</small>
+                </div>
+                <div class="text-end">
+                    <small>${p.fecha}</small><br>${badge}
+                </div>
+            </div>
+            ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
+            ${controls}
+        </div>`;
     }); 
 }
-function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; var loader = document.getElementById('loader'); if(loader) loader.style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
-function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
-function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; var loader = document.getElementById('loader'); if(loader) loader.style.display='flex'; callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); if(loader) loader.style.display='none'; } }); }
-function delPed(id) { Swal.fire({ title: '¿Eliminar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' }).then((result) => { if (result.isConfirmed) { var loader = document.getElementById('loader'); if(loader) loader.style.display='flex'; callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); if(loader) loader.style.display='none'; } }); } }); }
-function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `Costo REAL de "${nombreProd}":`, input: 'number', showCancelButton: true, confirmButtonText: 'Registrar' }).then((result) => { if (result.isConfirmed) { var loader = document.getElementById('loader'); if(loader) loader.style.display = 'flex'; callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Registrado.', 'success').then(() => location.reload()); } else { alert(r.error); if(loader) loader.style.display = 'none'; } }); } }); }
+
+function savePed(){ 
+    var p=document.getElementById('pe-prod').value; 
+    if(!p) return alert("Escribe un producto");
+    var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value };
+    document.getElementById('loader').style.display='flex';
+    callAPI('guardarPedido', d).then(()=>location.reload()); 
+}
+
+function openEditPed(p) {
+    pedEditId = p.id;
+    document.getElementById('ed-ped-prod').value = p.prod;
+    document.getElementById('ed-ped-prov').value = p.prov;
+    document.getElementById('ed-ped-costo').value = p.costo;
+    document.getElementById('ed-ped-nota').value = p.notas;
+    myModalEditPed.show();
+}
+
+function guardarEdicionPed() {
+    if(!pedEditId) return;
+    var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value };
+    document.getElementById('loader').style.display='flex';
+    callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
+}
+
+function delPed(id) {
+    Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loader').style.display='flex';
+            callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
+        }
+    });
+}
+
+function comprarPedido(id, nombreProd) {
+    Swal.fire({
+        title: 'Confirmar Compra',
+        text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`,
+        input: 'number',
+        inputLabel: 'Costo Real de Compra',
+        inputPlaceholder: 'Ej: 50000',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, Registrar Gasto e Inventario',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loader').style.display = 'flex';
+            callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => {
+                 if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
+            });
+        }
+    });
+}
+
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
