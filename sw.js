@@ -1,10 +1,10 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v58 - WORKBOX EDITION
+ * 👑 KINGSHOP SERVICE WORKER v62 - WORKBOX EDITION
  * - Estrategia: Stale-While-Revalidate & Network-First.
  * - Soporte: Carga offline robusta.
  */
 
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js');
+importScripts('[https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js](https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js)');
 
 if (workbox) {
     console.log(`✅ Workbox cargado correctamente`);
@@ -18,29 +18,26 @@ if (workbox) {
     });
 
     // 2. PRECACHING (Archivos Nucleares)
-    // Estos archivos deben estar siempre disponibles offline
     workbox.precaching.precacheAndRoute([
-        { url: './index.html', revision: 'v58.0' },
-        { url: './app.js', revision: 'v58.0' },
+        { url: './index.html', revision: 'v62.0' },
+        { url: './app.js', revision: 'v62.0' },
         { url: './manifest.json', revision: 'v1' },
         { url: './icon-192.png', revision: '1' },
         { url: './icon-512.png', revision: '1' }
     ]);
 
-    // 3. ESTRATEGIA PARA LIBRERÍAS EXTERNAS (Bootstrap, SweetAlert, Dexie)
-    // Stale-While-Revalidate: Usa lo que tiene en caché y actualiza en segundo plano
+    // 3. ESTRATEGIA LIBRERÍAS EXTERNAS (Bootstrap, SweetAlert, Dexie)
     workbox.routing.registerRoute(
-        ({url}) => url.origin === 'https://cdn.jsdelivr.net' || 
-                   url.origin === 'https://cdnjs.cloudflare.com' ||
-                   url.origin === 'https://fonts.googleapis.com' ||
-                   url.origin === 'https://unpkg.com',
+        ({url}) => url.origin === '[https://cdn.jsdelivr.net](https://cdn.jsdelivr.net)' || 
+                   url.origin === '[https://cdnjs.cloudflare.com](https://cdnjs.cloudflare.com)' ||
+                   url.origin === '[https://fonts.googleapis.com](https://fonts.googleapis.com)' ||
+                   url.origin === '[https://unpkg.com](https://unpkg.com)',
         new workbox.strategies.StaleWhileRevalidate({
             cacheName: 'kingshop-libs',
         })
     );
 
-    // 4. ESTRATEGIA PARA IMÁGENES (Google Drive / Fotos)
-    // Cache First: Las imágenes se guardan para no gastar datos
+    // 4. ESTRATEGIA IMÁGENES (Drive/Fotos)
     workbox.routing.registerRoute(
         ({request}) => request.destination === 'image',
         new workbox.strategies.CacheFirst({
@@ -54,7 +51,7 @@ if (workbox) {
         })
     );
 
-    // 5. RUTAS DE NAVEGACIÓN
+    // 5. NAVEGACIÓN
     workbox.routing.registerRoute(
         ({request}) => request.mode === 'navigate',
         new workbox.strategies.NetworkFirst({
