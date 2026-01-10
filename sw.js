@@ -1,64 +1,54 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v62 - WORKBOX EDITION
- * - Estrategia: Stale-While-Revalidate & Network-First.
- * - Soporte: Carga offline robusta.
+ * 👑 KINGSHOP SERVICE WORKER v57
+ * - Permite que la app cargue sin conexión a internet.
+ * - Cachea los archivos estáticos críticos.
  */
 
-importScripts('[https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js](https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js)');
+const CACHE_NAME = 'kingshop-v57-cache';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './app.js',
+  './icon-192.png',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap',
+  'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
+  'https://cdn.jsdelivr.net/npm/sweetalert2@11'
+];
 
-if (workbox) {
-    console.log(`✅ Workbox cargado correctamente`);
+// 1. INSTALACIÓN: Descargar recursos a la memoria del cel
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+  );
+});
 
-    // 1. OMITIR ESPERA (Activar nueva versión rápido)
-    self.addEventListener('install', (event) => {
-        self.skipWaiting();
-    });
-    self.addEventListener('activate', (event) => {
-        event.waitUntil(self.clients.claim());
-    });
+// 2. ACTIVACIÓN: Limpiar cachés viejas
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(keys.map(key => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      }));
+    })
+  );
+});
 
-    // 2. PRECACHING (Archivos Nucleares)
-    workbox.precaching.precacheAndRoute([
-        { url: './index.html', revision: 'v62.0' },
-        { url: './app.js', revision: 'v62.0' },
-        { url: './manifest.json', revision: 'v1' },
-        { url: './icon-192.png', revision: '1' },
-        { url: './icon-512.png', revision: '1' }
-    ]);
+// 3. INTERCEPTOR: Servir desde caché si no hay red
+self.addEventListener('fetch', event => {
+  // Ignorar peticiones a la API de Google (esas se manejan en app.js)
+  if (event.request.url.includes('script.google.com')) return;
 
-    // 3. ESTRATEGIA LIBRERÍAS EXTERNAS (Bootstrap, SweetAlert, Dexie)
-    workbox.routing.registerRoute(
-        ({url}) => url.origin === '[https://cdn.jsdelivr.net](https://cdn.jsdelivr.net)' || 
-                   url.origin === '[https://cdnjs.cloudflare.com](https://cdnjs.cloudflare.com)' ||
-                   url.origin === '[https://fonts.googleapis.com](https://fonts.googleapis.com)' ||
-                   url.origin === '[https://unpkg.com](https://unpkg.com)',
-        new workbox.strategies.StaleWhileRevalidate({
-            cacheName: 'kingshop-libs',
-        })
-    );
-
-    // 4. ESTRATEGIA IMÁGENES (Drive/Fotos)
-    workbox.routing.registerRoute(
-        ({request}) => request.destination === 'image',
-        new workbox.strategies.CacheFirst({
-            cacheName: 'kingshop-images',
-            plugins: [
-                new workbox.expiration.ExpirationPlugin({
-                    maxEntries: 100, // Guardar máx 100 fotos
-                    maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Días
-                }),
-            ],
-        })
-    );
-
-    // 5. NAVEGACIÓN
-    workbox.routing.registerRoute(
-        ({request}) => request.mode === 'navigate',
-        new workbox.strategies.NetworkFirst({
-            cacheName: 'kingshop-nav',
-        })
-    );
-
-} else {
-    console.log(`❌ Falló la carga de Workbox`);
-}
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Si está en caché, devuélvelo. Si no, búscalo en internet.
+        return response || fetch(event.request);
+      })
+  );
+});
