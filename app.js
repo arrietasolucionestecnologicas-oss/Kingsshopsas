@@ -1,7 +1,7 @@
 // ============================================
 // ⚠️ PEGA TU URL DE GOOGLE APPS SCRIPT AQUÍ
 // ============================================
-const API_URL = "https://script.google.com/macros/s/AKfycbx2P2M77oje0uwwcJPnUkY2jakGMBUSSdJx-veS_ZmC55_tRzwBdjmz_gRLEvJ0xebG/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
 
 // --- BASE DE DATOS LOCAL (DEXIE) ---
 // Esto persiste aunque cierres el navegador o apagues el celular
