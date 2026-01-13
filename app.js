@@ -223,7 +223,18 @@ function renderData(res) {
     renderProvs();
     renderCartera();
     
-    var dl = document.getElementById('list-cats'); if(dl) { dl.innerHTML=''; (res.categorias || []).forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); }
+    // --- AQUÍ INYECTAMOS LA CATEGORÍA GADGETS A LA FUERZA ---
+    var allCats = res.categorias || [];
+    if(!allCats.includes("Gadget y Novedades")) {
+        allCats.push("Gadget y Novedades");
+    }
+    allCats.sort();
+
+    var dl = document.getElementById('list-cats'); 
+    if(dl) { 
+        dl.innerHTML=''; 
+        allCats.forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); 
+    }
     
     var dlp = document.querySelectorAll('#list-prods-all'); 
     dlp.forEach(list => {
@@ -234,7 +245,7 @@ function renderData(res) {
     var editCat = document.getElementById('inp-edit-categoria');
     if(editCat){
         editCat.innerHTML = '';
-        (res.categorias || []).forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
+        allCats.forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
     }
     updateGastosSelect();
 }
@@ -679,7 +690,7 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO PROVEEDOR MEJORADO ---
+// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO INTELIGENTE (.includes) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     // LEEMOS EL FILTRO
@@ -694,9 +705,10 @@ function renderInv(){
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
     }
     if(filterProv) {
-        // CORRECCIÓN: COMPARACIÓN FLEXIBLE (SIN ESPACIOS, SIN MAYÚSCULAS)
+        // CORRECCIÓN: COMPARACIÓN LAXA (INCLUDES) EN LUGAR DE ESTRICTA (===)
+        // Esto permite que "CELUTRONIC" se muestre si filtras "CELUCTRONIC" o viceversa, siempre que compartan caracteres.
         var fClean = filterProv.trim().toLowerCase();
-        lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase() === fClean);
+        lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean));
     }
 
     lista.slice(0, 50).forEach(p=>{
