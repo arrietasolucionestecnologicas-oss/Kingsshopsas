@@ -368,6 +368,7 @@ function toggleManual() {
     calcCart();
 }
 
+// --- CORE DEL CÁLCULO FINANCIERO ACTUALIZADO (INTERÉS MENSUAL SIMPLE) ---
 function calcCart() {
    if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(0)); return; }
    
@@ -375,35 +376,38 @@ function calcCart() {
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
 
-   var util = parseFloat(parent.querySelector('#c-util').value)||0;
-   var inter = parseFloat(parent.querySelector('#c-int').value)||0;
+   // Inputs de configuración
+   var util = parseFloat(parent.querySelector('#c-util').value)||0; // Utilidad variable
+   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; // Tasa Mensual variable
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
    var metodo = parent.querySelector('#c-metodo').value;
-   var base = 0;
 
+   // 1. Calcular BASE (Sin interés financiero, solo margen comercial)
+   var base = 0;
    if (isManual) {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        base = isNaN(manualVal) ? 0 : manualVal;
    } else {
        base = CART.reduce((acc, item) => {
+           // Si tiene precio publico fijo, usalo. Si no, usa costo + utilidad variable
            if(item.publico > 0) return acc + item.publico; 
            return acc + (item.costo * (1 + util/100)); 
        }, 0);
        if(conIva) base = base * 1.19;
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
-       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
    }
-   calculatedValues.total = base;
-   
+
+   // 2. Elementos UI
    var rowCred = parent.querySelectorAll('#row-cred'); 
    var inpInicial = parent.querySelectorAll('#c-inicial');
 
+   // 3. Lógica según método
    if(metodo === "Crédito") {
        var activeEl = document.activeElement;
        var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
        
+       // Definir inicial
        var inicial = 0;
        if(isTypingInicial) {
            inicial = parseFloat(parent.querySelector('#c-inicial').value);
@@ -412,19 +416,36 @@ function calcCart() {
            inicial = base * 0.30;
        }
        
+       // Guardar inicial calculada
        calculatedValues.inicial = inicial;
        
-       var saldoRestante = base - inicial;
-       if(saldoRestante < 0) saldoRestante = 0;
+       // Calcular Saldo Base (Capital a financiar)
+       var saldoBase = base - inicial;
+       if(saldoBase < 0) saldoBase = 0;
 
-       var saldoConInteres = saldoRestante * (1 + inter/100); 
-       var valorCuota = saldoConInteres / cuotas;
+       // --- FÓRMULA DE INTERÉS SIMPLE MENSUAL ---
+       // Interes = Capital * (Tasa/100) * Tiempo
+       var totalInteres = saldoBase * (tasaMensual/100) * cuotas;
        
+       // Nuevo Total de la Venta (Capital + Interés)
+       var nuevoTotalVenta = base + totalInteres;
+       var deudaTotal = saldoBase + totalInteres;
+       
+       // Valor Cuota
+       var valorCuota = deudaTotal / cuotas;
+       
+       // ACTUALIZAR VARIABLE GLOBAL PARA GUARDADO
+       calculatedValues.total = nuevoTotalVenta; 
+
+       // Actualizar UI
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(nuevoTotalVenta)));
+       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(nuevoTotalVenta));
+
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
            e.querySelector('#res-ini').innerText = COP.format(Math.round(inicial)); 
            e.querySelector('#res-cuota-val').innerText = COP.format(Math.round(valorCuota)); 
-           e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} cuotas`; 
+           e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} mes(es)`; 
        });
        
        inpInicial.forEach(e => { 
@@ -433,7 +454,15 @@ function calcCart() {
            e.disabled = false;
            e.style.background = '#fff';
        });
+
    } else { 
+       // Lógica Contado (Sin interés)
+       calculatedValues.total = base;
+       calculatedValues.inicial = 0;
+
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
+       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
+       
        rowCred.forEach(e => e.style.display = 'none'); 
        inpInicial.forEach(e => e.style.display='none'); 
    }
@@ -454,13 +483,16 @@ function finalizarVenta() {
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
+   // Calcular peso de cada producto para distribuir el total (incluyendo intereses)
    var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
    var factor = calculatedValues.total / totalCostoRef; 
    if(isNaN(factor)) factor = 1;
 
+   // Aquí los items ya llevarán el precio con interés prorrateado
    var itemsData = CART.map(p => {
        var baseItem = p.publico > 0 ? p.publico : p.costo;
-       var peso = baseItem / CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0);
+       var peso = baseItem / totalCostoRef;
+       // Distribuimos el Total (Base + Intereses) proporcionalmente
        return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
    });
 
