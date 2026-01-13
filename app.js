@@ -368,7 +368,7 @@ function toggleManual() {
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO ACTUALIZADO (INTERÉS MENSUAL SIMPLE) ---
+// --- CORE DEL CÁLCULO FINANCIERO (INTERÉS SIMPLE MENSUAL) ---
 function calcCart() {
    if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(0)); return; }
    
@@ -419,20 +419,20 @@ function calcCart() {
        // Guardar inicial calculada
        calculatedValues.inicial = inicial;
        
-       // Calcular Saldo Base (Capital a financiar)
-       var saldoBase = base - inicial;
-       if(saldoBase < 0) saldoBase = 0;
+       // Saldo = Precio - Inicial (Monto a financiar)
+       var saldo = base - inicial;
+       if(saldo < 0) saldo = 0;
 
-       // --- FÓRMULA DE INTERÉS SIMPLE MENSUAL ---
-       // Interes = Capital * (Tasa/100) * Tiempo
-       var totalInteres = saldoBase * (tasaMensual/100) * cuotas;
+       // --- FÓRMULA DE LA IMAGEN ---
+       // Cuota = (Saldo + (Saldo * Tasa * Meses)) / Meses
+       var interesTotal = saldo * (tasaMensual/100) * cuotas;
+       var numerador = saldo + interesTotal;
        
-       // Nuevo Total de la Venta (Capital + Interés)
-       var nuevoTotalVenta = base + totalInteres;
-       var deudaTotal = saldoBase + totalInteres;
+       // Cálculo final de la cuota
+       var valorCuota = numerador / cuotas;
        
-       // Valor Cuota
-       var valorCuota = deudaTotal / cuotas;
+       // Nuevo Total de la Venta para la Base de Datos (Inicial + DeudaTotal)
+       var nuevoTotalVenta = inicial + numerador;
        
        // ACTUALIZAR VARIABLE GLOBAL PARA GUARDADO
        calculatedValues.total = nuevoTotalVenta; 
@@ -679,7 +679,7 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO PROVEEDOR ---
+// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO PROVEEDOR MEJORADO ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     // LEEMOS EL FILTRO
@@ -694,7 +694,9 @@ function renderInv(){
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
     }
     if(filterProv) {
-        lista = lista.filter(p => p.prov === filterProv);
+        // CORRECCIÓN: COMPARACIÓN FLEXIBLE (SIN ESPACIOS, SIN MAYÚSCULAS)
+        var fClean = filterProv.trim().toLowerCase();
+        lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase() === fClean);
     }
 
     lista.slice(0, 50).forEach(p=>{
