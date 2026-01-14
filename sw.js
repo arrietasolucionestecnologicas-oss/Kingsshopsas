@@ -1,14 +1,14 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v57
- * - Permite que la app cargue sin conexión a internet.
- * - Cachea los archivos estáticos críticos.
+ * 👑 KINGSHOP SERVICE WORKER v60 - UPDATE FORCE
+ * - Versión crítica para activar Calculadora Libre.
+ * - Fuerza la recarga de index.html y app.js
  */
 
-const CACHE_NAME = 'kingshop-v57-cache';
+const CACHE_NAME = 'kingshop-v60-cache'; // <--- CAMBIO CRÍTICO AQUÍ
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './app.js',
+  './app.js', // Se actualizará automáticamente al cambiar la versión arriba
   './icon-192.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
@@ -18,37 +18,54 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
-// 1. INSTALACIÓN: Descargar recursos a la memoria del cel
+// 1. INSTALACIÓN: Descargar recursos nuevos
 self.addEventListener('install', event => {
+  // Forzar al SW a tomar el control inmediatamente sin esperar
+  self.skipWaiting();
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
+        console.log('Opened cache v60');
         return cache.addAll(ASSETS_TO_CACHE);
       })
   );
 });
 
-// 2. ACTIVACIÓN: Limpiar cachés viejas
+// 2. ACTIVACIÓN: Borrar cachés viejas (v57, v58, v59...)
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(keys.map(key => {
-        if (key !== CACHE_NAME) return caches.delete(key);
+        if (key !== CACHE_NAME) {
+            console.log('Borrando caché vieja:', key);
+            return caches.delete(key);
+        }
       }));
-    })
+    }).then(() => self.clients.claim()) // Tomar control de clientes abiertos
   );
 });
 
-// 3. INTERCEPTOR: Servir desde caché si no hay red
+// 3. INTERCEPTOR: Estrategia "Network First" para HTML (Más seguro para actualizaciones)
 self.addEventListener('fetch', event => {
-  // Ignorar peticiones a la API de Google (esas se manejan en app.js)
+  // Ignorar APIs externas
   if (event.request.url.includes('script.google.com')) return;
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Si está en caché, devuélvelo. Si no, búscalo en internet.
-        return response || fetch(event.request);
-      })
-  );
+  // Para el index.html y app.js, intentamos RED primero, si falla usamos CACHÉ
+  // Esto asegura que si tienes internet, SIEMPRE veas lo nuevo.
+  if (event.request.mode === 'navigate' || event.request.url.includes('app.js')) {
+      event.respondWith(
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
+        })
+      );
+  } else {
+      // Para imágenes y estilos pesados, usamos CACHÉ primero (velocidad)
+      event.respondWith(
+        caches.match(event.request)
+          .then(response => {
+            return response || fetch(event.request);
+          })
+      );
+  }
 });
