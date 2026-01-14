@@ -386,7 +386,7 @@
 
        <div class="d-flex justify-content-between gap-2 mb-2">
          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">IVA 19%</label></div>
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio/Costo Manual</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Costo Manual</label></div>
        </div>
        
        <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">Selecciona productos...</div>
@@ -405,7 +405,7 @@
              <span>Total Venta:</span>
              <div class="text-end">
                 <strong id="res-cont" class="fs-5" style="color: var(--primary);">$0</strong>
-                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Monto Base" oninput="calcCart()">
+                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Costo Base ($)" oninput="calcCart()">
              </div>
           </div>
           <div id="row-cred" style="display:none; border-top:1px dashed var(--gold); margin-top:5px; padding-top:5px;">
@@ -584,6 +584,6 @@
       });
     }
   </script>
-  <script src="app.js?v=59"></script>
+  <script src="app.js?v=60"></script>
 </body>
 </html>
