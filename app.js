@@ -8,7 +8,7 @@ var CART = [];
 var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed;
 var prodEdit = null;
 var pedEditId = null; 
-var calculatedValues = { total: 0, inicial: 0 };
+var calculatedValues = { total: 0, inicial: 0, base: 0 };
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -409,6 +409,36 @@ function openFreeCalculator() {
     showToast("Calculadora Libre Activada", "info");
 }
 
+// --- FUNCIÓN NUEVA: CÁLCULO INVERSO (Objetivo Total -> Tasa Interés) ---
+function calcReverse() {
+    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    
+    var targetTotal = parseFloat(parent.querySelector('#c-target').value);
+    if (!targetTotal || targetTotal <= 0) return;
+
+    // Obtener la BASE actual (Costo/Precio Contado sin interés)
+    var base = calculatedValues.base;
+    if (base <= 0) return; // No se puede calcular sin base
+
+    var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
+    var inicial = base * 0.30;
+    var saldo = base - inicial;
+
+    if (saldo <= 0 || cuotas <= 0) return;
+
+    // Fórmula Inversa:
+    // Total = Base + (Saldo * Tasa/100 * Meses)
+    // Tasa = ((Total - Base) * 100) / (Saldo * Meses)
+    
+    var rate = ((targetTotal - base) * 100) / (saldo * cuotas);
+    
+    if (rate < 0) rate = 0; // No permitir intereses negativos
+
+    // Actualizar input de interés y recalcular
+    parent.querySelector('#c-int').value = rate.toFixed(2);
+    calcCart();
+}
+
 // --- CORE DEL CÁLCULO FINANCIERO (INTERÉS SIMPLE MENSUAL) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
@@ -451,6 +481,9 @@ function calcCart() {
         }
         if(conIva) base = base * 1.19;
    }
+   
+   // GUARDAMOS LA BASE PARA EL CÁLCULO INVERSO
+   calculatedValues.base = base;
 
    // 2. Elementos UI
    var rowCred = parent.querySelectorAll('#row-cred'); 
