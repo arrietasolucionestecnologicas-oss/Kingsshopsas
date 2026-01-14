@@ -238,6 +238,7 @@
     <div id="view-pos" class="view-sec">
       <div class="main-layout">
         <div class="list-column">
+           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="openFreeCalculator()"><i class="fas fa-calculator"></i> CALCULADORA LIBRE</button>
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
                <i class="fas fa-search text-muted ms-2 me-2"></i>
                <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Escribe para vender..." onkeyup="renderPos()" style="font-weight:bold;">
@@ -377,14 +378,19 @@
   <template id="tpl-cart">
     <div class="cotizador-panel">
        <div class="d-flex justify-content-between mb-2 align-items-center">
-         <h5 class="fw-bold m-0" style="color: var(--primary);">Cotización</h5>
-         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️</button>
+         <h5 class="fw-bold m-0" style="color: var(--primary);">Cotización / Venta</h5>
+         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Limpiar</button>
        </div>
+       
+       <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Escribe el nombre del producto..." style="display:none; border-left:4px solid var(--gold);">
+
        <div class="d-flex justify-content-between gap-2 mb-2">
          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">IVA 19%</label></div>
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Manual</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio/Costo Manual</label></div>
        </div>
+       
        <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">Selecciona productos...</div>
+       
        <div class="row g-2 mb-3">
          <div class="col-4 text-center"><small>Util %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
          <div class="col-4 text-center"><small>Int %</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
@@ -396,10 +402,10 @@
 
        <div class="alert alert-light border text-center py-2 mb-3" style="background-color: #fffcf5; border-color: var(--gold) !important;">
           <div class="d-flex justify-content-between align-items-center">
-             <span>Total:</span>
+             <span>Total Venta:</span>
              <div class="text-end">
                 <strong id="res-cont" class="fs-5" style="color: var(--primary);">$0</strong>
-                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Valor Manual" oninput="calcCart()">
+                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Monto Base" oninput="calcCart()">
              </div>
           </div>
           <div id="row-cred" style="display:none; border-top:1px dashed var(--gold); margin-top:5px; padding-top:5px;">
@@ -407,10 +413,15 @@
              <div class="d-flex justify-content-between mt-1" style="color: var(--gold-hover);"><span>Restante:</span><strong id="res-cuota-val">$0</strong> <small id="res-cuota-txt">x 1</small></div>
           </div>
        </div>
+       
        <input id="c-cliente" class="form-control mb-2" placeholder="Nombre Cliente">
        <select id="c-metodo" class="form-select mb-2" onchange="toggleIni()"><option>Contado</option><option>Crédito</option></select>
        <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Inicial" disabled style="display:none; background:#e9ecef;">
-       <button class="btn btn-primary w-100 fw-bold py-2" onclick="finalizarVenta()" style="color: var(--gold);">✅ CONFIRMAR VENTA</button>
+       
+       <div class="d-flex gap-2">
+           <button class="btn btn-success flex-fill fw-bold" onclick="shareQuote()"><i class="fab fa-whatsapp"></i> COTIZAR</button>
+           <button class="btn btn-primary flex-fill fw-bold" onclick="finalizarVenta()">✅ VENDER</button>
+       </div>
     </div>
   </template>
 
@@ -568,6 +579,6 @@
       });
     }
   </script>
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=58"></script>
 </body>
 </html>
