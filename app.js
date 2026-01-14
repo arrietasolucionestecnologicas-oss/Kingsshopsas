@@ -331,14 +331,15 @@ function toggleCart(p, el) {
 
 function updateCartUI() {
    var count = CART.length;
-   calcCart();
-   var btnFloat = document.getElementById('btn-float-cart');
-   btnFloat.style.display = count > 0 ? 'block' : 'none';
-   btnFloat.innerText = "🛒 " + count;
    
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container');
+   
+   // --- LOGICA UI CARRITO ---
+   var btnFloat = document.getElementById('btn-float-cart');
+   btnFloat.style.display = count > 0 ? 'block' : 'none';
+   btnFloat.innerText = "🛒 " + count;
    
    var dateInput = parent.querySelector('#c-fecha');
    if(dateInput && !dateInput.value) {
@@ -349,12 +350,22 @@ function updateCartUI() {
        dateInput.value = `${yyyy}-${mm}-${dd}`;
    }
    
+   // Manejo del Input Concepto Manual
+   var inputConcepto = parent.querySelector('#c-concepto');
    if(count === 0) {
        document.getElementById('mobile-cart').classList.remove('visible');
+       // Si no hay items, mostrar el campo para escribir manual
+       if(inputConcepto) inputConcepto.style.display = 'block';
+       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
+   } else {
+       if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
+       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
+       
+       var names = CART.map(x=>x.nombre).join(', ');
+       document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
    }
-
-   var names = CART.map(x=>x.nombre).join(', ');
-   document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
+   
+   calcCart();
 }
 
 function toggleManual() {
@@ -379,10 +390,27 @@ function toggleManual() {
     calcCart();
 }
 
+// --- FUNCIÓN NUEVA: ABRIR CALCULADORA LIBRE ---
+function openFreeCalculator() {
+    CART = []; // Limpiar carrito
+    document.querySelectorAll('.pos-row-lite').forEach(e => e.classList.remove('active'));
+    
+    // Activar modo manual en la UI
+    var isMobile = window.innerWidth < 992;
+    if(isMobile) toggleMobileCart();
+    
+    var parent = (isMobile && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    
+    // Activar checkbox Manual
+    var chkManual = parent.querySelector('#c-manual');
+    if(chkManual) { chkManual.checked = true; toggleManual(); }
+    
+    updateCartUI(); // Esto mostrará el input de concepto
+    showToast("Calculadora Libre Activada", "info");
+}
+
 // --- CORE DEL CÁLCULO FINANCIERO (INTERÉS SIMPLE MENSUAL) ---
 function calcCart() {
-   if(CART.length===0) { document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(0)); return; }
-   
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
@@ -395,18 +423,33 @@ function calcCart() {
    var isManual = parent.querySelector('#c-manual').checked;
    var metodo = parent.querySelector('#c-metodo').value;
 
-   // 1. Calcular BASE (Sin interés financiero, solo margen comercial)
+   // 1. Calcular BASE
    var base = 0;
-   if (isManual) {
-       var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
-       base = isNaN(manualVal) ? 0 : manualVal;
+   
+   if (CART.length > 0) {
+        // MODO CARRITO: Suma de productos
+        if (isManual) {
+            var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+            base = isNaN(manualVal) ? 0 : manualVal;
+        } else {
+            base = CART.reduce((acc, item) => {
+                if(item.publico > 0) return acc + item.publico; 
+                return acc + (item.costo * (1 + util/100)); 
+            }, 0);
+            if(conIva) base = base * 1.19;
+        }
    } else {
-       base = CART.reduce((acc, item) => {
-           // Si tiene precio publico fijo, usalo. Si no, usa costo + utilidad variable
-           if(item.publico > 0) return acc + item.publico; 
-           return acc + (item.costo * (1 + util/100)); 
-       }, 0);
-       if(conIva) base = base * 1.19;
+        // MODO CALCULADORA LIBRE: Input manual es el COSTO BASE
+        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+        var costoBase = isNaN(manualVal) ? 0 : manualVal;
+        
+        // Aplicamos utilidad si no es 0, si es 0 asumimos que es precio final
+        if(util > 0) {
+            base = costoBase * (1 + util/100);
+        } else {
+            base = costoBase;
+        }
+        if(conIva) base = base * 1.19;
    }
 
    // 2. Elementos UI
@@ -448,9 +491,11 @@ function calcCart() {
        // ACTUALIZAR VARIABLE GLOBAL PARA GUARDADO
        calculatedValues.total = nuevoTotalVenta; 
 
-       // Actualizar UI
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(nuevoTotalVenta)));
-       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(nuevoTotalVenta));
+       // Actualizar UI (Solo actualizar texto si no estamos escribiendo en manual)
+       if (CART.length > 0 || !isManual) {
+            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(nuevoTotalVenta)));
+       }
+       // En modo manual libre, no sobrescribimos el input mientras escribes
 
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
@@ -471,8 +516,9 @@ function calcCart() {
        calculatedValues.total = base;
        calculatedValues.inicial = 0;
 
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
-       document.querySelectorAll('#res-cont-input').forEach(e => e.value = Math.round(base));
+       if (CART.length > 0 || !isManual) {
+           document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
+       }
        
        rowCred.forEach(e => e.style.display = 'none'); 
        inpInicial.forEach(e => e.style.display='none'); 
@@ -483,29 +529,78 @@ function toggleMobileCart() { document.getElementById('mobile-cart').classList.t
 function toggleIni() { calcCart(); }
 function clearCart() { CART=[]; renderPos(); updateCartUI(); }
 
+// --- FUNCIÓN NUEVA: COMPARTIR COTIZACIÓN POR WHATSAPP ---
+function shareQuote() {
+    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    
+    var cli = parent.querySelector('#c-cliente').value || "Cliente";
+    var concepto = "";
+    
+    if(CART.length > 0) {
+        concepto = CART.map(x=>x.nombre).join(', ');
+    } else {
+        concepto = parent.querySelector('#c-concepto').value || "Varios";
+    }
+    
+    var total = calculatedValues.total;
+    var metodo = parent.querySelector('#c-metodo').value;
+    var msg = `Hola *${cli}*, esta es tu cotización en King's Shop:\n\n`;
+    msg += `📦 *Producto:* ${concepto}\n`;
+    
+    if(metodo === "Crédito") {
+        var inicial = calculatedValues.inicial;
+        var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
+        var valorCuota = parent.querySelector('#res-cuota-val').innerText;
+        
+        msg += `💳 *Método:* Crédito\n`;
+        msg += `💰 *Valor Total (Financiado):* ${COP.format(total)}\n`;
+        msg += `🔹 *Inicial:* ${COP.format(inicial)}\n`;
+        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}*`;
+    } else {
+        msg += `💵 *Método:* Contado\n`;
+        msg += `💰 *Total a Pagar:* ${COP.format(total)}`;
+    }
+    
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
 function finalizarVenta() {
-   if(CART.length===0) return alert("Carrito vacío");
    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    var cli = parent.querySelector('#c-cliente').value;
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
-   
    var fechaVal = parent.querySelector('#c-fecha').value;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
-   // Calcular peso de cada producto para distribuir el total (incluyendo intereses)
-   var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
-   var factor = calculatedValues.total / totalCostoRef; 
-   if(isNaN(factor)) factor = 1;
+   var itemsData = [];
+   
+   // CASO 1: VENTA DE CARRITO
+   if(CART.length > 0) {
+       var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
+       var factor = calculatedValues.total / totalCostoRef; 
+       if(isNaN(factor)) factor = 1;
 
-   // Aquí los items ya llevarán el precio con interés prorrateado
-   var itemsData = CART.map(p => {
-       var baseItem = p.publico > 0 ? p.publico : p.costo;
-       var peso = baseItem / totalCostoRef;
-       // Distribuimos el Total (Base + Intereses) proporcionalmente
-       return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
-   });
+       itemsData = CART.map(p => {
+           var baseItem = p.publico > 0 ? p.publico : p.costo;
+           var peso = baseItem / totalCostoRef;
+           return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
+       });
+   } 
+   // CASO 2: VENTA LIBRE (MANUAL)
+   else {
+       var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
+       var costoManual = parseFloat(parent.querySelector('#res-cont-input').value) || 0; 
+       // En venta manual asumimos costo = precio base ingresado antes de margen/interés
+       
+       itemsData.push({
+           nombre: nombreManual,
+           cat: "General",
+           costo: costoManual, // Referencial
+           precioVenta: calculatedValues.total
+       });
+   }
 
    var d = { 
        items: itemsData, 
@@ -521,7 +616,7 @@ function finalizarVenta() {
        if(r.exito) { 
            if(r.offline) {
                alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
-               location.reload(); // Recargar para limpiar carro
+               location.reload(); 
            } else {
                location.reload(); 
            }
