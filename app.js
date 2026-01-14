@@ -329,7 +329,7 @@ function toggleCart(p, el) {
    updateCartUI();
 }
 
-function updateCartUI() {
+function updateCartUI(keepOpen = false) {
    var count = CART.length;
    
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
@@ -352,8 +352,13 @@ function updateCartUI() {
    
    // Manejo del Input Concepto Manual
    var inputConcepto = parent.querySelector('#c-concepto');
+   
    if(count === 0) {
-       document.getElementById('mobile-cart').classList.remove('visible');
+       // SOLUCIÓN CRÍTICA: Si keepOpen es true, NO cerramos el modal aunque esté vacío
+       if(!keepOpen) {
+           document.getElementById('mobile-cart').classList.remove('visible');
+       }
+       
        // Si no hay items, mostrar el campo para escribir manual
        if(inputConcepto) inputConcepto.style.display = 'block';
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
@@ -395,17 +400,33 @@ function openFreeCalculator() {
     CART = []; // Limpiar carrito
     document.querySelectorAll('.pos-row-lite').forEach(e => e.classList.remove('active'));
     
-    // Activar modo manual en la UI
     var isMobile = window.innerWidth < 992;
-    if(isMobile) toggleMobileCart();
     
-    var parent = (isMobile && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    // 1. Forzar visibilidad del panel móvil PRIMERO
+    if(isMobile) {
+        document.getElementById('mobile-cart').classList.add('visible');
+    }
     
-    // Activar checkbox Manual
+    var parent = (isMobile) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    
+    // 2. Activar Checkbox Manual y Configurar UI
     var chkManual = parent.querySelector('#c-manual');
-    if(chkManual) { chkManual.checked = true; toggleManual(); }
+    if(chkManual) { 
+        chkManual.checked = true; 
+        
+        // Forzamos los estilos directamente
+        var inpTotal = parent.querySelector('#res-cont-input');
+        var txtTotal = parent.querySelector('#res-cont');
+        var inpUtil = parent.querySelector('#c-util');
+        
+        if(inpTotal) { inpTotal.style.display = 'inline-block'; inpTotal.value = ''; inpTotal.focus(); }
+        if(txtTotal) txtTotal.style.display = 'none'; 
+        if(inpUtil) inpUtil.disabled = true;
+    }
     
-    updateCartUI(); // Esto mostrará el input de concepto
+    // 3. Llamar updateCartUI con la bandera TRUE para que no se cierre
+    updateCartUI(true); 
+    
     showToast("Calculadora Libre Activada", "info");
 }
 
