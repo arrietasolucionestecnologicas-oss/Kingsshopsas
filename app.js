@@ -8,7 +8,7 @@ var CART = [];
 var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov;
 var prodEdit = null;
 var pedEditId = null; 
-var movEditObj = null; // Para guardar el objeto que estamos editando en historial
+var movEditObj = null; 
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -18,7 +18,7 @@ function updateOnlineStatus() {
     const status = document.getElementById('offline-indicator');
     if(navigator.onLine) {
         status.style.display = 'none';
-        sincronizarCola(); // Intentar subir ventas pendientes al volver internet
+        sincronizarCola(); 
     } else {
         status.style.display = 'block';
     }
@@ -50,11 +50,9 @@ async function sincronizarCola() {
 
     showToast(`Sincronizando ${cola.length} acciones pendientes...`, "info");
     
-    // Procesar uno por uno para no saturar
     let nuevaCola = [];
     for (let item of cola) {
         try {
-            // Intentar enviar
             const response = await fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: item.action, data: item.data })
@@ -63,14 +61,14 @@ async function sincronizarCola() {
             if (!res.exito) throw new Error(res.error);
         } catch (e) {
             console.error("Fallo al sincronizar item:", item, e);
-            nuevaCola.push(item); // Si falla, se queda en la cola
+            nuevaCola.push(item); 
         }
     }
     
     localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
     if (nuevaCola.length === 0) {
         showToast("¡Sincronización completada!", "success");
-        loadData(); // Recargar datos frescos
+        loadData(); 
     } else {
         showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
     }
@@ -113,10 +111,9 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
 
 // --- CALL API INTELIGENTE (OFFLINE AWARE) ---
 async function callAPI(action, data = null) {
-  // Si no hay internet y es una acción de escritura (guardar/vender), usar cola
   if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
       guardarEnCola(action, data);
-      return { exito: true, offline: true }; // Simular éxito
+      return { exito: true, offline: true }; 
   }
 
   try {
@@ -128,7 +125,6 @@ async function callAPI(action, data = null) {
     return result;
   } catch (e) {
     console.error("Error API:", e);
-    // Si falla la red al intentar enviar, guardar en cola
     if (action !== 'obtenerDatosCompletos') {
         guardarEnCola(action, data);
         return { exito: true, offline: true };
@@ -145,7 +141,7 @@ window.onload = function() {
   myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
   myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
   myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
-  myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); // Nuevo Modal Historial
+  myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -169,21 +165,16 @@ window.onload = function() {
 function loadData(){
   document.getElementById('loader').style.display='flex';
   
-  // ESTRATEGIA: Intentar cargar de red. Si falla, cargar de local.
   callAPI('obtenerDatosCompletos').then(res => {
     if(res && res.inventario) {
-        // ÉXITO ONLINE: Guardar en local y usar
         saveLocalData(res);
         renderData(res);
     } else {
-        // FALLO: Usar local
-        console.log("Usando datos locales por fallo de red");
         const local = loadLocalData();
         if(local) renderData(local);
     }
     document.getElementById('loader').style.display='none';
   }).catch(() => {
-      // SI FALLA FETCH TOTAL (Offline)
       const local = loadLocalData();
       if(local) {
           renderData(local);
@@ -225,7 +216,6 @@ function renderData(res) {
     renderProvs();
     renderCartera();
     
-    // --- AQUÍ INYECTAMOS LA CATEGORÍA GADGETS A LA FUERZA ---
     var allCats = res.categorias || [];
     if(!allCats.includes("Gadget y Novedades")) {
         allCats.push("Gadget y Novedades");
@@ -279,7 +269,7 @@ function fixDriveLink(url) {
     return url;
 }
 
-// --- VENTA (POS) TIPO BUSCADOR PROFESIONAL ---
+// --- VENTA (POS) ---
 function renderPos(){
   var q = document.getElementById('pos-search').value.toLowerCase().trim();
   var c = document.getElementById('pos-list'); 
@@ -338,7 +328,6 @@ function updateCartUI(keepOpen = false) {
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container');
    
-   // --- LOGICA UI CARRITO ---
    var btnFloat = document.getElementById('btn-float-cart');
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
@@ -352,16 +341,12 @@ function updateCartUI(keepOpen = false) {
        dateInput.value = `${yyyy}-${mm}-${dd}`;
    }
    
-   // Manejo del Input Concepto Manual
    var inputConcepto = parent.querySelector('#c-concepto');
    
    if(count === 0) {
-       // SOLUCIÓN CRÍTICA: Si keepOpen es true, NO cerramos el modal aunque esté vacío
        if(!keepOpen) {
            document.getElementById('mobile-cart').classList.remove('visible');
        }
-       
-       // Si no hay items, mostrar el campo para escribir manual
        if(inputConcepto) inputConcepto.style.display = 'block';
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
    } else {
@@ -397,26 +382,21 @@ function toggleManual() {
     calcCart();
 }
 
-// --- FUNCIÓN NUEVA: ABRIR CALCULADORA LIBRE ---
 function openFreeCalculator() {
-    CART = []; // Limpiar carrito
+    CART = []; 
     document.querySelectorAll('.pos-row-lite').forEach(e => e.classList.remove('active'));
     
     var isMobile = window.innerWidth < 992;
-    
-    // 1. Forzar visibilidad del panel móvil PRIMERO
     if(isMobile) {
         document.getElementById('mobile-cart').classList.add('visible');
     }
     
     var parent = (isMobile) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     
-    // 2. Activar Checkbox Manual y Configurar UI
     var chkManual = parent.querySelector('#c-manual');
     if(chkManual) { 
         chkManual.checked = true; 
         
-        // Forzamos los estilos directamente
         var inpTotal = parent.querySelector('#res-cont-input');
         var txtTotal = parent.querySelector('#res-cont');
         var inpUtil = parent.querySelector('#c-util');
@@ -426,61 +406,69 @@ function openFreeCalculator() {
         if(inpUtil) inpUtil.disabled = true;
     }
     
-    // 3. Llamar updateCartUI con la bandera TRUE para que no se cierre
     updateCartUI(true); 
-    
     showToast("Calculadora Libre Activada", "info");
 }
 
-// --- FUNCIÓN NUEVA: CÁLCULO INVERSO (Objetivo Total -> Tasa Interés) ---
+// --- FUNCIÓN CORREGIDA: CÁLCULO INVERSO (RESPETA INICIAL 0) ---
 function calcReverse() {
-    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    if(!parent) parent = document.getElementById('desktop-cart-container'); 
     
     var targetTotal = parseFloat(parent.querySelector('#c-target').value);
     if (!targetTotal || targetTotal <= 0) return;
 
-    // Obtener la BASE actual (Costo/Precio Contado sin interés)
     var base = calculatedValues.base;
-    if (base <= 0) return; // No se puede calcular sin base
+    if (base <= 0) return; 
 
     var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
-    var inicial = base * 0.30;
+    
+    // --- CORRECCIÓN CRÍTICA: DETECTAR INICIAL REAL ---
+    var inpInicial = parent.querySelector('#c-inicial');
+    var inicial = 0;
+    
+    // Si el usuario escribió "0" o cualquier valor en el input, usarlo.
+    if (inpInicial && inpInicial.value !== "") {
+         inicial = parseFloat(inpInicial.value);
+         if(isNaN(inicial)) inicial = 0;
+    } else {
+         // Solo si está vacío asumimos el 30%
+         inicial = base * 0.30; 
+    }
+
     var saldo = base - inicial;
 
     if (saldo <= 0 || cuotas <= 0) return;
 
-    // Fórmula Inversa:
-    // Total = Base + (Saldo * Tasa/100 * Meses)
-    // Tasa = ((Total - Base) * 100) / (Saldo * Meses)
+    // Fórmula: Interes = TotalFinal - Inicial - Saldo
+    var interesTotal = targetTotal - inicial - saldo;
     
-    var rate = ((targetTotal - base) * 100) / (saldo * cuotas);
+    // Tasa = (Interes * 100) / (Saldo * Meses)
+    var rate = (interesTotal * 100) / (saldo * cuotas);
     
-    if (rate < 0) rate = 0; // No permitir intereses negativos
+    if (rate < 0) rate = 0; 
 
-    // Actualizar input de interés y recalcular
     parent.querySelector('#c-int').value = rate.toFixed(2);
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO (INTERÉS SIMPLE MENSUAL) ---
+// --- CORE DEL CÁLCULO FINANCIERO ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
 
-   // Inputs de configuración
-   var util = parseFloat(parent.querySelector('#c-util').value)||0; // Utilidad variable
-   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; // Tasa Mensual variable
+   var util = parseFloat(parent.querySelector('#c-util').value)||0; 
+   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
    var metodo = parent.querySelector('#c-metodo').value;
 
-   // 1. Calcular BASE
    var base = 0;
    
    if (CART.length > 0) {
-        // MODO CARRITO: Suma de productos
         if (isManual) {
             var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
             base = isNaN(manualVal) ? 0 : manualVal;
@@ -492,11 +480,8 @@ function calcCart() {
             if(conIva) base = base * 1.19;
         }
    } else {
-        // MODO CALCULADORA LIBRE: Input manual es el COSTO BASE
         var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
         var costoBase = isNaN(manualVal) ? 0 : manualVal;
-        
-        // Aplicamos utilidad si no es 0, si es 0 asumimos que es precio final
         if(util > 0) {
             base = costoBase * (1 + util/100);
         } else {
@@ -505,53 +490,39 @@ function calcCart() {
         if(conIva) base = base * 1.19;
    }
    
-   // GUARDAMOS LA BASE PARA EL CÁLCULO INVERSO
    calculatedValues.base = base;
 
-   // 2. Elementos UI
    var rowCred = parent.querySelectorAll('#row-cred'); 
    var inpInicial = parent.querySelectorAll('#c-inicial');
 
-   // 3. Lógica según método
    if(metodo === "Crédito") {
        var activeEl = document.activeElement;
        var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
        
-       // Definir inicial
        var inicial = 0;
-       if(isTypingInicial) {
+       if(isTypingInicial || (parent.querySelector('#c-inicial').value !== "" && parseFloat(parent.querySelector('#c-inicial').value) >= 0)) {
            inicial = parseFloat(parent.querySelector('#c-inicial').value);
            if(isNaN(inicial)) inicial = 0;
        } else {
            inicial = base * 0.30;
        }
        
-       // Guardar inicial calculada
        calculatedValues.inicial = inicial;
        
-       // Saldo = Precio - Inicial (Monto a financiar)
        var saldo = base - inicial;
        if(saldo < 0) saldo = 0;
 
-       // --- FÓRMULA DE LA IMAGEN ---
-       // Cuota = (Saldo + (Saldo * Tasa * Meses)) / Meses
        var interesTotal = saldo * (tasaMensual/100) * cuotas;
        var numerador = saldo + interesTotal;
        
-       // Cálculo final de la cuota
        var valorCuota = numerador / cuotas;
-       
-       // Nuevo Total de la Venta para la Base de Datos (Inicial + DeudaTotal)
        var nuevoTotalVenta = inicial + numerador;
        
-       // ACTUALIZAR VARIABLE GLOBAL PARA GUARDADO
        calculatedValues.total = nuevoTotalVenta; 
 
-       // Actualizar UI (Solo actualizar texto si no estamos escribiendo en manual)
        if (CART.length > 0 || !isManual) {
             document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(nuevoTotalVenta)));
        }
-       // En modo manual libre, no sobrescribimos el input mientras escribes
 
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
@@ -561,14 +532,13 @@ function calcCart() {
        });
        
        inpInicial.forEach(e => { 
-           if(!isTypingInicial) e.value = Math.round(inicial); 
+           if(!isTypingInicial && e.value === "") e.value = Math.round(inicial); 
            e.style.display='block'; 
            e.disabled = false;
            e.style.background = '#fff';
        });
 
    } else { 
-       // Lógica Contado (Sin interés)
        calculatedValues.total = base;
        calculatedValues.inicial = 0;
 
@@ -585,7 +555,6 @@ function toggleMobileCart() { document.getElementById('mobile-cart').classList.t
 function toggleIni() { calcCart(); }
 function clearCart() { CART=[]; renderPos(); updateCartUI(); }
 
-// --- FUNCIÓN NUEVA: COMPARTIR COTIZACIÓN POR WHATSAPP ---
 function shareQuote() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     
@@ -632,7 +601,6 @@ function finalizarVenta() {
    
    var itemsData = [];
    
-   // CASO 1: VENTA DE CARRITO
    if(CART.length > 0) {
        var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
        var factor = calculatedValues.total / totalCostoRef; 
@@ -644,16 +612,14 @@ function finalizarVenta() {
            return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
        });
    } 
-   // CASO 2: VENTA LIBRE (MANUAL)
    else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
        var costoManual = parseFloat(parent.querySelector('#res-cont-input').value) || 0; 
-       // En venta manual asumimos costo = precio base ingresado antes de margen/interés
        
        itemsData.push({
            nombre: nombreManual,
            cat: "General",
-           costo: costoManual, // Referencial
+           costo: costoManual, 
            precioVenta: calculatedValues.total
        });
    }
@@ -700,7 +666,6 @@ function calcGain(idCosto, idPublico) {
     }
 }
 
-// --- FUNCIÓN BLINDADA: EDICIÓN POR ID ---
 function prepararEdicion(id) {
     var p = D.inv.find(x => x.id === id);
     if (p) {
@@ -841,23 +806,18 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- ACTUALIZADO: RENDERIZADO CATÁLOGO CON FILTRO INTELIGENTE (.includes) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
-    // LEEMOS EL FILTRO
     var filterProv = document.getElementById('filter-prov').value;
     
     var c = document.getElementById('inv-list');
     c.innerHTML=''; 
     var lista = D.inv || [];
     
-    // FILTRO COMPUESTO
     if(q) { 
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
     }
     if(filterProv) {
-        // CORRECCIÓN: COMPARACIÓN LAXA (INCLUDES) EN LUGAR DE ESTRICTA (===)
-        // Esto permite que "CELUTRONIC" se muestre si filtras "CELUCTRONIC" o viceversa, siempre que compartan caracteres.
         var fClean = filterProv.trim().toLowerCase();
         lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean));
     }
@@ -868,7 +828,6 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // Estructura Tarjeta Grid
         var div = document.createElement('div');
         div.className = 'card-catalog';
         div.innerHTML = `
@@ -919,7 +878,6 @@ function guardarCambiosAvanzado(){
    var promise = Promise.resolve(null);
 
    if(f) {
-       // USAR COMPRESIÓN AL EDITAR TAMBIÉN
        promise = compressImage(f);
    }
 
@@ -927,9 +885,7 @@ function guardarCambiosAvanzado(){
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
        if(idx > -1) {
            if(b64) {
-               // En preview mostramos b64 directo, el split se hace al enviar
                var previewSrc = document.getElementById('img-preview-box').src;
-               // El canvas toDataURL devuelve el string completo
                if(b64) newVal.foto = b64; 
            }
            D.inv[idx] = newVal; 
@@ -972,7 +928,6 @@ function guardarCambiosAvanzado(){
 function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
-// --- FUNCIÓN ARREGLADA: CREACIÓN CON COMPRESIÓN ---
 function crearProducto(){ 
     var d={
         nombre:document.getElementById('new-nombre').value, 
@@ -988,14 +943,12 @@ function crearProducto(){
     
     var f = document.getElementById('new-file-foto').files[0];
     
-    // 1. Promesa de compresión
     var promise = Promise.resolve(null);
     if(f) {
-        promise = compressImage(f); // USAR COMPRESOR
+        promise = compressImage(f); 
     }
 
     promise.then(b64 => {
-        // Actualizar UI local
         var localProd = {
             id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
             costo: d.costo, publico: d.publico, desc: d.descripcion,
@@ -1007,7 +960,6 @@ function crearProducto(){
         myModalNuevo.hide();
         showToast("Creando producto...", "info");
 
-        // Preparar payload para API
         if(b64) {
             d.imagenBase64 = b64.split(',')[1]; 
             d.mimeType = f.type;
@@ -1023,7 +975,6 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FINANZAS ACTUALIZADO: RENDERIZAR CON BOTÓN DE EDITAR ---
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
@@ -1036,11 +987,9 @@ function renderFin(){
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
-    // Ahora pasamos el índice del array para editar
     dataHist.forEach((x, index)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
         
-        // Botón de editar discreto
         var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${index})'><i class="fas fa-pencil-alt"></i></button>`;
         
         h.innerHTML+=`
@@ -1057,26 +1006,22 @@ function renderFin(){
   }
 }
 
-// --- NUEVAS FUNCIONES DE EDICIÓN HISTORIAL ---
 function abrirEditMov(index) {
     if (!D.historial[index]) return;
     
-    movEditObj = D.historial[index]; // Guardar referencia global
+    movEditObj = D.historial[index]; 
     
     document.getElementById('ed-mov-desc').value = movEditObj.desc;
     document.getElementById('ed-mov-monto').value = movEditObj.monto;
     
-    // Intentar parsear la fecha para el input date (asumiendo formato DD/MM/YYYY o YYYY-MM-DD)
-    // El input type="date" requiere YYYY-MM-DD
     var fechaRaw = movEditObj.fecha;
     var fechaIso = "";
     
-    // Intento simple de conversión si viene como DD/MM/YYYY
     if(fechaRaw.includes('/')) {
         var parts = fechaRaw.split('/');
         if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`;
     } else {
-        fechaIso = fechaRaw.split(' ')[0]; // Si tiene hora, quitarla
+        fechaIso = fechaRaw.split(' ')[0]; 
     }
     
     document.getElementById('ed-mov-fecha').value = fechaIso;
@@ -1093,8 +1038,6 @@ function guardarEdicionMovimiento() {
     if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
     
     var payload = {
-        // Necesitamos un identificador único. Si el objeto historial tiene ID, lo usamos.
-        // Si no, enviamos todo el objeto original para buscarlo.
         original: movEditObj, 
         fecha: nuevaFecha,
         monto: nuevoMonto
@@ -1103,7 +1046,6 @@ function guardarEdicionMovimiento() {
     document.getElementById('loader').style.display = 'flex';
     myModalEditMov.hide();
     
-    // LLAMADA AL BACKEND
     callAPI('editarMovimiento', payload).then(r => {
         if(r.exito) {
             showToast("Movimiento corregido", "success");
@@ -1115,19 +1057,16 @@ function guardarEdicionMovimiento() {
     });
 }
 
-// --- ACTUALIZADO: ENVIAR FECHA PERSONALIZADA EN ABONO ---
 function doAbono(){ 
     var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); 
     var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); 
     var monto = document.getElementById('ab-monto').value;
-    var fechaVal = document.getElementById('ab-fecha').value; // Nueva fecha
+    var fechaVal = document.getElementById('ab-fecha').value; 
     
     document.getElementById('loader').style.display='flex'; 
-    // Enviamos el campo 'fecha' extra
     callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); 
 }
 
-// NUEVA FUNCIÓN PARA INGRESO EXTRA
 function doIngresoExtra() {
     var desc = document.getElementById('inc-desc').value;
     var cat = document.getElementById('inc-cat').value;
@@ -1153,7 +1092,6 @@ function renderPed(){
     var c=document.getElementById('ped-list'); c.innerHTML=''; 
     (D.ped || []).forEach(p=>{ 
         var isPend = p.estado === 'Pendiente';
-        // CAMBIO: Mostrar botones SIEMPRE, no solo si es pendiente
         var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
         var controls = `
           <div class="d-flex gap-2 mt-2">
