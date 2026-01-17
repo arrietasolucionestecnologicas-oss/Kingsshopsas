@@ -410,7 +410,7 @@ function openFreeCalculator() {
     showToast("Calculadora Libre Activada", "info");
 }
 
-// --- FUNCIÓN CORREGIDA: CÁLCULO INVERSO (RESPETA INICIAL 0) ---
+// --- FUNCIÓN REESCRITA: CÁLCULO INVERSO PRECISO ---
 function calcReverse() {
     var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
     var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -419,21 +419,45 @@ function calcReverse() {
     var targetTotal = parseFloat(parent.querySelector('#c-target').value);
     if (!targetTotal || targetTotal <= 0) return;
 
-    var base = calculatedValues.base;
+    // --- RECALCULAR BASE LOCALMENTE PARA GARANTIZAR SINCRONÍA CON CALCCART ---
+    var base = 0;
+    var util = parseFloat(parent.querySelector('#c-util').value)||0;
+    var conIva = parent.querySelector('#c-iva').checked;
+    
+    if (CART.length > 0) {
+         var isManual = parent.querySelector('#c-manual').checked;
+         if (isManual) {
+             var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
+             base = manualVal;
+         } else {
+             base = CART.reduce((acc, item) => {
+                 if(item.publico > 0) return acc + item.publico; 
+                 return acc + (item.costo * (1 + util/100)); 
+             }, 0);
+             if(conIva) base = base * 1.19;
+         }
+    } else {
+         // LÓGICA CALCULADORA LIBRE:
+         var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
+         // AQUÍ ESTABA EL ERROR: calcReverse usaba el valor crudo, calcCart usaba el valor + utilidad
+         if(util > 0) {
+             base = manualVal * (1 + util/100);
+         } else {
+             base = manualVal;
+         }
+         if(conIva) base = base * 1.19;
+    }
+
     if (base <= 0) return; 
 
     var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
     
-    // --- CORRECCIÓN CRÍTICA: DETECTAR INICIAL REAL ---
     var inpInicial = parent.querySelector('#c-inicial');
     var inicial = 0;
-    
-    // Si el usuario escribió "0" o cualquier valor en el input, usarlo.
     if (inpInicial && inpInicial.value !== "") {
          inicial = parseFloat(inpInicial.value);
          if(isNaN(inicial)) inicial = 0;
     } else {
-         // Solo si está vacío asumimos el 30%
          inicial = base * 0.30; 
     }
 
@@ -441,10 +465,7 @@ function calcReverse() {
 
     if (saldo <= 0 || cuotas <= 0) return;
 
-    // Fórmula: Interes = TotalFinal - Inicial - Saldo
     var interesTotal = targetTotal - inicial - saldo;
-    
-    // Tasa = (Interes * 100) / (Saldo * Meses)
     var rate = (interesTotal * 100) / (saldo * cuotas);
     
     if (rate < 0) rate = 0; 
