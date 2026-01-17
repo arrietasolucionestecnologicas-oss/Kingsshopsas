@@ -309,6 +309,9 @@
                <h6 class="text-success fw-bold">Registrar Pago (Abono)</h6>
                <select id="ab-cli" class="form-select mb-2"></select>
                <input type="number" id="ab-monto" class="form-control mb-2" placeholder="Monto">
+               <label class="small text-muted fw-bold">Fecha del Pago:</label>
+               <input type="date" id="ab-fecha" class="form-control mb-2" style="border-color: var(--gold);">
+               
                <button class="btn btn-success w-100" onclick="doAbono()">REGISTRAR ABONO</button>
             </div>
          </div>
@@ -584,6 +587,6 @@
       });
     }
   </script>
-  <script src="app.js?v=60"></script>
+  <script src="app.js?v=70"></script>
 </body>
 </html>
