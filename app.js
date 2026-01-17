@@ -5,9 +5,10 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJ
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov;
 var prodEdit = null;
 var pedEditId = null; 
+var movEditObj = null; // Para guardar el objeto que estamos editando en historial
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -144,6 +145,7 @@ window.onload = function() {
   myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
   myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
   myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
+  myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); // Nuevo Modal Historial
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -1021,12 +1023,11 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FINANZAS ACTUALIZADO: SETEAR FECHA POR DEFECTO ---
+// --- FINANZAS ACTUALIZADO: RENDERIZAR CON BOTÓN DE EDITAR ---
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
   
-  // Establecer fecha de hoy en el input de Abono
   var today = new Date().toISOString().split('T')[0];
   var elFecha = document.getElementById('ab-fecha');
   if(elFecha) elFecha.value = today;
@@ -1035,11 +1036,83 @@ function renderFin(){
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
-    dataHist.forEach(x=>{ 
+    // Ahora pasamos el índice del array para editar
+    dataHist.forEach((x, index)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
-        h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div></div>`; 
+        
+        // Botón de editar discreto
+        var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${index})'><i class="fas fa-pencil-alt"></i></button>`;
+        
+        h.innerHTML+=`
+        <div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom">
+            <div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div>
+            <div class="flex-grow-1 lh-1">
+                <div class="fw-bold small">${x.desc}</div>
+                <small class="text-muted" style="font-size:0.75rem">${x.fecha}</small>
+            </div>
+            <div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>
+            ${btnEdit}
+        </div>`; 
     }); 
   }
+}
+
+// --- NUEVAS FUNCIONES DE EDICIÓN HISTORIAL ---
+function abrirEditMov(index) {
+    if (!D.historial[index]) return;
+    
+    movEditObj = D.historial[index]; // Guardar referencia global
+    
+    document.getElementById('ed-mov-desc').value = movEditObj.desc;
+    document.getElementById('ed-mov-monto').value = movEditObj.monto;
+    
+    // Intentar parsear la fecha para el input date (asumiendo formato DD/MM/YYYY o YYYY-MM-DD)
+    // El input type="date" requiere YYYY-MM-DD
+    var fechaRaw = movEditObj.fecha;
+    var fechaIso = "";
+    
+    // Intento simple de conversión si viene como DD/MM/YYYY
+    if(fechaRaw.includes('/')) {
+        var parts = fechaRaw.split('/');
+        if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    } else {
+        fechaIso = fechaRaw.split(' ')[0]; // Si tiene hora, quitarla
+    }
+    
+    document.getElementById('ed-mov-fecha').value = fechaIso;
+    
+    myModalEditMov.show();
+}
+
+function guardarEdicionMovimiento() {
+    if(!movEditObj) return;
+    
+    var nuevaFecha = document.getElementById('ed-mov-fecha').value;
+    var nuevoMonto = document.getElementById('ed-mov-monto').value;
+    
+    if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
+    
+    var payload = {
+        // Necesitamos un identificador único. Si el objeto historial tiene ID, lo usamos.
+        // Si no, enviamos todo el objeto original para buscarlo.
+        original: movEditObj, 
+        fecha: nuevaFecha,
+        monto: nuevoMonto
+    };
+    
+    document.getElementById('loader').style.display = 'flex';
+    myModalEditMov.hide();
+    
+    // LLAMADA AL BACKEND
+    callAPI('editarMovimiento', payload).then(r => {
+        if(r.exito) {
+            showToast("Movimiento corregido", "success");
+            location.reload();
+        } else {
+            alert("Error al editar (El backend puede no soportar esta función): " + r.error);
+            document.getElementById('loader').style.display = 'none';
+        }
+    });
 }
 
 // --- ACTUALIZADO: ENVIAR FECHA PERSONALIZADA EN ABONO ---
