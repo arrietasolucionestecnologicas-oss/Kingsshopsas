@@ -573,6 +573,28 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modalEditMov" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Corregir Historial</h6>
+                <p class="small text-muted">⚠️ Editar esto afectará los reportes y la cartera.</p>
+                
+                <label class="small fw-bold">Descripción</label>
+                <input id="ed-mov-desc" class="form-control mb-2" disabled style="background-color: #e9ecef;">
+                
+                <label class="small fw-bold">Fecha Real</label>
+                <input type="date" id="ed-mov-fecha" class="form-control mb-2" style="border-color: var(--gold);">
+                
+                <label class="small fw-bold">Monto Correcto</label>
+                <input type="number" id="ed-mov-monto" class="form-control mb-3" style="font-weight: bold; color: var(--primary);">
+                
+                <button class="btn btn-warning w-100 fw-bold" onclick="guardarEdicionMovimiento()">Guardar Corrección</button>
+            </div>
+        </div>
+    </div>
+  </div>
+
   <datalist id="list-cats"></datalist>
   <datalist id="list-prods-all"></datalist>
 
@@ -587,6 +609,6 @@
       });
     }
   </script>
-  <script src="app.js?v=70"></script>
+  <script src="app.js?v=71"></script>
 </body>
 </html>
