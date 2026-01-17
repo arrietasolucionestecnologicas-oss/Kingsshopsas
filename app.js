@@ -410,139 +410,111 @@ function openFreeCalculator() {
     showToast("Calculadora Libre Activada", "info");
 }
 
-// --- FUNCIÓN REESCRITA: CÁLCULO INVERSO PRECISO ---
 function calcReverse() {
-    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(!parent) parent = document.getElementById('desktop-cart-container'); 
-    
-    var targetTotal = parseFloat(parent.querySelector('#c-target').value);
-    if (!targetTotal || targetTotal <= 0) return;
-
-    // --- RECALCULAR BASE LOCALMENTE PARA GARANTIZAR SINCRONÍA CON CALCCART ---
-    var base = 0;
-    var util = parseFloat(parent.querySelector('#c-util').value)||0;
-    var conIva = parent.querySelector('#c-iva').checked;
-    
-    if (CART.length > 0) {
-         var isManual = parent.querySelector('#c-manual').checked;
-         if (isManual) {
-             var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
-             base = manualVal;
-         } else {
-             base = CART.reduce((acc, item) => {
-                 if(item.publico > 0) return acc + item.publico; 
-                 return acc + (item.costo * (1 + util/100)); 
-             }, 0);
-             if(conIva) base = base * 1.19;
-         }
-    } else {
-         // LÓGICA CALCULADORA LIBRE:
-         var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
-         // AQUÍ ESTABA EL ERROR: calcReverse usaba el valor crudo, calcCart usaba el valor + utilidad
-         if(util > 0) {
-             base = manualVal * (1 + util/100);
-         } else {
-             base = manualVal;
-         }
-         if(conIva) base = base * 1.19;
-    }
-
-    if (base <= 0) return; 
-
-    var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
-    
-    var inpInicial = parent.querySelector('#c-inicial');
-    var inicial = 0;
-    if (inpInicial && inpInicial.value !== "") {
-         inicial = parseFloat(inpInicial.value);
-         if(isNaN(inicial)) inicial = 0;
-    } else {
-         inicial = base * 0.30; 
-    }
-
-    var saldo = base - inicial;
-
-    if (saldo <= 0 || cuotas <= 0) return;
-
-    var interesTotal = targetTotal - inicial - saldo;
-    var rate = (interesTotal * 100) / (saldo * cuotas);
-    
-    if (rate < 0) rate = 0; 
-
-    parent.querySelector('#c-int').value = rate.toFixed(2);
+    // FUNCIÓN HEREDADA, PERO AHORA EL INPUT LLAMA A CALCCART DIRECTAMENTE
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO ---
+// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container'); 
 
-   var util = parseFloat(parent.querySelector('#c-util').value)||0; 
-   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
+   var metodo = parent.querySelector('#c-metodo').value;
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
-   var metodo = parent.querySelector('#c-metodo').value;
-
-   var base = 0;
    
-   if (CART.length > 0) {
-        if (isManual) {
-            var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
-            base = isNaN(manualVal) ? 0 : manualVal;
-        } else {
-            base = CART.reduce((acc, item) => {
-                if(item.publico > 0) return acc + item.publico; 
-                return acc + (item.costo * (1 + util/100)); 
-            }, 0);
-            if(conIva) base = base * 1.19;
-        }
+   // INPUT DE PRECIO FINAL FIJO (El "Jefe")
+   var targetVal = parseFloat(parent.querySelector('#c-target').value);
+   var tieneTarget = !isNaN(targetVal) && targetVal > 0;
+
+   // 1. CALCULAR BASE Y TOTAL
+   var totalFinal = 0;
+   var baseParaCalculo = 0;
+
+   if (tieneTarget) {
+       // --- MODO B: PRECIO FIJO (IGNORA TODO LO DEMÁS) ---
+       totalFinal = targetVal;
+       baseParaCalculo = targetVal;
+       
+       // Limpiar tasa de interés visualmente porque no aplica
+       parent.querySelector('#c-int').value = 0;
    } else {
-        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
-        var costoBase = isNaN(manualVal) ? 0 : manualVal;
-        if(util > 0) {
-            base = costoBase * (1 + util/100);
-        } else {
-            base = costoBase;
-        }
-        if(conIva) base = base * 1.19;
+       // --- MODO A: CÁLCULO AUTOMÁTICO (EXISTENTE) ---
+       var util = parseFloat(parent.querySelector('#c-util').value)||0; 
+       var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
+       
+       if (CART.length > 0) {
+            if (isManual) {
+                var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+                baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
+            } else {
+                baseParaCalculo = CART.reduce((acc, item) => {
+                    if(item.publico > 0) return acc + item.publico; 
+                    return acc + (item.costo * (1 + util/100)); 
+                }, 0);
+                if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
+            }
+       } else {
+            var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+            var costoBase = isNaN(manualVal) ? 0 : manualVal;
+            if(util > 0) {
+                baseParaCalculo = costoBase * (1 + util/100);
+            } else {
+                baseParaCalculo = costoBase;
+            }
+            if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
+       }
+
+       // Aplicar intereses si es crédito y NO hay precio fijo
+       if (metodo === "Crédito") {
+           // Asumimos inicial del 30% por defecto para el cálculo de interés
+           var iniTemp = baseParaCalculo * 0.30;
+           var saldoTemp = baseParaCalculo - iniTemp;
+           var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
+           totalFinal = baseParaCalculo + interesTotal;
+       } else {
+           totalFinal = baseParaCalculo;
+       }
    }
    
-   calculatedValues.base = base;
+   calculatedValues.base = baseParaCalculo; // Referencia
+   calculatedValues.total = totalFinal;
 
+   // 2. GESTIÓN DE LA INICIAL
+   var inpInicial = parent.querySelector('#c-inicial');
+   var activeEl = document.activeElement;
+   var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
+   
+   var inicial = 0;
+   
+   if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
+        // Si el usuario escribió algo (incluso 0), lo respetamos
+        inicial = parseFloat(inpInicial.value);
+        if(isNaN(inicial)) inicial = 0;
+   } else {
+        // Si está vacío, sugerimos el 30% del total
+        inicial = Math.round(totalFinal * 0.30);
+   }
+   
+   calculatedValues.inicial = inicial;
+
+   // 3. CALCULAR CUOTAS Y MOSTRAR RESULTADOS
    var rowCred = parent.querySelectorAll('#row-cred'); 
-   var inpInicial = parent.querySelectorAll('#c-inicial');
-
+   
    if(metodo === "Crédito") {
-       var activeEl = document.activeElement;
-       var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
-       
-       var inicial = 0;
-       if(isTypingInicial || (parent.querySelector('#c-inicial').value !== "" && parseFloat(parent.querySelector('#c-inicial').value) >= 0)) {
-           inicial = parseFloat(parent.querySelector('#c-inicial').value);
-           if(isNaN(inicial)) inicial = 0;
-       } else {
-           inicial = base * 0.30;
-       }
-       
-       calculatedValues.inicial = inicial;
-       
-       var saldo = base - inicial;
+       // Saldo real a financiar
+       var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
-
-       var interesTotal = saldo * (tasaMensual/100) * cuotas;
-       var numerador = saldo + interesTotal;
        
-       var valorCuota = numerador / cuotas;
-       var nuevoTotalVenta = inicial + numerador;
-       
-       calculatedValues.total = nuevoTotalVenta; 
+       // DIVISIÓN SIMPLE DEL SALDO (Ya sea precio fijo o calculado con interés)
+       var valorCuota = saldo / cuotas;
 
+       // Actualizar UI
        if (CART.length > 0 || !isManual) {
-            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(nuevoTotalVenta)));
+            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        }
 
        rowCred.forEach(e => { 
@@ -552,23 +524,21 @@ function calcCart() {
            e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} mes(es)`; 
        });
        
-       inpInicial.forEach(e => { 
-           if(!isTypingInicial && e.value === "") e.value = Math.round(inicial); 
-           e.style.display='block'; 
-           e.disabled = false;
-           e.style.background = '#fff';
-       });
+       if (inpInicial) {
+           if(!isTypingInicial && inpInicial.value === "") inpInicial.value = Math.round(inicial); 
+           inpInicial.style.display='block'; 
+           inpInicial.disabled = false;
+           inpInicial.style.background = '#fff';
+       }
 
    } else { 
-       calculatedValues.total = base;
+       // Contado
        calculatedValues.inicial = 0;
-
        if (CART.length > 0 || !isManual) {
-           document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(base)));
+           document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        }
-       
        rowCred.forEach(e => e.style.display = 'none'); 
-       inpInicial.forEach(e => e.style.display='none'); 
+       if(inpInicial) inpInicial.style.display='none'; 
    }
 }
 
