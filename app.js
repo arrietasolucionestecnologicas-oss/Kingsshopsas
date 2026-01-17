@@ -1020,9 +1020,17 @@ function crearProducto(){
 }
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
+
+// --- FINANZAS ACTUALIZADO: SETEAR FECHA POR DEFECTO ---
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
+  
+  // Establecer fecha de hoy en el input de Abono
+  var today = new Date().toISOString().split('T')[0];
+  var elFecha = document.getElementById('ab-fecha');
+  if(elFecha) elFecha.value = today;
+
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
@@ -1033,12 +1041,19 @@ function renderFin(){
     }); 
   }
 }
+
+// --- ACTUALIZADO: ENVIAR FECHA PERSONALIZADA EN ABONO ---
 function doAbono(){ 
     var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); 
     var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); 
+    var monto = document.getElementById('ab-monto').value;
+    var fechaVal = document.getElementById('ab-fecha').value; // Nueva fecha
+    
     document.getElementById('loader').style.display='flex'; 
-    callAPI('registrarAbono', {idVenta:id, monto:document.getElementById('ab-monto').value, cliente:cli}).then(()=>location.reload()); 
+    // Enviamos el campo 'fecha' extra
+    callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); 
 }
+
 // NUEVA FUNCIÓN PARA INGRESO EXTRA
 function doIngresoExtra() {
     var desc = document.getElementById('inc-desc').value;
