@@ -411,11 +411,10 @@ function openFreeCalculator() {
 }
 
 function calcReverse() {
-    // FUNCIÓN HEREDADA, PERO AHORA EL INPUT LLAMA A CALCCART DIRECTAMENTE
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
+// --- CORE DEL CÁLCULO FINANCIERO ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -426,23 +425,18 @@ function calcCart() {
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
    
-   // INPUT DE PRECIO FINAL FIJO (El "Jefe")
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
 
-   // 1. CALCULAR BASE Y TOTAL
    var totalFinal = 0;
    var baseParaCalculo = 0;
 
    if (tieneTarget) {
-       // --- MODO B: PRECIO FIJO (IGNORA TODO LO DEMÁS) ---
        totalFinal = targetVal;
        baseParaCalculo = targetVal;
        
-       // Limpiar tasa de interés visualmente porque no aplica
        parent.querySelector('#c-int').value = 0;
    } else {
-       // --- MODO A: CÁLCULO AUTOMÁTICO (EXISTENTE) ---
        var util = parseFloat(parent.querySelector('#c-util').value)||0; 
        var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
        
@@ -468,9 +462,7 @@ function calcCart() {
             if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
        }
 
-       // Aplicar intereses si es crédito y NO hay precio fijo
        if (metodo === "Crédito") {
-           // Asumimos inicial del 30% por defecto para el cálculo de interés
            var iniTemp = baseParaCalculo * 0.30;
            var saldoTemp = baseParaCalculo - iniTemp;
            var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
@@ -480,10 +472,9 @@ function calcCart() {
        }
    }
    
-   calculatedValues.base = baseParaCalculo; // Referencia
+   calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
 
-   // 2. GESTIÓN DE LA INICIAL
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
@@ -491,28 +482,22 @@ function calcCart() {
    var inicial = 0;
    
    if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
-        // Si el usuario escribió algo (incluso 0), lo respetamos
         inicial = parseFloat(inpInicial.value);
         if(isNaN(inicial)) inicial = 0;
    } else {
-        // Si está vacío, sugerimos el 30% del total
         inicial = Math.round(totalFinal * 0.30);
    }
    
    calculatedValues.inicial = inicial;
 
-   // 3. CALCULAR CUOTAS Y MOSTRAR RESULTADOS
    var rowCred = parent.querySelectorAll('#row-cred'); 
    
    if(metodo === "Crédito") {
-       // Saldo real a financiar
        var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
        
-       // DIVISIÓN SIMPLE DEL SALDO (Ya sea precio fijo o calculado con interés)
        var valorCuota = saldo / cuotas;
 
-       // Actualizar UI
        if (CART.length > 0 || !isManual) {
             document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        }
@@ -532,7 +517,6 @@ function calcCart() {
        }
 
    } else { 
-       // Contado
        calculatedValues.inicial = 0;
        if (CART.length > 0 || !isManual) {
            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
@@ -797,6 +781,7 @@ function toggleWebStatus(id) {
     }
 }
 
+// --- ACTUALIZADO: RENDERIZAR CON BOTÓN COMPARTIR (ENLACE) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
@@ -819,6 +804,9 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
+        // --- BOTÓN COMPARTIR (Nuevo) ---
+        var btnShare = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')"><i class="fas fa-share-alt"></i></div>`;
+
         var div = document.createElement('div');
         div.className = 'card-catalog';
         div.innerHTML = `
@@ -836,10 +824,33 @@ function renderInv(){
                 <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
                 <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
                 <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
+                ${btnShare}
             </div>
         `;
         c.appendChild(div);
     }); 
+}
+
+// --- FUNCIÓN NUEVA: COMPARTIR ENLACE ---
+function shareProdLink(id) {
+    if(!id) return;
+    var link = "https://kishopsas.com/?id=" + id;
+    
+    // Si el navegador soporta compartir nativo (Móvil)
+    if (navigator.share) {
+        navigator.share({
+            title: 'King\'s Shop',
+            text: 'Mira este producto:',
+            url: link
+        }).catch(err => {
+            // Si falla o cancela, copiar al portapapeles
+            copiarDato(link);
+        });
+    } else {
+        // En PC, copiar al portapapeles
+        copiarDato(link);
+        showToast("Enlace copiado", "info");
+    }
 }
 
 function copiarDato(txt) {
