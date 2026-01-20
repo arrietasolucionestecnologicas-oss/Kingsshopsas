@@ -196,7 +196,8 @@ function renderData(res) {
 
     if(res.metricas) {
         document.getElementById('user-display').innerText = res.user || "Offline User";
-        // Ya no mostramos saldo en header de Finanzas, se calcula en auditoría
+        document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
+        document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
     }
     
     var provSelect = document.getElementById('filter-prov');
@@ -780,6 +781,7 @@ function toggleWebStatus(id) {
     }
 }
 
+// --- RENDERIZADO INVENTARIO (CON BOTÓN COMPARTIR Y EDITAR) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
@@ -802,7 +804,7 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- BOTÓN COMPARTIR (Nuevo) ---
+        // --- BOTÓN COMPARTIR ---
         var btnShare = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')"><i class="fas fa-share-alt"></i></div>`;
 
         var div = document.createElement('div');
@@ -840,11 +842,9 @@ function shareProdLink(id) {
             text: 'Mira este producto:',
             url: link
         }).catch(err => {
-            // Si falla o cancela, copiar al portapapeles
             copiarDato(link);
         });
     } else {
-        // En PC, copiar al portapapeles
         copiarDato(link);
         showToast("Enlace copiado", "info");
     }
@@ -974,7 +974,7 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FUNCIONES AUDITORÍA Y NIVELACIÓN (NUEVAS) ---
+// --- FUNCIONES AUDITORÍA Y NIVELACIÓN (NUEVAS E INTEGRADOS EN VISTA CLÁSICA) ---
 function renderFin(){ 
   // Selectores para abonos
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
@@ -984,7 +984,7 @@ function renderFin(){
   var elFecha = document.getElementById('ab-fecha');
   if(elFecha) elFecha.value = today;
 
-  // Lista Historial
+  // Lista Historial (Clásica)
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
@@ -1023,31 +1023,29 @@ function auditarCaja() {
         var sysVal = res.metricas.saldo || 0;
         auditDiff = sysVal - realVal;
         
-        // Renderizar Resultado
-        document.getElementById('audit-result').style.display = 'block';
-        document.getElementById('audit-sys-val').innerText = COP.format(sysVal);
-        document.getElementById('audit-usr-val').innerText = COP.format(realVal);
-        
+        // Actualizar UI del panel mini
         var msgBox = document.getElementById('audit-msg');
-        var actBox = document.getElementById('audit-actions');
-        var container = document.getElementById('audit-result');
+        var btnFix = document.getElementById('btn-fix-audit');
+        var feedback = document.getElementById('audit-feedback');
+        
+        feedback.style.display = 'block';
         
         if(auditDiff === 0) {
-            container.className = "audit-box safe";
-            msgBox.innerHTML = '<h4 class="text-success"><i class="fas fa-check-circle"></i> CUADRE PERFECTO</h4>';
-            actBox.style.display = 'none';
+            feedback.className = "alert alert-success border mt-2";
+            msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ¡CUADRE PERFECTO!';
+            btnFix.style.display = 'none';
         } else {
-            container.className = "audit-box danger";
+            feedback.className = "alert alert-danger border mt-2";
             var diffFmt = COP.format(Math.abs(auditDiff));
             
             if(auditDiff > 0) {
-                // Sistema tiene MÁS que la realidad (Sobra en sistema, falta en físico)
-                msgBox.innerHTML = `<h4 class="text-danger">DESFASE: ${diffFmt}</h4><p class="small">El sistema dice que tienes ${diffFmt} de más.</p>`;
+                // Sistema tiene MÁS que la realidad
+                msgBox.innerHTML = `⚠️ DESFASE: El sistema tiene <b>${diffFmt} DE MÁS</b>.`;
             } else {
-                // Sistema tiene MENOS que la realidad (Falta en sistema, sobra en físico)
-                msgBox.innerHTML = `<h4 class="text-danger">DESFASE: ${diffFmt}</h4><p class="small">Tienes ${diffFmt} que no has registrado.</p>`;
+                // Sistema tiene MENOS que la realidad
+                msgBox.innerHTML = `⚠️ DESFASE: Faltan registrar <b>${diffFmt}</b> en el sistema.`;
             }
-            actBox.style.display = 'block';
+            btnFix.style.display = 'block';
         }
     });
 }
