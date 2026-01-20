@@ -698,6 +698,7 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
+// --- RENDERIZADO CARTERA CON CUOTAS (MODIFICADO) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -713,7 +714,7 @@ function renderCartera() {
             totalDeuda += d.saldo;
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
             
-            // NUEVO: Mostrar el plan de cuotas en la tarjeta
+            // NUEVO: Mostrar plan de cuotas si existe
             var cuotaTxt = "";
             if(d.cuotas && d.cuotas > 1) {
                 var valCuotaFmt = COP.format(d.valCuota || (d.saldo/d.cuotas)); 
@@ -831,6 +832,9 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
+        // --- BOTÓN COMPARTIR ---
+        var btnShare = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')"><i class="fas fa-share-alt"></i></div>`;
+
         var div = document.createElement('div');
         div.className = 'card-catalog';
         div.innerHTML = `
@@ -848,10 +852,30 @@ function renderInv(){
                 <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
                 <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
                 <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
+                ${btnShare}
             </div>
         `;
         c.appendChild(div);
     }); 
+}
+
+function shareProdLink(id) {
+    if(!id) return;
+    var link = "https://kishopsas.com/?id=" + id;
+    
+    // Si el navegador soporta compartir nativo (Móvil)
+    if (navigator.share) {
+        navigator.share({
+            title: 'King\'s Shop',
+            text: 'Mira este producto:',
+            url: link
+        }).catch(err => {
+            copiarDato(link);
+        });
+    } else {
+        copiarDato(link);
+        showToast("Enlace copiado", "info");
+    }
 }
 
 function copiarDato(txt) {
