@@ -10,7 +10,6 @@ var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
-var auditDiff = 0; // Variable global para guardar la diferencia de auditoría
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -198,6 +197,7 @@ function renderData(res) {
         document.getElementById('user-display').innerText = res.user || "Offline User";
         document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
         document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
+        document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
     }
     
     var provSelect = document.getElementById('filter-prov');
@@ -411,10 +411,11 @@ function openFreeCalculator() {
 }
 
 function calcReverse() {
+    // FUNCIÓN HEREDADA, PERO AHORA EL INPUT LLAMA A CALCCART DIRECTAMENTE
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO ---
+// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -425,18 +426,23 @@ function calcCart() {
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
    
+   // INPUT DE PRECIO FINAL FIJO (El "Jefe")
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
 
+   // 1. CALCULAR BASE Y TOTAL
    var totalFinal = 0;
    var baseParaCalculo = 0;
 
    if (tieneTarget) {
+       // --- MODO B: PRECIO FIJO (IGNORA TODO LO DEMÁS) ---
        totalFinal = targetVal;
        baseParaCalculo = targetVal;
        
+       // Limpiar tasa de interés visualmente porque no aplica
        parent.querySelector('#c-int').value = 0;
    } else {
+       // --- MODO A: CÁLCULO AUTOMÁTICO (EXISTENTE) ---
        var util = parseFloat(parent.querySelector('#c-util').value)||0; 
        var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
        
@@ -462,7 +468,9 @@ function calcCart() {
             if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
        }
 
+       // Aplicar intereses si es crédito y NO hay precio fijo
        if (metodo === "Crédito") {
+           // Asumimos inicial del 30% por defecto para el cálculo de interés
            var iniTemp = baseParaCalculo * 0.30;
            var saldoTemp = baseParaCalculo - iniTemp;
            var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
@@ -472,9 +480,10 @@ function calcCart() {
        }
    }
    
-   calculatedValues.base = baseParaCalculo; 
+   calculatedValues.base = baseParaCalculo; // Referencia
    calculatedValues.total = totalFinal;
 
+   // 2. GESTIÓN DE LA INICIAL
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
@@ -482,22 +491,28 @@ function calcCart() {
    var inicial = 0;
    
    if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
+        // Si el usuario escribió algo (incluso 0), lo respetamos
         inicial = parseFloat(inpInicial.value);
         if(isNaN(inicial)) inicial = 0;
    } else {
+        // Si está vacío, sugerimos el 30% del total
         inicial = Math.round(totalFinal * 0.30);
    }
    
    calculatedValues.inicial = inicial;
 
+   // 3. CALCULAR CUOTAS Y MOSTRAR RESULTADOS
    var rowCred = parent.querySelectorAll('#row-cred'); 
    
    if(metodo === "Crédito") {
+       // Saldo real a financiar
        var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
        
+       // DIVISIÓN SIMPLE DEL SALDO (Ya sea precio fijo o calculado con interés)
        var valorCuota = saldo / cuotas;
 
+       // Actualizar UI
        if (CART.length > 0 || !isManual) {
             document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        }
@@ -517,6 +532,7 @@ function calcCart() {
        }
 
    } else { 
+       // Contado
        calculatedValues.inicial = 0;
        if (CART.length > 0 || !isManual) {
            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
@@ -572,6 +588,9 @@ function finalizarVenta() {
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
    
+   // NUEVO: Capturar número de cuotas del DOM
+   var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
+   
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
    var itemsData = [];
@@ -605,7 +624,8 @@ function finalizarVenta() {
        metodo: metodo, 
        inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
        vendedor: D.user || "Offline User",
-       fechaPersonalizada: fechaVal 
+       fechaPersonalizada: fechaVal,
+       cuotas: cuotasVal // NUEVO: Enviar cuotas al backend
    };
    
    document.getElementById('loader').style.display='flex';
@@ -693,6 +713,13 @@ function renderCartera() {
             totalDeuda += d.saldo;
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
             
+            // NUEVO: Mostrar el plan de cuotas en la tarjeta
+            var cuotaTxt = "";
+            if(d.cuotas && d.cuotas > 1) {
+                var valCuotaFmt = COP.format(d.valCuota || (d.saldo/d.cuotas)); 
+                cuotaTxt = `<div class="badge bg-light text-dark border mt-1">Plan: ${d.cuotas} cuotas de ${valCuotaFmt}</div>`;
+            }
+
             c.innerHTML += `
             <div class="card-k card-debt">
                 <div class="d-flex justify-content-between align-items-center">
@@ -700,6 +727,7 @@ function renderCartera() {
                         <h6 class="fw-bold mb-1">${d.cliente}</h6>
                         <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
                         ${fechaTxt}
+                        ${cuotaTxt}
                     </div>
                     <div class="text-end">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
@@ -781,7 +809,6 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- RENDERIZADO INVENTARIO (CON BOTÓN COMPARTIR Y EDITAR) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
@@ -804,9 +831,6 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- BOTÓN COMPARTIR ---
-        var btnShare = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')"><i class="fas fa-share-alt"></i></div>`;
-
         var div = document.createElement('div');
         div.className = 'card-catalog';
         div.innerHTML = `
@@ -824,30 +848,10 @@ function renderInv(){
                 <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
                 <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
                 <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
-                ${btnShare}
             </div>
         `;
         c.appendChild(div);
     }); 
-}
-
-function shareProdLink(id) {
-    if(!id) return;
-    var link = "https://kishopsas.com/?id=" + id;
-    
-    // Si el navegador soporta compartir nativo (Móvil)
-    if (navigator.share) {
-        navigator.share({
-            title: 'King\'s Shop',
-            text: 'Mira este producto:',
-            url: link
-        }).catch(err => {
-            copiarDato(link);
-        });
-    } else {
-        copiarDato(link);
-        showToast("Enlace copiado", "info");
-    }
 }
 
 function copiarDato(txt) {
@@ -974,7 +978,24 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FUNCIONES AUDITORÍA Y NIVELACIÓN (NUEVAS E INTEGRADOS EN VISTA CLÁSICA) ---
+// --- FUNCIÓN AUDITORÍA: VERIFICAR BANCO (NUEVA) ---
+function verificarBanco() {
+    var real = parseFloat(document.getElementById('audit-banco').value) || 0;
+    // D.metricas.saldo es el saldo ACTUAL del servidor
+    var sys = (D.metricas && D.metricas.saldo) ? D.metricas.saldo : 0;
+    var diff = sys - real;
+    var el = document.getElementById('audit-res');
+    
+    if(Math.abs(diff) < 1) { // Tolerancia de 1 peso
+        el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>';
+    } else {
+        // Si diff > 0: Sistema tiene más (Falta plata física)
+        // Si diff < 0: Sistema tiene menos (Sobra plata física)
+        el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`;
+    }
+}
+
+// --- RENDERIZADO HISTORIAL CON SALDO (MODIFICADO) ---
 function renderFin(){ 
   // Selectores para abonos
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
@@ -984,7 +1005,7 @@ function renderFin(){
   var elFecha = document.getElementById('ab-fecha');
   if(elFecha) elFecha.value = today;
 
-  // Lista Historial (Clásica)
+  // Lista Historial con SALDO PROGRESIVO
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
@@ -994,6 +1015,9 @@ function renderFin(){
         
         var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${index})'><i class="fas fa-pencil-alt"></i></button>`;
         
+        // NUEVO: Mostrar saldo en ese momento (viene del backend)
+        var saldoMoment = (x.saldo !== undefined) ? `<small class="text-muted d-block" style="font-size:0.7rem;">Saldo: ${COP.format(x.saldo)}</small>` : '';
+
         h.innerHTML+=`
         <div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom">
             <div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div>
@@ -1001,85 +1025,14 @@ function renderFin(){
                 <div class="fw-bold small">${x.desc}</div>
                 <small class="text-muted" style="font-size:0.75rem">${x.fecha}</small>
             </div>
-            <div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>
+            <div class="text-end">
+                <div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>
+                ${saldoMoment}
+            </div>
             ${btnEdit}
         </div>`; 
     }); 
   }
-}
-
-function auditarCaja() {
-    var realVal = parseFloat(document.getElementById('audit-real-money').value);
-    if(isNaN(realVal)) return alert("Por favor, ingresa cuánto dinero tienes realmente.");
-    
-    document.getElementById('loader').style.display='flex';
-    
-    // Forzamos actualización desde el servidor para evitar caché local
-    callAPI('obtenerDatosCompletos').then(res => {
-        document.getElementById('loader').style.display='none';
-        
-        if(!res.metricas) return alert("Error leyendo datos del servidor");
-        
-        var sysVal = res.metricas.saldo || 0;
-        auditDiff = sysVal - realVal;
-        
-        // Actualizar UI del panel mini
-        var msgBox = document.getElementById('audit-msg');
-        var btnFix = document.getElementById('btn-fix-audit');
-        var feedback = document.getElementById('audit-feedback');
-        
-        feedback.style.display = 'block';
-        
-        if(auditDiff === 0) {
-            feedback.className = "alert alert-success border mt-2";
-            msgBox.innerHTML = '<i class="fas fa-check-circle"></i> ¡CUADRE PERFECTO!';
-            btnFix.style.display = 'none';
-        } else {
-            feedback.className = "alert alert-danger border mt-2";
-            var diffFmt = COP.format(Math.abs(auditDiff));
-            
-            if(auditDiff > 0) {
-                // Sistema tiene MÁS que la realidad
-                msgBox.innerHTML = `⚠️ DESFASE: El sistema tiene <b>${diffFmt} DE MÁS</b>.`;
-            } else {
-                // Sistema tiene MENOS que la realidad
-                msgBox.innerHTML = `⚠️ DESFASE: Faltan registrar <b>${diffFmt}</b> en el sistema.`;
-            }
-            btnFix.style.display = 'block';
-        }
-    });
-}
-
-function nivelarCaja() {
-    if(auditDiff === 0) return;
-    
-    var desc = "Ajuste de Auditoría de Caja";
-    var monto = Math.abs(auditDiff);
-    var action = "";
-    var payload = {};
-    
-    if(auditDiff > 0) {
-        // Sistema tiene de más -> Debemos sacar (Gasto/Egreso)
-        action = "registrarGasto";
-        payload = { desc: desc, cat: "Ajuste Inventario", monto: monto, vinculo: "" };
-    } else {
-        // Sistema tiene de menos -> Debemos meter (Ingreso)
-        action = "registrarIngresoExtra";
-        payload = { desc: desc, cat: "Ajuste", monto: monto };
-    }
-    
-    if(confirm(`¿Confirmas realizar un ajuste automático por ${COP.format(monto)} para igualar los saldos?`)) {
-        document.getElementById('loader').style.display='flex';
-        callAPI(action, payload).then(r => {
-            if(r.exito) {
-                alert("✅ Saldo nivelado correctamente.");
-                location.reload();
-            } else {
-                alert("Error: " + r.error);
-                document.getElementById('loader').style.display='none';
-            }
-        });
-    }
 }
 
 function abrirEditMov(index) {
