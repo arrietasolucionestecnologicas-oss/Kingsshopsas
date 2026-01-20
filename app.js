@@ -264,7 +264,7 @@ function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m && m[1]) return "http://lh3.googleusercontent.com/d/" + m[1];
+        if (m && m[1]) return "https://googleusercontent.com/profile/picture/0" + m[1];
     }
     return url;
 }
