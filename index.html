@@ -622,16 +622,11 @@
       });
     }
   </script>
-  <script src="app.js?v=74"></script>
+  <script src="app.js?v=76"></script>
 </body>
 </html>
 
-### 3. Archivo `app.js` (Lógica - Historial y Cartera)
-**Cambios:**
-1.  **`verificarBanco`**: Añadida función para comparar saldo.
-2.  **`renderFin`**: Ahora muestra el saldo en la lista (`x.saldo`).
-3.  **`renderCartera`**: Ahora muestra el detalle del plan de cuotas (`x cuotas de $Y`).
-4.  **`finalizarVenta`**: Ahora captura y envía el número de cuotas al backend.
+### 3. `app.js` (Lógica Completa)
 
 ```javascript
 // ============================================
@@ -1223,6 +1218,8 @@ function finalizarVenta() {
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
+   
+   // NUEVO: Capturar número de cuotas del DOM
    var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
@@ -1259,7 +1256,7 @@ function finalizarVenta() {
        inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
        vendedor: D.user || "Offline User",
        fechaPersonalizada: fechaVal,
-       cuotas: cuotasVal // NUEVO: Enviamos el número de cuotas
+       cuotas: cuotasVal // NUEVO: Enviar cuotas al backend
    };
    
    document.getElementById('loader').style.display='flex';
@@ -1332,7 +1329,7 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA CON CUOTAS (MODIFICADO) ---
+// --- RENDERIZADO CARTERA CON CUOTAS ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -1636,10 +1633,10 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FUNCIONES AUDITORÍA Y VERIFICACIÓN (NUEVAS) ---
+// --- FUNCIÓN AUDITORÍA: VERIFICAR BANCO (NUEVA) ---
 function verificarBanco() {
     var real = parseFloat(document.getElementById('audit-banco').value) || 0;
-    // D.metricas.saldo es el saldo ACTUAL del servidor (recién descargado en loadData)
+    // D.metricas.saldo es el saldo ACTUAL del servidor
     var sys = (D.metricas && D.metricas.saldo) ? D.metricas.saldo : 0;
     var diff = sys - real;
     var el = document.getElementById('audit-res');
@@ -1647,9 +1644,8 @@ function verificarBanco() {
     if(Math.abs(diff) < 1) { // Tolerancia de 1 peso
         el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>';
     } else {
-        // Si diferencia es positiva, sistema tiene más (falta plata física)
-        // Si diferencia es negativa, sistema tiene menos (sobra plata física)
-        var msg = diff > 0 ? "Faltan" : "Sobran";
+        // Si diff > 0: Sistema tiene más (Falta plata física)
+        // Si diff < 0: Sistema tiene menos (Sobra plata física)
         el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`;
     }
 }
