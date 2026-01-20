@@ -10,6 +10,7 @@ var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
+var auditDiff = 0; // Variable global para guardar la diferencia de auditoría
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -195,9 +196,7 @@ function renderData(res) {
 
     if(res.metricas) {
         document.getElementById('user-display').innerText = res.user || "Offline User";
-        document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
-        document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
-        document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
+        // Ya no mostramos saldo en header de Finanzas, se calcula en auditoría
     }
     
     var provSelect = document.getElementById('filter-prov');
@@ -781,7 +780,6 @@ function toggleWebStatus(id) {
     }
 }
 
-// --- ACTUALIZADO: RENDERIZAR CON BOTÓN COMPARTIR (ENLACE) ---
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
@@ -831,7 +829,6 @@ function renderInv(){
     }); 
 }
 
-// --- FUNCIÓN NUEVA: COMPARTIR ENLACE ---
 function shareProdLink(id) {
     if(!id) return;
     var link = "https://kishopsas.com/?id=" + id;
@@ -977,7 +974,9 @@ function crearProducto(){
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
+// --- FUNCIONES AUDITORÍA Y NIVELACIÓN (NUEVAS) ---
 function renderFin(){ 
+  // Selectores para abonos
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
   
@@ -985,6 +984,7 @@ function renderFin(){
   var elFecha = document.getElementById('ab-fecha');
   if(elFecha) elFecha.value = today;
 
+  // Lista Historial
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
@@ -1006,6 +1006,82 @@ function renderFin(){
         </div>`; 
     }); 
   }
+}
+
+function auditarCaja() {
+    var realVal = parseFloat(document.getElementById('audit-real-money').value);
+    if(isNaN(realVal)) return alert("Por favor, ingresa cuánto dinero tienes realmente.");
+    
+    document.getElementById('loader').style.display='flex';
+    
+    // Forzamos actualización desde el servidor para evitar caché local
+    callAPI('obtenerDatosCompletos').then(res => {
+        document.getElementById('loader').style.display='none';
+        
+        if(!res.metricas) return alert("Error leyendo datos del servidor");
+        
+        var sysVal = res.metricas.saldo || 0;
+        auditDiff = sysVal - realVal;
+        
+        // Renderizar Resultado
+        document.getElementById('audit-result').style.display = 'block';
+        document.getElementById('audit-sys-val').innerText = COP.format(sysVal);
+        document.getElementById('audit-usr-val').innerText = COP.format(realVal);
+        
+        var msgBox = document.getElementById('audit-msg');
+        var actBox = document.getElementById('audit-actions');
+        var container = document.getElementById('audit-result');
+        
+        if(auditDiff === 0) {
+            container.className = "audit-box safe";
+            msgBox.innerHTML = '<h4 class="text-success"><i class="fas fa-check-circle"></i> CUADRE PERFECTO</h4>';
+            actBox.style.display = 'none';
+        } else {
+            container.className = "audit-box danger";
+            var diffFmt = COP.format(Math.abs(auditDiff));
+            
+            if(auditDiff > 0) {
+                // Sistema tiene MÁS que la realidad (Sobra en sistema, falta en físico)
+                msgBox.innerHTML = `<h4 class="text-danger">DESFASE: ${diffFmt}</h4><p class="small">El sistema dice que tienes ${diffFmt} de más.</p>`;
+            } else {
+                // Sistema tiene MENOS que la realidad (Falta en sistema, sobra en físico)
+                msgBox.innerHTML = `<h4 class="text-danger">DESFASE: ${diffFmt}</h4><p class="small">Tienes ${diffFmt} que no has registrado.</p>`;
+            }
+            actBox.style.display = 'block';
+        }
+    });
+}
+
+function nivelarCaja() {
+    if(auditDiff === 0) return;
+    
+    var desc = "Ajuste de Auditoría de Caja";
+    var monto = Math.abs(auditDiff);
+    var action = "";
+    var payload = {};
+    
+    if(auditDiff > 0) {
+        // Sistema tiene de más -> Debemos sacar (Gasto/Egreso)
+        action = "registrarGasto";
+        payload = { desc: desc, cat: "Ajuste Inventario", monto: monto, vinculo: "" };
+    } else {
+        // Sistema tiene de menos -> Debemos meter (Ingreso)
+        action = "registrarIngresoExtra";
+        payload = { desc: desc, cat: "Ajuste", monto: monto };
+    }
+    
+    if(confirm(`¿Confirmas realizar un ajuste automático por ${COP.format(monto)} para igualar los saldos?`)) {
+        document.getElementById('loader').style.display='flex';
+        callAPI(action, payload).then(r => {
+            if(r.exito) {
+                alert("✅ Saldo nivelado correctamente.");
+                location.reload();
+            } else {
+                alert("Error: " + r.error);
+                document.getElementById('loader').style.display='none';
+            }
+        });
+    }
 }
 
 function abrirEditMov(index) {
