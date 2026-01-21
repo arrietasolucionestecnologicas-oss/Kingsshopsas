@@ -262,10 +262,12 @@ function nav(v, btn){
 
 function fixDriveLink(url) {
     if (!url) return "";
+    // CORRECCIÓN DE IMÁGENES: Detectar ID y usar formato LH3 directo
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        // FORCE HTTPS and LH3
-        if (m && m[1]) return "[https://lh3.googleusercontent.com/d/](https://lh3.googleusercontent.com/d/)" + m[1];
+        if (m && m[1]) {
+            return "https://lh3.googleusercontent.com/d/" + m[1];
+        }
     }
     return url;
 }
@@ -413,7 +415,7 @@ function calcReverse() {
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA CORREGIDA) ---
+// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA CORREGIDA JERARQUÍA ESTRICTA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -423,71 +425,64 @@ function calcCart() {
    var metodo = parent.querySelector('#c-metodo').value;
    var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
+   var util = parseFloat(parent.querySelector('#c-util').value)||0; 
+   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    
-   // INPUT DE PRECIO FINAL FIJO (El "Jefe")
+   // NIVEL 2: EL JEFE (PRECIO FINAL FIJO)
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
 
-   // 1. CALCULAR BASE Y TOTAL
-   var totalFinal = 0;
+   // NIVEL 1: DEFINICIÓN DEL COSTO BASE
    var baseParaCalculo = 0;
 
-   if (tieneTarget) {
-       // --- MODO B: PRECIO FIJO (IGNORA TODO LO DEMÁS) ---
-       totalFinal = targetVal;
-       baseParaCalculo = targetVal;
-       
-       // Limpiar tasa de interés visualmente porque no aplica
-       parent.querySelector('#c-int').value = 0;
+   if (CART.length > 0) {
+       // Si hay productos, el Costo Base es la suma de los COSTOS internos
+       // NOTA: Ignoramos el precio público para el cálculo base, usamos el COSTO.
+       baseParaCalculo = CART.reduce((acc, item) => acc + (item.costo || 0), 0);
    } else {
-       // --- MODO A: CÁLCULO AUTOMÁTICO (EXISTENTE) ---
-       var util = parseFloat(parent.querySelector('#c-util').value)||0; 
-       var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
-       
-       if (CART.length > 0) {
-            // VENTA CON PRODUCTOS
-            if (isManual) {
-                var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
-                baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
-            } else {
-                baseParaCalculo = CART.reduce((acc, item) => {
-                    if(item.publico > 0) return acc + item.publico; 
-                    return acc + (item.costo * (1 + util/100)); 
-                }, 0);
-                if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
-            }
-       } else {
-            // CALCULADORA LIBRE (SIN PRODUCTOS)
-            var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
-            var costoBase = isNaN(manualVal) ? 0 : manualVal;
-            
-            // Si el switch "Costo Manual" está APAGADO, tratamos el input como COSTO BASE y aplicamos utilidad
-            if (!isManual) {
-                 if(util > 0) {
-                    baseParaCalculo = costoBase * (1 + util/100);
-                 } else {
-                    baseParaCalculo = costoBase;
-                 }
-                 if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
-            } else {
-                 // Si está encendido, el input es el precio final
-                 baseParaCalculo = costoBase;
-            }
-       }
+       // Calculadora Libre: El Costo Base es lo que escribas en el input manual
+       var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+       baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
+   }
 
-       // Aplicar intereses si es crédito y NO hay precio fijo
-       if (metodo === "Crédito") {
-           // Asumimos inicial del 30% por defecto para el cálculo de interés
-           var iniTemp = baseParaCalculo * 0.30;
-           var saldoTemp = baseParaCalculo - iniTemp;
-           var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
-           totalFinal = baseParaCalculo + interesTotal;
-       } else {
+   // --- CÁLCULO DEL TOTAL FINAL ---
+   var totalFinal = 0;
+
+   if (tieneTarget) {
+       // CASO A: EL JEFE MANDA (Nivel 2)
+       // El total es exactamente el target, ignoramos utilidad e interés automático.
+       totalFinal = targetVal;
+       
+       // Visualmente indicamos que el interés no aplica automático
+       parent.querySelector('#c-int').value = 0;
+
+   } else {
+       // CASO B: FÓRMULA ESTÁNDAR (Nivel 1 + Utilidad)
+       // Total = Base + (Base * Utilidad)
+       // Si "Costo Manual" está activo en calc libre sin productos, el input es el precio final
+       
+       if (CART.length === 0 && isManual) {
+           // En calc libre manual, el input es el total directo
            totalFinal = baseParaCalculo;
+       } else {
+           // Fórmula: Costo * (1 + Util%)
+           totalFinal = baseParaCalculo * (1 + util/100);
+       }
+       
+       // Aplicar IVA si corresponde
+       if(conIva) totalFinal = totalFinal * 1.19;
+
+       // Aplicar Interés si es Crédito (sobre saldo tras inicial)
+       if (metodo === "Crédito") {
+           // Asumimos inicial del 30% por defecto para proyectar interés
+           var iniTemp = totalFinal * 0.30;
+           var saldoTemp = totalFinal - iniTemp;
+           var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
+           totalFinal = totalFinal + interesTotal;
        }
    }
    
-   calculatedValues.base = baseParaCalculo; // Referencia
+   calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
 
    // 2. GESTIÓN DE LA INICIAL
@@ -498,12 +493,12 @@ function calcCart() {
    var inicial = 0;
    
    if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
-        // Si el usuario escribió algo (incluso 0), lo respetamos
-        inicial = parseFloat(inpInicial.value);
-        if(isNaN(inicial)) inicial = 0;
+       // Si el usuario escribió algo (incluso 0), lo respetamos
+       inicial = parseFloat(inpInicial.value);
+       if(isNaN(inicial)) inicial = 0;
    } else {
-        // Si está vacío, sugerimos el 30% del total
-        inicial = Math.round(totalFinal * 0.30);
+       // Si está vacío, sugerimos el 30% del total
+       inicial = Math.round(totalFinal * 0.30);
    }
    
    calculatedValues.inicial = inicial;
@@ -524,13 +519,9 @@ function calcCart() {
            e.style.display = 'block';
        });
        
-       // Si es calculadora libre y manual NO está activo, dejamos el input visible para el costo base
-       if(CART.length === 0 && !isManual) {
+       // Gestión de visibilidad del input manual (Calculadora libre)
+       if(CART.length === 0) {
            inputTotal.style.display = 'inline-block';
-       } else if (CART.length === 0 && isManual) {
-           // Si es manual, el input es el precio total, ocultamos el texto redundante
-           inputTotal.style.display = 'inline-block';
-           totalText.forEach(e => e.style.display = 'none');
        } else {
            inputTotal.style.display = 'none';
        }
@@ -553,7 +544,7 @@ function calcCart() {
        // Contado
        calculatedValues.inicial = 0;
        
-       // En contado, mostramos el texto con el precio final (con utilidad)
+       // En contado, mostramos el texto con el precio final
        totalText.forEach(e => {
            e.innerText = COP.format(Math.round(totalFinal));
            e.style.display = 'block';
@@ -561,20 +552,12 @@ function calcCart() {
 
        // Lógica de visibilidad del input en Contado
        if (CART.length === 0) {
-           // Calculadora libre: Input siempre visible (es el costo o el precio final)
+           // Calculadora libre: Input siempre visible
            inputTotal.style.display = 'inline-block';
-           if(isManual) {
-               // Si es manual, ocultamos el texto para no duplicar
-               totalText.forEach(e => e.style.display = 'none');
-           }
+           // Si es manual puro, ocultamos el texto redundante
+           if(isManual) totalText.forEach(e => e.style.display = 'none');
        } else {
-           // Venta productos
-           if(isManual) {
-               inputTotal.style.display = 'inline-block';
-               totalText.forEach(e => e.style.display = 'none');
-           } else {
-               inputTotal.style.display = 'none';
-           }
+           inputTotal.style.display = 'none';
        }
        
        rowCred.forEach(e => e.style.display = 'none'); 
@@ -617,7 +600,7 @@ function shareQuote() {
         msg += `💰 *Total a Pagar:* ${COP.format(total)}`;
     }
     
-    var url = "[https://wa.me/?text=](https://wa.me/?text=)" + encodeURIComponent(msg);
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
 
@@ -636,13 +619,12 @@ function finalizarVenta() {
    var itemsData = [];
    
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b)=>a+(b.publico>0?b.publico:b.costo),0); 
-       var factor = calculatedValues.total / totalCostoRef; 
-       if(isNaN(factor)) factor = 1;
+       // Distribuir el total calculado proporcionalmente al costo de cada item
+       var totalCostoRef = CART.reduce((a,b)=>a+(b.costo || 0), 0); 
+       if(totalCostoRef === 0) totalCostoRef = 1; // Evitar división por 0
 
        itemsData = CART.map(p => {
-           var baseItem = p.publico > 0 ? p.publico : p.costo;
-           var peso = baseItem / totalCostoRef;
+           var peso = (p.costo || 0) / totalCostoRef;
            return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
        });
    } 
@@ -665,7 +647,7 @@ function finalizarVenta() {
        inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
        vendedor: D.user || "Offline User",
        fechaPersonalizada: fechaVal,
-       cuotas: cuotasVal // NUEVO: Enviar cuotas al backend
+       cuotas: cuotasVal 
    };
    
    document.getElementById('loader').style.display='flex';
