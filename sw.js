@@ -1,14 +1,13 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v60 - UPDATE FORCE
- * - Versión crítica para activar Calculadora Libre.
- * - Fuerza la recarga de index.html y app.js
+ * 👑 KINGSHOP SERVICE WORKER v85 - UPDATE FORCE
+ * - Versión crítica: Limpieza de caché para visualización de Cartera.
  */
 
-const CACHE_NAME = 'kingshop-v60-cache'; // <--- CAMBIO CRÍTICO AQUÍ
+const CACHE_NAME = 'kingshop-v85-cache'; // <--- CAMBIADO A v85
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './app.js', // Se actualizará automáticamente al cambiar la versión arriba
+  './app.js', 
   './icon-192.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
@@ -18,41 +17,34 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
-// 1. INSTALACIÓN: Descargar recursos nuevos
+// 1. INSTALACIÓN
 self.addEventListener('install', event => {
-  // Forzar al SW a tomar el control inmediatamente sin esperar
-  self.skipWaiting();
-  
+  self.skipWaiting(); // Fuerza al SW a tomar el control de inmediato
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache v60');
-        return cache.addAll(ASSETS_TO_CACHE);
-      })
+      .then(cache => cache.addAll(ASSETS_TO_CACHE))
   );
 });
 
-// 2. ACTIVACIÓN: Borrar cachés viejas (v57, v58, v59...)
+// 2. ACTIVACIÓN: Borrar cachés viejas
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(keys.map(key => {
         if (key !== CACHE_NAME) {
-            console.log('Borrando caché vieja:', key);
+            console.log('Borrando caché obsoleta:', key);
             return caches.delete(key);
         }
       }));
-    }).then(() => self.clients.claim()) // Tomar control de clientes abiertos
+    }).then(() => self.clients.claim())
   );
 });
 
-// 3. INTERCEPTOR: Estrategia "Network First" para HTML (Más seguro para actualizaciones)
+// 3. INTERCEPTOR: Network First para archivos críticos
 self.addEventListener('fetch', event => {
-  // Ignorar APIs externas
   if (event.request.url.includes('script.google.com')) return;
 
-  // Para el index.html y app.js, intentamos RED primero, si falla usamos CACHÉ
-  // Esto asegura que si tienes internet, SIEMPRE veas lo nuevo.
+  // HTML y JS principal: Siempre intentar red primero
   if (event.request.mode === 'navigate' || event.request.url.includes('app.js')) {
       event.respondWith(
         fetch(event.request).catch(() => {
@@ -60,7 +52,7 @@ self.addEventListener('fetch', event => {
         })
       );
   } else {
-      // Para imágenes y estilos pesados, usamos CACHÉ primero (velocidad)
+      // Imágenes y librerías: Cache First
       event.respondWith(
         caches.match(event.request)
           .then(response => {
