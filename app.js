@@ -264,8 +264,7 @@ function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        // USAR lh3.googleusercontent.com/d/ PARA IMÁGENES SEGURAS
-        if (m && m[1]) return "https://lh3.googleusercontent.com/d/" + m[1];
+        if (m && m[1]) return "https://googleusercontent.com/profile/picture/1" + m[1];
     }
     return url;
 }
@@ -514,6 +513,7 @@ function calcCart() {
        var valorCuota = saldo / cuotas;
 
        // Actualizar UI
+       // SIEMPRE actualizamos el texto si no es manual o si hay carrito
        if (CART.length > 0 || !isManual) {
             document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        }
@@ -535,9 +535,19 @@ function calcCart() {
    } else { 
        // Contado
        calculatedValues.inicial = 0;
+       
+       // AQUÍ ESTABA EL CAMBIO: Forzar visualización del precio calculado también en contado
        if (CART.length > 0 || !isManual) {
-           document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
+           document.querySelectorAll('#res-cont').forEach(e => {
+               e.innerText = COP.format(Math.round(totalFinal));
+               e.style.display = 'block'; // Asegurar que se vea
+           });
+           // Si no es manual, ocultamos el input
+           if(!isManual) {
+                document.querySelectorAll('#res-cont-input').forEach(e => e.style.display = 'none');
+           }
        }
+       
        rowCred.forEach(e => e.style.display = 'none'); 
        if(inpInicial) inpInicial.style.display='none'; 
    }
