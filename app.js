@@ -1,7 +1,7 @@
 // ============================================
 // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // ============================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
+const API_URL = "[https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec](https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec)"; 
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
@@ -264,7 +264,8 @@ function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m && m[1]) return "https://googleusercontent.com/profile/picture/1" + m[1];
+        // FORCE HTTPS and LH3
+        if (m && m[1]) return "[https://googleusercontent.com/profile/picture/1](https://googleusercontent.com/profile/picture/1)" + m[1];
     }
     return url;
 }
@@ -369,7 +370,6 @@ function toggleManual() {
     var txtTotal = parent.querySelector('#res-cont');
     var inpUtil = parent.querySelector('#c-util');
 
-    // Aquí ya no controlamos la visibilidad estricta del input, lo delegamos a calcCart para el caso de Calculadora Libre
     if(isManual) { 
         // Si es manual explícito, desactivamos inputs de utilidad
         inpUtil.disabled = true; 
@@ -413,7 +413,7 @@ function calcReverse() {
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
+// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA CORREGIDA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -510,14 +510,30 @@ function calcCart() {
 
    // 3. CALCULAR CUOTAS Y MOSTRAR RESULTADOS
    var rowCred = parent.querySelectorAll('#row-cred'); 
-   
+   var totalText = document.querySelectorAll('#res-cont');
+   var inputTotal = parent.querySelector('#res-cont-input');
+
    if(metodo === "Crédito") {
        var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
        var valorCuota = saldo / cuotas;
 
-       // Actualizar UI: En crédito siempre mostramos el total calculado
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
+       // EN CRÉDITO: Siempre mostramos el total calculado en TEXTO
+       totalText.forEach(e => {
+           e.innerText = COP.format(Math.round(totalFinal));
+           e.style.display = 'block';
+       });
+       
+       // Si es calculadora libre y manual NO está activo, dejamos el input visible para el costo base
+       if(CART.length === 0 && !isManual) {
+           inputTotal.style.display = 'inline-block';
+       } else if (CART.length === 0 && isManual) {
+           // Si es manual, el input es el precio total, ocultamos el texto redundante
+           inputTotal.style.display = 'inline-block';
+           totalText.forEach(e => e.style.display = 'none');
+       } else {
+           inputTotal.style.display = 'none';
+       }
 
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
@@ -537,40 +553,32 @@ function calcCart() {
        // Contado
        calculatedValues.inicial = 0;
        
-       // Actualizamos siempre el texto
-       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
+       // En contado, mostramos el texto con el precio final (con utilidad)
+       totalText.forEach(e => {
+           e.innerText = COP.format(Math.round(totalFinal));
+           e.style.display = 'block';
+       });
+
+       // Lógica de visibilidad del input en Contado
+       if (CART.length === 0) {
+           // Calculadora libre: Input siempre visible (es el costo o el precio final)
+           inputTotal.style.display = 'inline-block';
+           if(isManual) {
+               // Si es manual, ocultamos el texto para no duplicar
+               totalText.forEach(e => e.style.display = 'none');
+           }
+       } else {
+           // Venta productos
+           if(isManual) {
+               inputTotal.style.display = 'inline-block';
+               totalText.forEach(e => e.style.display = 'none');
+           } else {
+               inputTotal.style.display = 'none';
+           }
+       }
        
        rowCred.forEach(e => e.style.display = 'none'); 
        if(inpInicial) inpInicial.style.display='none'; 
-   }
-
-   // --- CONTROL DE VISIBILIDAD CRÍTICO (CORREGIDO) ---
-   var inpEl = parent.querySelector('#res-cont-input');
-   var txtEl = parent.querySelector('#res-cont'); // Puede haber multiples si es class, pero usamos ID
-
-   if (CART.length === 0) {
-       // MODO CALCULADORA LIBRE: El input SIEMPRE es visible para escribir
-       inpEl.style.display = 'inline-block';
-       
-       // El texto SIEMPRE es visible para ver el resultado calculado
-       document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'block');
-       
-       if(!isManual) {
-           inpEl.placeholder = "Costo Base"; // Feedback visual
-           // En este modo, ambos se ven: Input para costo, Texto para precio final
-       } else {
-           inpEl.placeholder = "Precio Final";
-           // Si es manual puro, el texto muestra lo mismo que el input, redundante pero seguro
-       }
-   } else {
-       // MODO POS (Con productos)
-       if (isManual) {
-           inpEl.style.display = 'inline-block';
-           document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'none');
-       } else {
-           inpEl.style.display = 'none';
-           document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'block');
-       }
    }
 }
 
@@ -609,7 +617,7 @@ function shareQuote() {
         msg += `💰 *Total a Pagar:* ${COP.format(total)}`;
     }
     
-    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    var url = "[https://wa.me/?text=](https://wa.me/?text=)" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
 
@@ -795,6 +803,7 @@ function renderWeb() {
 
     lista.slice(0, 50).forEach(p => {
         var fixedUrl = fixDriveLink(p.foto);
+        // FIX: Usar backticks (`) para que se lea la variable
         var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
         
         c.innerHTML += `
@@ -861,6 +870,7 @@ function renderInv(){
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
         var fixedUrl = fixDriveLink(p.foto);
+        // FIX: Usar backticks (`) para que se lea la variable
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
@@ -869,6 +879,7 @@ function renderInv(){
 
         var div = document.createElement('div');
         div.className = 'card-catalog';
+        // FIX: Comillas invertidas (`) para template literals
         div.innerHTML = `
             <div class="cat-img-box">
                 ${imgHtml}
@@ -893,7 +904,7 @@ function renderInv(){
 
 function shareProdLink(id) {
     if(!id) return;
-    var link = "https://kishopsas.com/?id=" + id;
+    var link = "[https://kishopsas.com/?id=](https://kishopsas.com/?id=)" + id;
     
     // Si el navegador soporta compartir nativo (Móvil)
     if (navigator.share) {
