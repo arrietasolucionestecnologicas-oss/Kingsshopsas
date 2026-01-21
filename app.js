@@ -720,7 +720,7 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA CON CUOTAS ---
+// --- RENDERIZADO CARTERA (NUEVA LÓGICA: SALDO / CUOTA FIJA) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -736,11 +736,30 @@ function renderCartera() {
             totalDeuda += d.saldo;
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
             
-            // NUEVO: Mostrar plan de cuotas si existe
-            var cuotaTxt = "";
-            if(d.cuotas && d.cuotas > 1) {
-                var valCuotaFmt = COP.format(d.valCuota || (d.saldo/d.cuotas)); 
-                cuotaTxt = `<div class="badge bg-light text-dark border mt-1">Plan: ${d.cuotas} cuotas de ${valCuotaFmt}</div>`;
+            // LÓGICA DE CUOTAS RESTANTES (Saldo / Valor Cuota Original)
+            var planDetalle = "";
+            var valCuotaReal = d.valCuota || 0;
+            
+            if(valCuotaReal > 0) {
+                // Calculamos cuántas cuotas "caben" en el saldo
+                var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
+                // Si termina en .0, lo mostramos entero (ej: 2.0 -> 2)
+                if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
+                
+                planDetalle = `
+                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
+                   <div class="d-flex justify-content-between">
+                       <span>Cuota Fija:</span>
+                       <strong>${COP.format(valCuotaReal)}</strong>
+                   </div>
+                   <div class="d-flex justify-content-between text-danger fw-bold">
+                       <span>Restan:</span>
+                       <span>${cuotasRestantes} Cuotas</span>
+                   </div>
+                </div>`;
+            } else if (d.cuotas > 1) {
+                // Fallback para datos antiguos sin valCuota registrado
+                planDetalle = `<div class="badge bg-light text-dark border mt-1">Plan: ${d.cuotas} cuotas</div>`;
             }
 
             c.innerHTML += `
@@ -750,13 +769,13 @@ function renderCartera() {
                         <h6 class="fw-bold mb-1">${d.cliente}</h6>
                         <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
                         ${fechaTxt}
-                        ${cuotaTxt}
                     </div>
                     <div class="text-end">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
                         <div class="mt-1"><span class="badge-debt">Pendiente</span></div>
                     </div>
                 </div>
+                ${planDetalle}
             </div>`;
         });
     }
