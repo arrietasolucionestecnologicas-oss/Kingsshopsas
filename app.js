@@ -1,7 +1,7 @@
 // ============================================
 // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // ============================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
+const API_URL = "[https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec](https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec)"; 
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
@@ -265,7 +265,7 @@ function fixDriveLink(url) {
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
         // FORCE HTTPS and LH3
-        if (m && m[1]) return "[https://googleusercontent.com/profile/picture/1](https://googleusercontent.com/profile/picture/1)" + m[1];
+        if (m && m[1]) return "[https://lh3.googleusercontent.com/d/](https://lh3.googleusercontent.com/d/)" + m[1];
     }
     return url;
 }
@@ -803,7 +803,6 @@ function renderWeb() {
 
     lista.slice(0, 50).forEach(p => {
         var fixedUrl = fixDriveLink(p.foto);
-        // FIX: Usar backticks (`) para que se lea la variable
         var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
         
         c.innerHTML += `
@@ -870,16 +869,11 @@ function renderInv(){
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
         var fixedUrl = fixDriveLink(p.foto);
-        // FIX: Usar backticks (`) para que se lea la variable
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- BOTÓN COMPARTIR ---
-        var btnShare = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')"><i class="fas fa-share-alt"></i></div>`;
-
         var div = document.createElement('div');
         div.className = 'card-catalog';
-        // FIX: Comillas invertidas (`) para template literals
         div.innerHTML = `
             <div class="cat-img-box">
                 ${imgHtml}
@@ -895,33 +889,13 @@ function renderInv(){
                 <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
                 <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
                 <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
-                ${btnShare}
             </div>
         `;
         c.appendChild(div);
     }); 
 }
 
-function shareProdLink(id) {
-    if(!id) return;
-    var link = "[https://kishopsas.com/?id=](https://kishopsas.com/?id=)" + id;
-    
-    // Si el navegador soporta compartir nativo (Móvil)
-    if (navigator.share) {
-        navigator.share({
-            title: 'King\'s Shop',
-            text: 'Mira este producto:',
-            url: link
-        }).catch(err => {
-            copiarDato(link);
-        });
-    } else {
-        copiarDato(link);
-        showToast("Enlace copiado", "info");
-    }
-}
-
-function copiarDato(txt) {
+function copyingDato(txt) {
     if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
     navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); });
 }
