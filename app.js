@@ -264,7 +264,8 @@ function fixDriveLink(url) {
     if (!url) return "";
     if (url.includes("drive.google.com") && url.includes("id=")) {
         var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m && m[1]) return "https://googleusercontent.com/profile/picture/0" + m[1];
+        // USAR lh3.googleusercontent.com/d/ PARA IMÁGENES SEGURAS
+        if (m && m[1]) return "https://lh3.googleusercontent.com/d/" + m[1];
     }
     return url;
 }
@@ -698,7 +699,7 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA CON CUOTAS (MODIFICADO) ---
+// --- RENDERIZADO CARTERA CON CUOTAS ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
