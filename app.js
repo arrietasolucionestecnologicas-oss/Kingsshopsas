@@ -720,7 +720,7 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA (NUEVA LÓGICA: SALDO / CUOTA FIJA) ---
+// --- RENDERIZADO CARTERA (MEJORADO PARA VENTAS VIEJAS) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -738,12 +738,14 @@ function renderCartera() {
             
             // LÓGICA DE CUOTAS RESTANTES (Saldo / Valor Cuota Original)
             var planDetalle = "";
-            var valCuotaReal = d.valCuota || 0;
+            
+            // Capturar datos y forzar conversión a número para evitar errores
+            var valCuotaReal = parseFloat(d.valCuota) || 0;
+            var numCuotas = parseInt(d.cuotas) || 1;
             
             if(valCuotaReal > 0) {
-                // Calculamos cuántas cuotas "caben" en el saldo
+                // CASO 1: Venta Nueva (Tenemos el valor de la cuota guardado)
                 var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
-                // Si termina en .0, lo mostramos entero (ej: 2.0 -> 2)
                 if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
                 
                 planDetalle = `
@@ -757,9 +759,21 @@ function renderCartera() {
                        <span>${cuotasRestantes} Cuotas</span>
                    </div>
                 </div>`;
-            } else if (d.cuotas > 1) {
-                // Fallback para datos antiguos sin valCuota registrado
-                planDetalle = `<div class="badge bg-light text-dark border mt-1">Plan: ${d.cuotas} cuotas</div>`;
+            } else if (numCuotas > 1 && d.saldo > 0) {
+                // CASO 2: Venta Antigua (No tenemos el valor de cuota, lo estimamos)
+                var cuotaEstimada = d.saldo / numCuotas; // Asumimos división simple del saldo actual
+                
+                planDetalle = `
+                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
+                   <div class="d-flex justify-content-between text-muted">
+                       <span>Plan Original:</span>
+                       <span>${numCuotas} Cuotas</span>
+                   </div>
+                   <div class="d-flex justify-content-between text-danger fw-bold">
+                       <span>Cuota Aprox:</span>
+                       <span>${COP.format(cuotaEstimada)} (Est)</span>
+                   </div>
+                </div>`;
             }
 
             c.innerHTML += `
