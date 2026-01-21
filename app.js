@@ -369,14 +369,12 @@ function toggleManual() {
     var txtTotal = parent.querySelector('#res-cont');
     var inpUtil = parent.querySelector('#c-util');
 
+    // Aquí ya no controlamos la visibilidad estricta del input, lo delegamos a calcCart para el caso de Calculadora Libre
     if(isManual) { 
-        inpTotal.style.display = 'inline-block'; 
-        txtTotal.style.display = 'none'; 
+        // Si es manual explícito, desactivamos inputs de utilidad
         inpUtil.disabled = true; 
         setTimeout(() => { inpTotal.focus(); }, 100);
     } else { 
-        inpTotal.style.display = 'none'; 
-        txtTotal.style.display = 'inline-block'; 
         inpUtil.disabled = false; 
     }
     calcCart();
@@ -395,12 +393,13 @@ function openFreeCalculator() {
     
     var chkManual = parent.querySelector('#c-manual');
     if(chkManual) { 
-        chkManual.checked = true; 
+        chkManual.checked = true; // Por defecto inicia en manual (precio final)
         
         var inpTotal = parent.querySelector('#res-cont-input');
         var txtTotal = parent.querySelector('#res-cont');
         var inpUtil = parent.querySelector('#c-util');
         
+        // Inicializamos visualmente
         if(inpTotal) { inpTotal.style.display = 'inline-block'; inpTotal.value = ''; inpTotal.focus(); }
         if(txtTotal) txtTotal.style.display = 'none'; 
         if(inpUtil) inpUtil.disabled = true;
@@ -411,7 +410,6 @@ function openFreeCalculator() {
 }
 
 function calcReverse() {
-    // FUNCIÓN HEREDADA, PERO AHORA EL INPUT LLAMA A CALCCART DIRECTAMENTE
     calcCart();
 }
 
@@ -447,6 +445,7 @@ function calcCart() {
        var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
        
        if (CART.length > 0) {
+            // VENTA CON PRODUCTOS
             if (isManual) {
                 var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
                 baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
@@ -458,14 +457,22 @@ function calcCart() {
                 if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
             }
        } else {
+            // CALCULADORA LIBRE (SIN PRODUCTOS)
             var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
             var costoBase = isNaN(manualVal) ? 0 : manualVal;
-            if(util > 0) {
-                baseParaCalculo = costoBase * (1 + util/100);
+            
+            // Si el switch "Costo Manual" está APAGADO, tratamos el input como COSTO BASE y aplicamos utilidad
+            if (!isManual) {
+                 if(util > 0) {
+                    baseParaCalculo = costoBase * (1 + util/100);
+                 } else {
+                    baseParaCalculo = costoBase;
+                 }
+                 if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
             } else {
-                baseParaCalculo = costoBase;
+                 // Si está encendido, el input es el precio final
+                 baseParaCalculo = costoBase;
             }
-            if(conIva) baseParaCalculo = baseParaCalculo * 1.19;
        }
 
        // Aplicar intereses si es crédito y NO hay precio fijo
@@ -505,18 +512,12 @@ function calcCart() {
    var rowCred = parent.querySelectorAll('#row-cred'); 
    
    if(metodo === "Crédito") {
-       // Saldo real a financiar
        var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
-       
-       // DIVISIÓN SIMPLE DEL SALDO (Ya sea precio fijo o calculado con interés)
        var valorCuota = saldo / cuotas;
 
-       // Actualizar UI
-       // SIEMPRE actualizamos el texto si no es manual o si hay carrito
-       if (CART.length > 0 || !isManual) {
-            document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
-       }
+       // Actualizar UI: En crédito siempre mostramos el total calculado
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
 
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
@@ -536,20 +537,40 @@ function calcCart() {
        // Contado
        calculatedValues.inicial = 0;
        
-       // AQUÍ ESTABA EL CAMBIO: Forzar visualización del precio calculado también en contado
-       if (CART.length > 0 || !isManual) {
-           document.querySelectorAll('#res-cont').forEach(e => {
-               e.innerText = COP.format(Math.round(totalFinal));
-               e.style.display = 'block'; // Asegurar que se vea
-           });
-           // Si no es manual, ocultamos el input
-           if(!isManual) {
-                document.querySelectorAll('#res-cont-input').forEach(e => e.style.display = 'none');
-           }
-       }
+       // Actualizamos siempre el texto
+       document.querySelectorAll('#res-cont').forEach(e => e.innerText = COP.format(Math.round(totalFinal)));
        
        rowCred.forEach(e => e.style.display = 'none'); 
        if(inpInicial) inpInicial.style.display='none'; 
+   }
+
+   // --- CONTROL DE VISIBILIDAD CRÍTICO (CORREGIDO) ---
+   var inpEl = parent.querySelector('#res-cont-input');
+   var txtEl = parent.querySelector('#res-cont'); // Puede haber multiples si es class, pero usamos ID
+
+   if (CART.length === 0) {
+       // MODO CALCULADORA LIBRE: El input SIEMPRE es visible para escribir
+       inpEl.style.display = 'inline-block';
+       
+       // El texto SIEMPRE es visible para ver el resultado calculado
+       document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'block');
+       
+       if(!isManual) {
+           inpEl.placeholder = "Costo Base"; // Feedback visual
+           // En este modo, ambos se ven: Input para costo, Texto para precio final
+       } else {
+           inpEl.placeholder = "Precio Final";
+           // Si es manual puro, el texto muestra lo mismo que el input, redundante pero seguro
+       }
+   } else {
+       // MODO POS (Con productos)
+       if (isManual) {
+           inpEl.style.display = 'inline-block';
+           document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'none');
+       } else {
+           inpEl.style.display = 'none';
+           document.querySelectorAll('#res-cont').forEach(e => e.style.display = 'block');
+       }
    }
 }
 
