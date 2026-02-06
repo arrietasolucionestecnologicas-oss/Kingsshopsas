@@ -210,7 +210,7 @@ function renderData(res) {
     
     renderPos(); 
     renderInv(); 
-    renderWeb();  // ¡AQUÍ ESTABA EL ERROR! (Ya restaurada la función abajo)
+    renderWeb();  
     renderFin(); 
     renderPed();
     renderProvs();
@@ -263,22 +263,12 @@ function nav(v, btn){
 // --- FUNCIÓN CORREGIDA HTTPS SEGURO (SOLUCIÓN MIXED CONTENT) ---
 function fixDriveLink(url) {
     if (!url) return "";
-    
-    // 1. Limpieza inicial
     try { url = decodeURIComponent(url).trim(); } catch(e) {}
-
-    // 2. Extraer ID usando Regex estricto
     var match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (!match) {
-        match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    }
-
-    // 3. ENLACE SEGURO (HTTPS) LH3
+    if (!match) { match = url.match(/\/d\/([a-zA-Z0-9_-]+)/); }
     if (match && match[1]) {
         return "https://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
     }
-    
-    // Fallback
     return url.split(' ')[0];
 }
 
@@ -289,19 +279,13 @@ function renderPos(){
   var placeholder = document.getElementById('pos-placeholder');
   c.innerHTML='';
   
-  if(!q) {
-      placeholder.style.display = 'block';
-      return;
-  }
+  if(!q) { placeholder.style.display = 'block'; return; }
   placeholder.style.display = 'none';
 
   var lista = D.inv || [];
   var res = lista.filter(p => (p.nombre && p.nombre.toLowerCase().includes(q)) || (p.cat && p.cat.toLowerCase().includes(q)));
   
-  if(res.length === 0) {
-      c.innerHTML = '<div class="text-center text-muted py-3">No encontrado</div>';
-      return;
-  }
+  if(res.length === 0) { c.innerHTML = '<div class="text-center text-muted py-3">No encontrado</div>'; return; }
 
   res.slice(0,20).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
@@ -324,13 +308,7 @@ function renderPos(){
 
 function toggleCart(p, el) {
    var idx = CART.findIndex(x=>x.id===p.id);
-   if(idx > -1) { 
-       CART.splice(idx,1); 
-       el.classList.remove('active'); 
-   } else { 
-       CART.push(p); 
-       el.classList.add('active'); 
-   }
+   if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); } else { CART.push(p); el.classList.add('active'); }
    updateCartUI();
 }
 
@@ -357,19 +335,15 @@ function updateCartUI(keepOpen = false) {
    var inputConcepto = parent.querySelector('#c-concepto');
    
    if(count === 0) {
-       if(!keepOpen) {
-           document.getElementById('mobile-cart').classList.remove('visible');
-       }
+       if(!keepOpen) { document.getElementById('mobile-cart').classList.remove('visible'); }
        if(inputConcepto) inputConcepto.style.display = 'block';
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
    } else {
        if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
-       
        var names = CART.map(x=>x.nombre).join(', ');
        document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
    }
-   
    calcCart();
 }
 
@@ -382,50 +356,32 @@ function toggleManual() {
     var txtTotal = parent.querySelector('#res-cont');
     var inpUtil = parent.querySelector('#c-util');
 
-    if(isManual) { 
-        // Si es manual explícito, desactivamos inputs de utilidad
-        inpUtil.disabled = true; 
-        setTimeout(() => { inpTotal.focus(); }, 100);
-    } else { 
-        inpUtil.disabled = false; 
-    }
+    if(isManual) { inpUtil.disabled = true; setTimeout(() => { inpTotal.focus(); }, 100); } else { inpUtil.disabled = false; }
     calcCart();
 }
 
 function openFreeCalculator() {
     CART = []; 
     document.querySelectorAll('.pos-row-lite').forEach(e => e.classList.remove('active'));
-    
     var isMobile = window.innerWidth < 992;
-    if(isMobile) {
-        document.getElementById('mobile-cart').classList.add('visible');
-    }
-    
+    if(isMobile) { document.getElementById('mobile-cart').classList.add('visible'); }
     var parent = (isMobile) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    
     var chkManual = parent.querySelector('#c-manual');
     if(chkManual) { 
-        chkManual.checked = true; // Por defecto inicia en manual (precio final)
-        
+        chkManual.checked = true; 
         var inpTotal = parent.querySelector('#res-cont-input');
         var txtTotal = parent.querySelector('#res-cont');
         var inpUtil = parent.querySelector('#c-util');
-        
-        // Inicializamos visualmente
         if(inpTotal) { inpTotal.style.display = 'inline-block'; inpTotal.value = ''; inpTotal.focus(); }
         if(txtTotal) txtTotal.style.display = 'none'; 
         if(inpUtil) inpUtil.disabled = true;
     }
-    
     updateCartUI(true); 
     showToast("Calculadora Libre Activada", "info");
 }
 
-function calcReverse() {
-    calcCart();
-}
+function calcReverse() { calcCart(); }
 
-// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -437,37 +393,23 @@ function calcCart() {
    var isManual = parent.querySelector('#c-manual').checked;
    var util = parseFloat(parent.querySelector('#c-util').value)||0; 
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
-   
-   // NIVEL 2: EL JEFE (PRECIO FINAL FIJO)
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
-
-   // NIVEL 1: DEFINICIÓN DEL COSTO BASE
    var baseParaCalculo = 0;
 
    if (CART.length > 0) {
-       // Si hay productos, el Costo Base es la suma de los COSTOS internos
        baseParaCalculo = CART.reduce((acc, item) => acc + (item.costo || 0), 0);
    } else {
-       // Calculadora Libre: El Costo Base es lo que escribas en el input manual
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
    }
 
-   // --- CÁLCULO DEL TOTAL FINAL ---
    var totalFinal = 0;
-
    if (tieneTarget) {
-       // CASO A: EL JEFE MANDA
        totalFinal = targetVal;
        parent.querySelector('#c-int').value = 0;
    } else {
-       // CASO B: FÓRMULA ESTÁNDAR
-       if (CART.length === 0 && isManual) {
-           totalFinal = baseParaCalculo;
-       } else {
-           totalFinal = baseParaCalculo * (1 + util/100);
-       }
+       if (CART.length === 0 && isManual) { totalFinal = baseParaCalculo; } else { totalFinal = baseParaCalculo * (1 + util/100); }
        if(conIva) totalFinal = totalFinal * 1.19;
        if (metodo === "Crédito") {
            var iniTemp = totalFinal * 0.30;
@@ -480,11 +422,9 @@ function calcCart() {
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
 
-   // 2. GESTIÓN DE LA INICIAL
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
-   
    var inicial = 0;
    
    if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
@@ -493,10 +433,8 @@ function calcCart() {
    } else {
        inicial = Math.round(totalFinal * 0.30);
    }
-   
    calculatedValues.inicial = inicial;
 
-   // 3. CALCULAR CUOTAS Y MOSTRAR RESULTADOS
    var rowCred = parent.querySelectorAll('#row-cred'); 
    var totalText = document.querySelectorAll('#res-cont');
    var inputTotal = parent.querySelector('#res-cont-input');
@@ -506,16 +444,8 @@ function calcCart() {
        if(saldo < 0) saldo = 0;
        var valorCuota = saldo / cuotas;
 
-       totalText.forEach(e => {
-           e.innerText = COP.format(Math.round(totalFinal));
-           e.style.display = 'block';
-       });
-       
-       if(CART.length === 0) {
-           inputTotal.style.display = 'inline-block';
-       } else {
-           inputTotal.style.display = 'none';
-       }
+       totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
+       if(CART.length === 0) { inputTotal.style.display = 'inline-block'; } else { inputTotal.style.display = 'none'; }
 
        rowCred.forEach(e => { 
            e.style.display = 'block'; 
@@ -530,21 +460,13 @@ function calcCart() {
            inpInicial.disabled = false;
            inpInicial.style.background = '#fff';
        }
-
    } else { 
        calculatedValues.inicial = 0;
-       
-       totalText.forEach(e => {
-           e.innerText = COP.format(Math.round(totalFinal));
-           e.style.display = 'block';
-       });
-
+       totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
        if (CART.length === 0) {
            inputTotal.style.display = 'inline-block';
            if(isManual) totalText.forEach(e => e.style.display = 'none');
-       } else {
-           inputTotal.style.display = 'none';
-       }
+       } else { inputTotal.style.display = 'none'; }
        
        rowCred.forEach(e => e.style.display = 'none'); 
        if(inpInicial) inpInicial.style.display='none'; 
@@ -557,15 +479,9 @@ function clearCart() { CART=[]; renderPos(); updateCartUI(); }
 
 function shareQuote() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    
     var cli = parent.querySelector('#c-cliente').value || "Cliente";
     var concepto = "";
-    
-    if(CART.length > 0) {
-        concepto = CART.map(x=>x.nombre).join(', ');
-    } else {
-        concepto = parent.querySelector('#c-concepto').value || "Varios";
-    }
+    if(CART.length > 0) { concepto = CART.map(x=>x.nombre).join(', '); } else { concepto = parent.querySelector('#c-concepto').value || "Varios"; }
     
     var total = calculatedValues.total;
     var metodo = parent.querySelector('#c-metodo').value;
@@ -576,7 +492,6 @@ function shareQuote() {
         var inicial = calculatedValues.inicial;
         var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
         var valorCuota = parent.querySelector('#res-cuota-val').innerText;
-        
         msg += `💳 *Método:* Crédito\n`;
         msg += `💰 *Valor Total (Financiado):* ${COP.format(total)}\n`;
         msg += `🔹 *Inicial:* ${COP.format(inicial)}\n`;
@@ -590,65 +505,36 @@ function shareQuote() {
     window.open(url, '_blank');
 }
 
-// ============================================================
-// 🎨 LÓGICA DE EMBELLECIMIENTO DE WHATSAPP (AUTO-EMOJIS)
-// ============================================================
-
 function embellecerDescripcion(texto) {
     if (!texto) return "Sin detalles disponibles.";
-
-    // 1. Limpieza inicial
     let t = texto;
-
-    // 2. Diccionario de Palabras Clave -> Emojis
     const diccionario = [
-        { clave: "Pantalla", emoji: "📱" },
-        { clave: "Diseño", emoji: "✨" },
-        { clave: "Rendimiento", emoji: "🚀" },
-        { clave: "Procesador", emoji: "🧠" },
-        { clave: "Cámaras", emoji: "📸" },
-        { clave: "Cámara", emoji: "📷" },
-        { clave: "Batería", emoji: "🔋" },
-        { clave: "Seguridad", emoji: "🔒" },
-        { clave: "Audio", emoji: "🔊" },
-        { clave: "Sonido", emoji: "🔈" },
-        { clave: "Almacenamiento", emoji: "💾" },
-        { clave: "Memoria", emoji: "💾" },
-        { clave: "Conectividad", emoji: "📡" },
-        { clave: "Características", emoji: "📋" },
-        { clave: "Versión", emoji: "ℹ️" },
+        { clave: "Pantalla", emoji: "📱" }, { clave: "Diseño", emoji: "✨" }, { clave: "Rendimiento", emoji: "🚀" },
+        { clave: "Procesador", emoji: "🧠" }, { clave: "Cámaras", emoji: "📸" }, { clave: "Cámara", emoji: "📷" },
+        { clave: "Batería", emoji: "🔋" }, { clave: "Seguridad", emoji: "🔒" }, { clave: "Audio", emoji: "🔊" },
+        { clave: "Sonido", emoji: "🔈" }, { clave: "Almacenamiento", emoji: "💾" }, { clave: "Memoria", emoji: "💾" },
+        { clave: "Conectividad", emoji: "📡" }, { clave: "Características", emoji: "📋" }, { clave: "Versión", emoji: "ℹ️" },
         { clave: "Garantía", emoji: "🛡️" }
     ];
-
-    // 3. Aplicar magia
     diccionario.forEach(item => {
         const regex = new RegExp(`(${item.clave}:?)`, 'gi');
-        t = t.replace(regex, (match) => {
-            return `%0A${item.emoji} *${match.trim()}*`; 
-        });
+        t = t.replace(regex, (match) => { return `%0A${item.emoji} *${match.trim()}*`; });
     });
-
     return t;
 }
 
-// --- FUNCIÓN PRINCIPAL DE COMPARTIR (SIN PRECIO + FOTO HTTPS) ---
 function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
-
     var nombre = p.nombre.toUpperCase();
     var descripcionBonita = embellecerDescripcion(p.desc);
     var linkFoto = fixDriveLink(p.foto); 
-
     var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
     msg += `📦 *PRODUCTO:* ${nombre}%0A`;
     msg += `📝 *DETALLES:*${descripcionBonita}%0A%0A`; 
-    
-    if(linkFoto && linkFoto.length > 10) {
-        msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
-    }
+    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`; }
+    msg += `👉 _¡Pregúntame por el precio!_%0A`; 
     msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
-
     var url = "https://wa.me/?text=" + msg;
     window.open(url, '_blank');
 }
@@ -656,19 +542,9 @@ function shareProdWhatsApp(id) {
 function shareProdLink(id) {
     if(!id) return;
     var link = "https://kishopsas.com/?id=" + id;
-    
     if (navigator.share) {
-        navigator.share({
-            title: 'King\'s Shop',
-            text: 'Mira este producto:',
-            url: link
-        }).catch(err => {
-            copyingDato(link);
-        });
-    } else {
-        copyingDato(link);
-        showToast("Enlace copiado", "info");
-    }
+        navigator.share({ title: 'King\'s Shop', text: 'Mira este producto:', url: link }).catch(err => { copyingDato(link); });
+    } else { copyingDato(link); showToast("Enlace copiado", "info"); }
 }
 
 function finalizarVenta() {
@@ -677,84 +553,45 @@ function finalizarVenta() {
    if(!cli) return alert("Falta Cliente");
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
-   
    var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
    var itemsData = [];
-   
    if(CART.length > 0) {
        var totalCostoRef = CART.reduce((a,b)=>a+(b.costo || 0), 0); 
        if(totalCostoRef === 0) totalCostoRef = 1;
-
        itemsData = CART.map(p => {
            var peso = (p.costo || 0) / totalCostoRef;
            return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
        });
-   } 
-   else {
+   } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
        var costoManual = parseFloat(parent.querySelector('#res-cont-input').value) || 0; 
-       
-       itemsData.push({
-           nombre: nombreManual,
-           cat: "General",
-           costo: costoManual, 
-           precioVenta: calculatedValues.total
-       });
+       itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
 
-   var d = { 
-       items: itemsData, 
-       cliente: cli, 
-       metodo: metodo, 
-       inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, 
-       vendedor: D.user || "Offline User",
-       fechaPersonalizada: fechaVal,
-       cuotas: cuotasVal 
-   };
+   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user || "Offline User", fechaPersonalizada: fechaVal, cuotas: cuotasVal };
    
    document.getElementById('loader').style.display='flex';
    callAPI('procesarVentaCarrito', d).then(r => { 
-       if(r.exito) { 
-           if(r.offline) {
-               alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
-               location.reload(); 
-           } else {
-               location.reload(); 
-           }
-       } else { 
-           alert(r.error); 
-           document.getElementById('loader').style.display='none'; 
-       } 
+       if(r.exito) { if(r.offline) { alert("Venta guardada OFFLINE. Se subirá cuando haya internet."); location.reload(); } else { location.reload(); } } else { alert(r.error); document.getElementById('loader').style.display='none'; } 
    });
 }
 
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
-function abrirModalNuevo() { 
-    document.getElementById('new-id').value=''; 
-    document.getElementById('new-file-foto').value = ""; 
-    myModalNuevo.show(); 
-}
+function abrirModalNuevo() { document.getElementById('new-id').value=''; document.getElementById('new-file-foto').value = ""; myModalNuevo.show(); }
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
 function calcGain(idCosto, idPublico) {
     var costo = parseFloat(document.getElementById(idCosto).value);
-    if(costo > 0) {
-        var ganancia = costo * 1.30; 
-        document.getElementById(idPublico).value = Math.round(ganancia);
-    }
+    if(costo > 0) { var ganancia = costo * 1.30; document.getElementById(idPublico).value = Math.round(ganancia); }
 }
 
 function prepararEdicion(id) {
     var p = D.inv.find(x => x.id === id);
-    if (p) {
-        openEdit(p);
-    } else {
-        alert("Producto no encontrado en memoria");
-    }
+    if (p) { openEdit(p); } else { alert("Producto no encontrado en memoria"); }
 }
 
 function openEdit(p) { 
@@ -785,21 +622,24 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
+// --- RENDERIZADO CARTERA MEJORADO (ACTIVA VS CASTIGADA) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
     if(!c) return;
     
     c.innerHTML = '';
-    var totalDeuda = 0;
     
-    if(!D.deudores || D.deudores.length === 0) {
+    var activos = (D.deudores || []).filter(d => d.estado !== 'Castigado');
+    var castigados = (D.deudores || []).filter(d => d.estado === 'Castigado');
+    
+    var totalDeuda = activos.reduce((acc, d) => acc + d.saldo, 0);
+    
+    if(activos.length === 0) {
         c.innerHTML = '<div class="text-center text-muted p-5">👏 Excelente, no hay deudas pendientes.</div>';
     } else {
-        D.deudores.forEach(d => {
-            totalDeuda += d.saldo;
+        activos.forEach(d => {
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
-            
             var planDetalle = "";
             var valCuotaReal = parseFloat(d.valCuota) || 0;
             var numCuotas = parseInt(d.cuotas) || 1;
@@ -807,30 +647,10 @@ function renderCartera() {
             if(valCuotaReal > 0) {
                 var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
                 if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
-                planDetalle = `
-                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                    <div class="d-flex justify-content-between">
-                        <span>Cuota Fija:</span>
-                        <strong>${COP.format(valCuotaReal)}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between text-danger fw-bold">
-                        <span>Restan:</span>
-                        <span>${cuotasRestantes} Cuotas</span>
-                    </div>
-                </div>`;
+                planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between"><span>Cuota Fija:</span><strong>${COP.format(valCuotaReal)}</strong></div><div class="d-flex justify-content-between text-danger fw-bold"><span>Restan:</span><span>${cuotasRestantes} Cuotas</span></div></div>`;
             } else if (numCuotas > 1 && d.saldo > 0) {
                 var cuotaEstimada = d.saldo / numCuotas; 
-                planDetalle = `
-                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                    <div class="d-flex justify-content-between text-muted">
-                        <span>Plan Original:</span>
-                        <span>${numCuotas} Cuotas</span>
-                    </div>
-                    <div class="d-flex justify-content-between text-danger fw-bold">
-                        <span>Cuota Aprox:</span>
-                        <span>${COP.format(cuotaEstimada)} (Est)</span>
-                    </div>
-                </div>`;
+                planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between text-muted"><span>Plan Original:</span><span>${numCuotas} Cuotas</span></div><div class="d-flex justify-content-between text-danger fw-bold"><span>Cuota Aprox:</span><span>${COP.format(cuotaEstimada)} (Est)</span></div></div>`;
             }
 
             c.innerHTML += `
@@ -843,7 +663,10 @@ function renderCartera() {
                     </div>
                     <div class="text-end">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
-                        <div class="mt-1"><span class="badge-debt">Pendiente</span></div>
+                        <div class="mt-1 d-flex gap-1 justify-content-end">
+                            <span class="badge-debt">Pendiente</span>
+                            <button class="btn btn-xs btn-outline-dark" onclick="castigarDeuda('${d.idVenta}', '${d.cliente}')" title="Castigar Cartera (Lista Negra)">☠️</button>
+                        </div>
                     </div>
                 </div>
                 ${planDetalle}
@@ -851,75 +674,64 @@ function renderCartera() {
         });
     }
     
+    // Sección Cartera Castigada (Separada)
+    if (castigados.length > 0) {
+        c.innerHTML += `<hr class="my-4"><h6 class="text-muted mb-3"><i class="fas fa-skull-crossbones"></i> Cartera Castigada (${castigados.length})</h6>`;
+        castigados.forEach(d => {
+             c.innerHTML += `
+             <div class="card-k bg-light opacity-75">
+                <div class="d-flex justify-content-between">
+                    <div><strong>${d.cliente}</strong><br><small>${d.producto}</small></div>
+                    <div class="text-end text-muted fw-bold">${COP.format(d.saldo)}<br><small class="badge bg-secondary">Castigado</small></div>
+                </div>
+             </div>`;
+        });
+    }
+    
     if(bal) bal.innerText = COP.format(totalDeuda);
 }
 
-// --- FUNCIÓN RESTAURADA: RENDERIZADO WEB ---
+function castigarDeuda(id, nombre) {
+    Swal.fire({
+        title: '¿Castigar Cartera?',
+        text: `Vas a enviar a "${nombre}" a la lista negra. El bot dejará de cobrarle y la deuda no sumará en activos.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#000',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, Castigar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('loader').style.display='flex';
+            callAPI('castigarCartera', {idVenta: id}).then(r => {
+                if(r.exito) { location.reload(); } 
+                else { alert(r.error); document.getElementById('loader').style.display='none'; }
+            });
+        }
+    });
+}
+
 function renderWeb() {
     var q = document.getElementById('web-search').value.toLowerCase().trim();
     var c = document.getElementById('web-list');
     c.innerHTML = '';
-    
     var lista = (D.inv || []).filter(p => p.enWeb === true);
-    
-    if(q) {
-        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
-    }
-
-    if(lista.length === 0) {
-        c.innerHTML = `<div class="text-center text-muted p-5">
-            <div style="font-size:2rem">🌐</div>
-            <p>No hay productos en Web.<br>Actívalos desde Inventario.</p>
-        </div>`;
-        return;
-    }
-
+    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)); }
+    if(lista.length === 0) { c.innerHTML = `<div class="text-center text-muted p-5"><div style="font-size:2rem">🌐</div><p>No hay productos en Web.<br>Actívalos desde Inventario.</p></div>`; return; }
     lista.slice(0, 50).forEach(p => {
         var fixedUrl = fixDriveLink(p.foto);
         var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
-        
-        c.innerHTML += `
-        <div class="card-k">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2 align-items-center">
-                    ${img}
-                    <div>
-                        <strong>${p.nombre}</strong><br>
-                        <small class="badge bg-primary">${p.catWeb}</small> 
-                        <small class="text-muted">| ${COP.format(p.publico)}</small>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">
-                    Desactivar
-                </button>
-            </div>
-        </div>`;
+        c.innerHTML += `<div class="card-k"><div class="d-flex justify-content-between align-items-center"><div class="d-flex gap-2 align-items-center">${img}<div><strong>${p.nombre}</strong><br><small class="badge bg-primary">${p.catWeb}</small> <small class="text-muted">| ${COP.format(p.publico)}</small></div></div><button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">Desactivar</button></div></div>`;
     });
 }
 
-// --- FUNCIÓN RESTAURADA: TOGGLE ESTADO WEB ---
 function toggleWebStatus(id) {
     var idx = D.inv.findIndex(x => x.id === id);
     if(idx > -1) {
         var p = D.inv[idx];
         p.enWeb = !p.enWeb; 
-        
-        renderWeb();
-        renderInv(); 
-        showToast("Producto actualizado", "info");
-
-        var payload = {
-           id: p.id,
-           nombre: p.nombre,
-           categoria: p.cat,
-           proveedor: p.prov,
-           costo: p.costo,
-           publico: p.publico,
-           descripcion: p.desc,
-           urlExistente: p.foto || "", 
-           enWeb: p.enWeb,
-           catWeb: p.catWeb
-        };
+        renderWeb(); renderInv(); showToast("Producto actualizado", "info");
+        var payload = { id: p.id, nombre: p.nombre, categoria: p.cat, proveedor: p.prov, costo: p.costo, publico: p.publico, descripcion: p.desc, urlExistente: p.foto || "", enWeb: p.enWeb, catWeb: p.catWeb };
         callAPI('guardarProductoAvanzado', payload);
     }
 }
@@ -927,52 +739,23 @@ function toggleWebStatus(id) {
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
-    
     var c = document.getElementById('inv-list');
     c.innerHTML=''; 
     var lista = D.inv || [];
-    
-    if(q) { 
-        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
-    }
-    if(filterProv) {
-        var fClean = filterProv.trim().toLowerCase();
-        lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean));
-    }
+    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
+    if(filterProv) { var fClean = filterProv.trim().toLowerCase(); lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean)); }
 
     lista.slice(0, 50).forEach(p=>{
         var descEncoded = encodeURIComponent(p.desc || "");
         var fixedUrl = fixDriveLink(p.foto);
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
-
-        // --- BOTONES DE ACCIÓN (ACTUALIZADOS) ---
-        // 1. Botón "Ficha" (Azul): Envía Ficha técnica (Sin Precio)
         var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
-        
-        // 2. Botón Link Web (Dorado)
         var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
 
         var div = document.createElement('div');
         div.className = 'card-catalog';
-        div.innerHTML = `
-            <div class="cat-img-box">
-                ${imgHtml}
-                <div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
-            </div>
-            <div class="cat-body">
-                <div class="cat-title">${p.nombre}</div>
-                <div class="cat-price">${precioDisplay}</div>
-                <small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small>
-            </div>
-            <div class="cat-actions">
-                <div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div>
-                <div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div>
-                <div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>
-                ${btnShareNoPrice}
-                ${btnLink}
-            </div>
-        `;
+        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNoPrice}${btnLink}</div>`;
         c.appendChild(div);
     }); 
 }
@@ -986,68 +769,17 @@ function previewFile(){ var f=document.getElementById('inp-file-foto').files[0];
 
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
-   
-   var newVal = {
-       id: prodEdit.id, 
-       nombre: document.getElementById('inp-edit-nombre').value, 
-       cat: document.getElementById('inp-edit-categoria').value, 
-       prov: document.getElementById('inp-edit-proveedor').value, 
-       costo: parseFloat(document.getElementById('inp-edit-costo').value), 
-       publico: parseFloat(document.getElementById('inp-edit-publico').value), 
-       desc: document.getElementById('inp-edit-desc').value, 
-       foto: prodEdit.foto || "", 
-       enWeb: document.getElementById('inp-edit-web').checked,
-       catWeb: document.getElementById('inp-edit-cat-web').value
-   };
-
+   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value, costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
    var f = document.getElementById('inp-file-foto').files[0];
    var promise = Promise.resolve(null);
-
-   if(f) {
-       promise = compressImage(f);
-   }
-
+   if(f) { promise = compressImage(f); }
    promise.then(b64 => {
        var idx = D.inv.findIndex(x => x.id === prodEdit.id);
-       if(idx > -1) {
-           if(b64) {
-               var previewSrc = document.getElementById('img-preview-box').src;
-               if(b64) newVal.foto = b64; 
-           }
-           D.inv[idx] = newVal; 
-       }
-
-       renderInv();
-       renderPos();
-       myModalEdit.hide();
-       showToast("Guardando cambios...", "info");
-
-       var payload = {
-           id: newVal.id,
-           nombre: newVal.nombre,
-           categoria: newVal.cat,
-           proveedor: newVal.prov,
-           costo: newVal.costo,
-           publico: newVal.publico,
-           descripcion: newVal.desc,
-           urlExistente: prodEdit.foto || "", 
-           enWeb: newVal.enWeb,
-           catWeb: newVal.catWeb
-       };
-
-       if(b64) {
-           payload.imagenBase64 = b64.split(',')[1];
-           payload.mimeType = f.type; 
-           payload.nombreArchivo = f.name;
-       }
-
-       callAPI('guardarProductoAvanzado', payload).then(r => {
-           if(r.exito) {
-               showToast("¡Guardado exitoso!", "success");
-           } else {
-               showToast("Error guardando: " + r.error, "danger");
-           }
-       });
+       if(idx > -1) { if(b64) { newVal.foto = b64; } D.inv[idx] = newVal; }
+       renderInv(); renderPos(); myModalEdit.hide(); showToast("Guardando cambios...", "info");
+       var payload = { id: newVal.id, nombre: newVal.nombre, categoria: newVal.cat, proveedor: newVal.prov, costo: newVal.costo, publico: newVal.publico, descripcion: newVal.desc, urlExistente: prodEdit.foto || "", enWeb: newVal.enWeb, catWeb: newVal.catWeb };
+       if(b64) { payload.imagenBase64 = b64.split(',')[1]; payload.mimeType = f.type; payload.nombreArchivo = f.name; }
+       callAPI('guardarProductoAvanzado', payload).then(r => { if(r.exito) { showToast("¡Guardado exitoso!", "success"); } else { showToast("Error guardando: " + r.error, "danger"); } });
    });
 }
 
@@ -1055,272 +787,86 @@ function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarPr
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
 function crearProducto(){ 
-    var d={
-        nombre:document.getElementById('new-nombre').value, 
-        categoria:document.getElementById('new-categoria').value, 
-        proveedor:document.getElementById('new-proveedor').value, 
-        costo: parseFloat(document.getElementById('new-costo').value), 
-        publico: parseFloat(document.getElementById('new-publico').value), 
-        descripcion: document.getElementById('new-desc').value,
-        enWeb: document.getElementById('new-web').checked,
-        catWeb: document.getElementById('new-cat-web').value,
-        id:document.getElementById('new-id').value||'GEN-'+Math.random()
-    }; 
-    
+    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
     var f = document.getElementById('new-file-foto').files[0];
-    
     var promise = Promise.resolve(null);
-    if(f) {
-        promise = compressImage(f); 
-    }
-
+    if(f) { promise = compressImage(f); }
     promise.then(b64 => {
-        var localProd = {
-            id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, 
-            costo: d.costo, publico: d.publico, desc: d.descripcion,
-            foto: b64 || "", 
-            enWeb: d.enWeb, catWeb: d.catWeb
-        };
-        D.inv.unshift(localProd);
-        renderInv();
-        myModalNuevo.hide();
-        showToast("Creando producto...", "info");
-
-        if(b64) {
-            d.imagenBase64 = b64.split(',')[1]; 
-            d.mimeType = f.type;
-            d.nombreArchivo = f.name;
-        }
-
-        callAPI('crearProductoManual', d).then(r=>{
-            if(r.exito){ showToast("Producto sincronizado", "success"); }
-            else { showToast("Error al crear en servidor", "danger"); }
-        });
+        var localProd = { id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, desc: d.descripcion, foto: b64 || "", enWeb: d.enWeb, catWeb: d.catWeb };
+        D.inv.unshift(localProd); renderInv(); myModalNuevo.hide(); showToast("Creando producto...", "info");
+        if(b64) { d.imagenBase64 = b64.split(',')[1]; d.mimeType = f.type; d.nombreArchivo = f.name; }
+        callAPI('crearProductoManual', d).then(r=>{ if(r.exito){ showToast("Producto sincronizado", "success"); } else { showToast("Error al crear en servidor", "danger"); } });
     });
 }
 
 function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
 
-// --- FUNCIÓN AUDITORÍA: VERIFICAR BANCO (NUEVA) ---
 function verificarBanco() {
     var real = parseFloat(document.getElementById('audit-banco').value) || 0;
-    // D.metricas.saldo es el saldo ACTUAL del servidor
     var sys = (D.metricas && D.metricas.saldo) ? D.metricas.saldo : 0;
     var diff = sys - real;
     var el = document.getElementById('audit-res');
-    
-    if(Math.abs(diff) < 1) { // Tolerancia de 1 peso
-        el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>';
-    } else {
-        // Si diff > 0: Sistema tiene más (Falta plata física)
-        // Si diff < 0: Sistema tiene menos (Sobra plata física)
-        el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`;
-    }
+    if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
 }
 
-// --- RENDERIZADO HISTORIAL CON SALDO (MODIFICADO) ---
+// --- RENDER FINANZAS CON BUSCADOR ---
 function renderFin(){ 
-  // Selectores para abonos
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
-  D.deudores.forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
+  (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
   
   var today = new Date().toISOString().split('T')[0];
   var elFecha = document.getElementById('ab-fecha');
   if(elFecha) elFecha.value = today;
 
-  // Lista Historial con SALDO PROGRESIVO
+  var q = document.getElementById('hist-search') ? document.getElementById('hist-search').value.toLowerCase() : "";
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
+  
+  if(q) {
+      dataHist = dataHist.filter(x => (x.desc && x.desc.toLowerCase().includes(q)) || (x.monto && x.monto.toString().includes(q)));
+  }
+
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
     dataHist.forEach((x, index)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
-        
         var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${index})'><i class="fas fa-pencil-alt"></i></button>`;
-        
-        // NUEVO: Mostrar saldo en ese momento (viene del backend)
         var saldoMoment = (x.saldo !== undefined) ? `<small class="text-muted d-block" style="font-size:0.7rem;">Saldo: ${COP.format(x.saldo)}</small>` : '';
-
-        h.innerHTML+=`
-        <div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom">
-            <div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div>
-            <div class="flex-grow-1 lh-1">
-                <div class="fw-bold small">${x.desc}</div>
-                <small class="text-muted" style="font-size:0.75rem">${x.fecha}</small>
-            </div>
-            <div class="text-end">
-                <div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>
-                ${saldoMoment}
-            </div>
-            ${btnEdit}
-        </div>`; 
+        h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="text-end"><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>${saldoMoment}</div>${btnEdit}</div>`; 
     }); 
   }
 }
 
 function abrirEditMov(index) {
     if (!D.historial[index]) return;
-    
     movEditObj = D.historial[index]; 
-    
     document.getElementById('ed-mov-desc').value = movEditObj.desc;
     document.getElementById('ed-mov-monto').value = movEditObj.monto;
-    
     var fechaRaw = movEditObj.fecha;
     var fechaIso = "";
-    
-    if(fechaRaw.includes('/')) {
-        var parts = fechaRaw.split('/');
-        if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`;
-    } else {
-        fechaIso = fechaRaw.split(' ')[0]; 
-    }
-    
+    if(fechaRaw.includes('/')) { var parts = fechaRaw.split('/'); if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`; } else { fechaIso = fechaRaw.split(' ')[0]; }
     document.getElementById('ed-mov-fecha').value = fechaIso;
-    
     myModalEditMov.show();
 }
 
 function guardarEdicionMovimiento() {
     if(!movEditObj) return;
-    
     var nuevaFecha = document.getElementById('ed-mov-fecha').value;
     var nuevoMonto = document.getElementById('ed-mov-monto').value;
-    
     if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
-    
-    var payload = {
-        original: movEditObj, 
-        fecha: nuevaFecha,
-        monto: nuevoMonto
-    };
-    
+    var payload = { original: movEditObj, fecha: nuevaFecha, monto: nuevoMonto };
     document.getElementById('loader').style.display = 'flex';
     myModalEditMov.hide();
-    
-    callAPI('editarMovimiento', payload).then(r => {
-        if(r.exito) {
-            showToast("Movimiento corregido", "success");
-            location.reload();
-        } else {
-            alert("Error al editar (El backend puede no soportar esta función): " + r.error);
-            document.getElementById('loader').style.display = 'none';
-        }
-    });
+    callAPI('editarMovimiento', payload).then(r => { if(r.exito) { showToast("Movimiento corregido", "success"); location.reload(); } else { alert("Error al editar: " + r.error); document.getElementById('loader').style.display = 'none'; } });
 }
 
-function doAbono(){ 
-    var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); 
-    var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); 
-    var monto = document.getElementById('ab-monto').value;
-    var fechaVal = document.getElementById('ab-fecha').value; 
-    
-    document.getElementById('loader').style.display='flex'; 
-    callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); 
-}
-
-function doIngresoExtra() {
-    var desc = document.getElementById('inc-desc').value;
-    var cat = document.getElementById('inc-cat').value;
-    var monto = document.getElementById('inc-monto').value;
-    
-    if(!desc || !monto) return alert("Falta descripción o monto");
-    
-    document.getElementById('loader').style.display = 'flex';
-    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => {
-        if(r.exito) location.reload();
-        else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
-    });
-}
-
-function doGasto(){ 
-    var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value;
-    if(!desc || !monto) return alert("Falta descripción o monto");
-    var d={ desc: desc, cat: document.getElementById('g-cat').value, monto: monto, vinculo: document.getElementById('g-vinculo').value }; 
-    document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); 
-}
-
-function renderPed(){ 
-    var c=document.getElementById('ped-list'); c.innerHTML=''; 
-    (D.ped || []).forEach(p=>{ 
-        var isPend = p.estado === 'Pendiente';
-        var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`;
-        var controls = `
-          <div class="d-flex gap-2 mt-2">
-            <button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button>
-            <button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>
-            ${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}
-          </div>`;
-        
-        c.innerHTML+=`
-        <div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <strong>${p.prod}</strong><br>
-                    <small class="text-muted">${p.prov || 'Sin Prov.'}</small>
-                </div>
-                <div class="text-end">
-                    <small>${p.fecha}</small><br>${badge}
-                </div>
-            </div>
-            ${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}
-            ${controls}
-        </div>`;
-    }); 
-}
-
-function savePed(){ 
-    var p=document.getElementById('pe-prod').value; 
-    if(!p) return alert("Escribe un producto");
-    var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value };
-    document.getElementById('loader').style.display='flex';
-    callAPI('guardarPedido', d).then(()=>location.reload()); 
-}
-
-function openEditPed(p) {
-    pedEditId = p.id;
-    document.getElementById('ed-ped-prod').value = p.prod;
-    document.getElementById('ed-ped-prov').value = p.prov;
-    document.getElementById('ed-ped-costo').value = p.costo;
-    document.getElementById('ed-ped-nota').value = p.notas;
-    myModalEditPed.show();
-}
-
-function guardarEdicionPed() {
-    if(!pedEditId) return;
-    var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value };
-    document.getElementById('loader').style.display='flex';
-    callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
-}
-
-function delPed(id) {
-    Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => {
-        if (result.isConfirmed) {
-            document.getElementById('loader').style.display='flex';
-            callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } });
-        }
-    });
-}
-
-function comprarPedido(id, nombreProd) {
-    Swal.fire({
-        title: 'Confirmar Compra',
-        text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`,
-        input: 'number',
-        inputLabel: 'Costo Real de Compra',
-        inputPlaceholder: 'Ej: 50000',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, Registrar Gasto e Inventario',
-        cancelButtonText: 'Cancelar',
-        inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            document.getElementById('loader').style.display = 'flex';
-            callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => {
-                 if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; }
-            });
-        }
-    });
-}
-
+function doAbono(){ var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); var monto = document.getElementById('ab-monto').value; var fechaVal = document.getElementById('ab-fecha').value; document.getElementById('loader').style.display='flex'; callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); }
+function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
+function doGasto(){ var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); var d={ desc: desc, cat: document.getElementById('g-cat').value, monto: monto, vinculo: document.getElementById('g-vinculo').value }; document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); }
+function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
+function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
+function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
+function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); }
+function delPed(id) { Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display='flex'; callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); } }); }
+function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`, input: 'number', inputLabel: 'Costo Real de Compra', inputPlaceholder: 'Ej: 50000', showCancelButton: true, confirmButtonText: 'Sí, Registrar Gasto e Inventario', cancelButtonText: 'Cancelar', inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; } }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display = 'flex'; callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); } }); }
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
