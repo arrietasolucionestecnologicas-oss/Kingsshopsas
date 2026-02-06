@@ -260,7 +260,7 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// --- FUNCIÓN CORREGIDA ANTIBLOQUEO PARA IMÁGENES (CDN GOOGLE) ---
+// --- FUNCIÓN CORREGIDA HTTPS (SEGURA) ---
 function fixDriveLink(url) {
     if (!url) return "";
     
@@ -273,9 +273,10 @@ function fixDriveLink(url) {
         match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     }
 
-    // 3. Si encontramos ID, usamos el dominio lh3 (CDN) que NO bloquea bots de WhatsApp
+    // 3. Si encontramos ID, usamos el dominio lh3 CON HTTPS
     if (match && match[1]) {
-        return "http://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
+        // CAMBIO CRÍTICO: "https" en lugar de "http"
+        return "https://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
     }
     
     // Fallback
