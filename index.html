@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Kingshop POS</title>
+  <title>Kingshop POS | Sistema de Gestión Comercial</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <link rel="icon" type="image/png" href="icon-192.png">
@@ -220,33 +220,33 @@
 </head>
 <body>
 
-  <div id="loader"><div class="spinner-border text-dark" role="status"></div><h6 class="mt-3 text-muted fw-bold">Conectando API...</h6></div>
+  <div id="loader"><div class="spinner-border text-dark" role="status"></div><h6 class="mt-3 text-muted fw-bold">Conectando al Servidor Central...</h6></div>
   
   <div id="toast-container"></div>
 
   <div class="header">
-    <div><h4 class="m-0 fw-bold" style="color: var(--gold); letter-spacing: 1px;">👑 KING'S SHOP</h4><small class="opacity-75" id="user-display">...</small></div>
+    <div><h4 class="m-0 fw-bold" style="color: var(--gold); letter-spacing: 1px;">👑 KING'S SHOP POS</h4><small class="opacity-75" id="user-display">Verificando Credenciales...</small></div>
     <div class="d-flex gap-2">
-        <a class="btn-bi" href="dashboard.html"><i class="bi bi-graph-up-arrow"></i> Stats</a>
-        <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="verBancos()"><i class="bi bi-bank2 fs-5"></i></button>
+        <a class="btn-bi" href="dashboard.html"><i class="bi bi-graph-up-arrow"></i> Reportes</a>
+        <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="verBancos()" title="Ver Cuentas Bancarias"><i class="bi bi-bank2 fs-5"></i></button>
     </div>
   </div>
   
-  <div id="offline-indicator">⚠️ Sin conexión - Modo Offline Activo</div>
+  <div id="offline-indicator">⚠️ Modo Sin Conexión - Operando Localmente</div>
 
   <div class="container-fluid px-3">
     <div id="view-pos" class="view-sec">
       <div class="main-layout">
         <div class="list-column">
-           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="openFreeCalculator()"><i class="fas fa-calculator"></i> CALCULADORA LIBRE</button>
+           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="openFreeCalculator()"><i class="fas fa-calculator"></i> COTIZACIÓN LIBRE (PRODUCTOS NO CATALOGADOS)</button>
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
                <i class="fas fa-search text-muted ms-2 me-2"></i>
-               <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Escribe para vender..." onkeyup="renderPos()" style="font-weight:bold;">
+               <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Buscar producto en inventario..." onkeyup="renderPos()" style="font-weight:bold;">
            </div>
            
            <div id="pos-placeholder" class="text-center text-muted py-5">
                <i class="fas fa-keyboard fs-1 mb-2 opacity-50" style="color: var(--gold);"></i>
-               <p>Escribe el nombre del producto<br>para agregarlo a la venta.</p>
+               <p>Inicie la búsqueda para agregar<br>productos al carrito de venta.</p>
            </div>
 
            <div id="pos-list"></div>
@@ -257,34 +257,34 @@
 
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
       <div class="scroll-menu">
-        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar..." onkeyup="renderInv()" style="width: 150px;">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar Referencia..." onkeyup="renderInv()" style="width: 150px;">
         <select id="filter-prov" class="form-select" style="width: 150px; border-color: var(--gold);" onchange="renderInv()">
-            <option value="">Todos</option>
+            <option value="">Todos los Proveedores</option>
         </select>
-        <button class="btn btn-primary" onclick="abrirModalNuevo()" style="white-space: nowrap;">+ NUEVO</button>
-        <button class="btn btn-info" onclick="abrirModalProv()" title="Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Provs</button>
-        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar WA" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar</button>
+        <button class="btn btn-primary" onclick="abrirModalNuevo()" style="white-space: nowrap;">+ CREAR PRODUCTO</button>
+        <button class="btn btn-info" onclick="abrirModalProv()" title="Gestionar Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Proveedores</button>
+        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar desde Chat" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar Chat</button>
       </div>
       <div id="inv-list" class="catalog-grid"></div>
     </div>
 
     <div id="view-web" class="view-sec" style="display:none; padding:15px;">
-        <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-globe" style="color: var(--gold);"></i> Gestión Web</h5>
-        <input type="text" id="web-search" class="form-control mb-3" placeholder="🔍 Filtrar productos en web..." onkeyup="renderWeb()">
+        <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-globe" style="color: var(--gold);"></i> Administración Tienda Web</h5>
+        <input type="text" id="web-search" class="form-control mb-3" placeholder="🔍 Filtrar productos publicados..." onkeyup="renderWeb()">
         <div id="web-list"></div>
     </div>
 
     <div id="view-ped" class="view-sec" style="display:none; padding:15px;">
-      <button class="btn btn-primary w-100 mb-3" onclick="abrirModalPed()">+ Nuevo Pedido</button>
+      <button class="btn btn-primary w-100 mb-3" onclick="abrirModalPed()">+ Registrar Nuevo Pedido a Proveedor</button>
       <div id="ped-list"></div>
     </div>
 
     <div id="view-cartera" class="view-sec" style="display:none; padding:15px;">
         <div class="card-balance" style="background: linear-gradient(135deg, #e74c3c, #c0392b); border-color: #a93226;">
-            <small class="opacity-75" style="color:white;">Cartera Total (Por Cobrar)</small>
+            <small class="opacity-75" style="color:white;">Cuentas por Cobrar (Total Deuda)</small>
             <h1 class="fw-bold display-4 my-1" id="bal-cartera">...</h1>
         </div>
-        <h6 class="fw-bold text-muted mb-3">Listado de Deudores</h6>
+        <h6 class="fw-bold text-muted mb-3">Cartera de Clientes Activa</h6>
         <div id="cartera-list"></div>
     </div>
 
@@ -292,67 +292,67 @@
       
       <div class="card-k mb-3" style="border: 2px dashed var(--gold);">
           <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="fw-bold m-0"><i class="fas fa-check-double"></i> Auditoría de Caja</h6>
+              <h6 class="fw-bold m-0"><i class="fas fa-check-double"></i> Conciliación de Caja (Auditoría)</h6>
               <span id="audit-res" class="small"></span>
           </div>
           <div class="input-group">
               <span class="input-group-text">$</span>
-              <input type="number" id="audit-banco" class="form-control" placeholder="Efectivo + Banco Real">
-              <button class="btn btn-dark" onclick="verificarBanco()">Verificar</button>
+              <input type="number" id="audit-banco" class="form-control" placeholder="Ingrese Saldo Real (Bancos + Efectivo)">
+              <button class="btn btn-dark" onclick="verificarBanco()">Auditar</button>
           </div>
       </div>
 
       <div class="card-balance">
-          <small class="opacity-75">Saldo Disponible</small>
+          <small class="opacity-75">Flujo de Caja Disponible (Sistema)</small>
           <h1 class="fw-bold display-4 my-1" id="bal-caja">...</h1>
       </div>
       <div class="row g-2 mb-3">
-         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Ventas Mes</small><h6 class="fw-bold mb-0" id="bal-ventas" style="color: var(--primary);">...</h6></div></div>
-         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Utilidad Real</small><h6 class="fw-bold text-success mb-0" id="bal-ganancia">...</h6></div></div>
+         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Ventas Brutas Mes</small><h6 class="fw-bold mb-0" id="bal-ventas" style="color: var(--primary);">...</h6></div></div>
+         <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Utilidad Neta Mes</small><h6 class="fw-bold text-success mb-0" id="bal-ganancia">...</h6></div></div>
       </div>
       <ul class="nav nav-pills nav-fill mb-3 bg-white rounded shadow-sm p-1">
-        <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#f-abono">Cobrar</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-ingreso">Ingreso Extra</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-gasto">Gasto</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-hist">Historial</a></li>
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="pill" href="#f-abono">Registrar Pago</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-ingreso">Inyección Capital</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-gasto">Registrar Egreso</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="pill" href="#f-hist">Movimientos</a></li>
       </ul>
       <div class="tab-content">
          <div class="tab-pane fade show active" id="f-abono">
             <div class="card-k">
-               <h6 class="text-success fw-bold">Registrar Pago (Abono)</h6>
+               <h6 class="text-success fw-bold">Abono a Deuda (Recaudo)</h6>
                <select id="ab-cli" class="form-select mb-2"></select>
-               <input type="number" id="ab-monto" class="form-control mb-2" placeholder="Monto">
+               <input type="number" id="ab-monto" class="form-control mb-2" placeholder="Monto Recibido">
                <label class="small text-muted fw-bold">Fecha del Pago:</label>
                <input type="date" id="ab-fecha" class="form-control mb-2" style="border-color: var(--gold);">
                
-               <button class="btn btn-success w-100" onclick="doAbono()">REGISTRAR ABONO</button>
+               <button class="btn btn-success w-100" onclick="doAbono()">CONFIRMAR RECAUDO</button>
             </div>
          </div>
          
          <div class="tab-pane fade" id="f-ingreso">
             <div class="card-k">
-               <h6 class="fw-bold" style="color: var(--primary);">Registrar Ingreso Extra</h6>
-               <input type="text" id="inc-desc" class="form-control mb-2" placeholder="Descripción (Ej: Préstamo Banco)">
+               <h6 class="fw-bold" style="color: var(--primary);">Entrada de Dinero Extraordinaria</h6>
+               <input type="text" id="inc-desc" class="form-control mb-2" placeholder="Concepto (Ej: Préstamo Bancario, Inversión)">
                <select id="inc-cat" class="form-select mb-2">
                    <option value="Venta Externa">Venta Externa</option>
-                   <option value="Prestamo">Préstamo</option>
-                   <option value="Inyeccion Capital">Inyección Capital</option>
-                   <option value="Otros">Otros</option>
+                   <option value="Prestamo">Préstamo / Financiación</option>
+                   <option value="Inyeccion Capital">Aporte de Capital</option>
+                   <option value="Otros">Otros Ingresos</option>
                </select>
-               <input type="number" id="inc-monto" class="form-control mb-2" placeholder="Monto que entra">
-               <button class="btn btn-primary w-100" onclick="doIngresoExtra()">REGISTRAR INGRESO</button>
+               <input type="number" id="inc-monto" class="form-control mb-2" placeholder="Monto Ingresado">
+               <button class="btn btn-primary w-100" onclick="doIngresoExtra()">REGISTRAR ENTRADA</button>
             </div>
          </div>
 
          <div class="tab-pane fade" id="f-gasto">
             <div class="card-k">
-               <h6 class="text-danger fw-bold">Registrar Gasto</h6>
-               <input type="text" id="g-desc" class="form-control mb-2" placeholder="Descripción (Ej: Mercancía)">
-               <select id="g-cat" class="form-select mb-2"><option>Transporte</option><option>Alimentación</option><option>Costo Mercancia</option><option>Servicios</option><option>Otros</option></select>
-               <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor (Ej: 4200000)">
-               <label class="small text-muted">Vincular a venta (Opcional):</label>
-               <select id="g-vinculo" class="form-select mb-2"><option value="">-- Ninguna --</option></select>
-               <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR GASTO</button>
+               <h6 class="text-danger fw-bold">Salida de Dinero (Gasto/Costo)</h6>
+               <input type="text" id="g-desc" class="form-control mb-2" placeholder="Concepto del Egreso">
+               <select id="g-cat" class="form-select mb-2"><option>Transporte / Logística</option><option>Alimentación</option><option>Costo Mercancia (Inventario)</option><option>Servicios Públicos</option><option>Nómina</option><option>Otros Gastos</option></select>
+               <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor Pagado">
+               <label class="small text-muted">Asociar a Venta Específica (Costeo Directo):</label>
+               <select id="g-vinculo" class="form-select mb-2"><option value="">-- Gasto General (Sin Vínculo) --</option></select>
+               <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR EGRESO</button>
             </div>
          </div>
          
@@ -362,119 +362,119 @@
   </div>
 
   <div id="mobile-cart" class="mobile-panel"></div>
-  <button id="btn-float-cart" class="btn shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="toggleMobileCart()">🛒</button>
+  <button id="btn-float-cart" class="btn shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="toggleMobileCart()" title="Ver Carrito">🛒</button>
 
   <div class="nav-btm">
     <button class="nav-btn active" onclick="nav('pos',this)">
-        <i class="fas fa-store"></i>
-        <span>Ventas</span>
+        <i class="fas fa-cash-register"></i>
+        <span>Punto Venta</span>
     </button>
     <button class="nav-btn" onclick="nav('inv',this)">
-        <i class="fas fa-boxes"></i>
-        <span>Catálogo</span>
+        <i class="fas fa-box-open"></i>
+        <span>Inventario</span>
     </button>
     <button class="nav-btn" onclick="nav('cartera',this)">
-        <i class="fas fa-wallet text-danger"></i>
-        <span class="text-danger">Cartera</span>
+        <i class="fas fa-hand-holding-usd text-danger"></i>
+        <span class="text-danger">Cobranza</span>
     </button>
     <button class="nav-btn" onclick="nav('ped',this)">
-        <i class="fas fa-clipboard-list"></i>
-        <span>Pedidos</span>
+        <i class="fas fa-shipping-fast"></i>
+        <span>Compras</span>
     </button>
     <button class="nav-btn" onclick="nav('fin',this)">
-        <i class="fas fa-chart-line"></i>
-        <span>Caja</span>
+        <i class="fas fa-chart-pie"></i>
+        <span>Finanzas</span>
     </button>
     <button class="nav-btn" onclick="nav('web',this)">
-        <i class="fas fa-globe" style="color: var(--primary);"></i>
-        <span style="color: var(--primary);">Web</span>
+        <i class="fas fa-cloud" style="color: var(--primary);"></i>
+        <span style="color: var(--primary);">E-Comm</span>
     </button>
   </div>
 
   <template id="tpl-cart">
     <div class="cotizador-panel">
        <div class="d-flex justify-content-between mb-2 align-items-center">
-         <h5 class="fw-bold m-0" style="color: var(--primary);">Cotización / Venta</h5>
-         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Limpiar</button>
+         <h5 class="fw-bold m-0" style="color: var(--primary);">Resumen de Operación</h5>
+         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Vaciar</button>
        </div>
        
-       <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Escribe el nombre del producto..." style="display:none; border-left:4px solid var(--gold);">
+       <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Descripción del ítem no catalogado..." style="display:none; border-left:4px solid var(--gold);">
 
        <div class="d-flex justify-content-between gap-2 mb-2">
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">IVA 19%</label></div>
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Costo Manual</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Base Manual</label></div>
        </div>
        
-       <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">Selecciona productos...</div>
+       <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">No hay ítems seleccionados...</div>
        
        <div class="row g-2 mb-3">
-         <div class="col-4 text-center"><small>Util %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
-         <div class="col-4 text-center"><small>Int %</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
-         <div class="col-4 text-center"><small>Cuotas</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
+         <div class="col-4 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
+         <div class="col-4 text-center"><small>Tasa Int. %</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
+         <div class="col-4 text-center"><small>Plazo (Meses)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
        </div>
        
-       <label class="small fw-bold text-muted mt-2">Fecha de Venta:</label>
+       <label class="small fw-bold text-muted mt-2">Fecha de Registro:</label>
        <input type="date" id="c-fecha" class="form-control mb-3" style="border-color: var(--gold);">
 
        <div class="alert alert-light border text-center py-2 mb-3" style="background-color: #fffcf5; border-color: var(--gold) !important;">
           <div class="d-flex justify-content-between align-items-center">
-             <span>Total Venta:</span>
+             <span>Valor Total Venta:</span>
              <div class="text-end">
                 <strong id="res-cont" class="fs-5" style="color: var(--primary);">$0</strong>
-                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Costo Base ($)" oninput="calcCart()">
+                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Monto Base ($)" oninput="calcCart()">
              </div>
           </div>
           <div id="row-cred" style="display:none; border-top:1px dashed var(--gold); margin-top:5px; padding-top:5px;">
-             <div class="d-flex justify-content-between" style="color: var(--primary);"><span>Inicial (30%):</span><strong id="res-ini">$0</strong></div>
-             <div class="d-flex justify-content-between mt-1" style="color: var(--gold-hover);"><span>Restante:</span><strong id="res-cuota-val">$0</strong> <small id="res-cuota-txt">x 1</small></div>
+             <div class="d-flex justify-content-between" style="color: var(--primary);"><span>Cuota Inicial (30%):</span><strong id="res-ini">$0</strong></div>
+             <div class="d-flex justify-content-between mt-1" style="color: var(--gold-hover);"><span>Saldo a Financiar:</span><strong id="res-cuota-val">$0</strong> <small id="res-cuota-txt">/ mes</small></div>
           </div>
           
           <div class="mt-2 text-end" style="border-top: 1px dotted #ccc; padding-top:5px;">
-             <small class="text-muted" style="font-size:0.7rem;">¿Fijar Precio Final (Sin Intereses)?</small>
-             <input id="c-target" type="number" class="form-control form-control-sm fw-bold text-end" style="border-color: var(--gold); background: #fffffa;" placeholder="💲 Precio Final Fijo (Opcional)" oninput="calcCart()">
+             <small class="text-muted" style="font-size:0.7rem;">Anular intereses (Precio Fijo Manual)</small>
+             <input id="c-target" type="number" class="form-control form-control-sm fw-bold text-end" style="border-color: var(--gold); background: #fffffa;" placeholder="💲 Precio Final Pactado" oninput="calcCart()">
           </div>
        </div>
        
-       <input id="c-cliente" class="form-control mb-2" placeholder="Nombre Cliente">
-       <select id="c-metodo" class="form-select mb-2" onchange="toggleIni()"><option>Contado</option><option>Crédito</option></select>
-       <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Inicial" disabled style="display:none; background:#e9ecef;">
+       <input id="c-cliente" class="form-control mb-2" placeholder="Nombre del Cliente / Razón Social">
+       <select id="c-metodo" class="form-select mb-2" onchange="toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
+       <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Monto Inicial Personalizado" disabled style="display:none; background:#e9ecef;">
        
        <div class="d-flex gap-2">
-           <button class="btn btn-success flex-fill fw-bold" onclick="shareQuote()"><i class="fab fa-whatsapp"></i> COTIZAR</button>
-           <button class="btn btn-primary flex-fill fw-bold" onclick="finalizarVenta()">✅ VENDER</button>
+           <button class="btn btn-success flex-fill fw-bold" onclick="shareQuote()"><i class="fab fa-whatsapp"></i> ENVIAR COTIZACIÓN</button>
+           <button class="btn btn-primary flex-fill fw-bold" onclick="finalizarVenta()">✅ CONFIRMAR VENTA</button>
        </div>
     </div>
   </template>
 
-  <div class="modal fade" id="modalProv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3" style="color: var(--primary);">👥 Gestión de Proveedores</h6><div class="input-group mb-3"><input id="new-prov-name" class="form-control" placeholder="Nuevo Prov"><input id="new-prov-tel" class="form-control" placeholder="WhatsApp"><button class="btn btn-primary" onclick="guardarProvManual()">💾</button></div><div id="list-provs" style="max-height:300px; overflow-y:auto;"></div></div></div></div></div>
+  <div class="modal fade" id="modalProv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3" style="color: var(--primary);">👥 Directorio de Proveedores</h6><div class="input-group mb-3"><input id="new-prov-name" class="form-control" placeholder="Nombre Empresa/Prov"><input id="new-prov-tel" class="form-control" placeholder="Teléfono/WhatsApp"><button class="btn btn-primary" onclick="guardarProvManual()">💾 Guardar</button></div><div id="list-provs" style="max-height:300px; overflow-y:auto;"></div></div></div></div></div>
 
   <div class="modal fade" id="modalEdicion" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">Editar Producto</h6>
-                <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="inp-edit-nombre" class="form-control fw-bold" style="color: var(--primary);"></div>
+                <h6 class="fw-bold mb-3" style="color: var(--primary);">Modificar Producto</h6>
+                <div class="mb-2"><label class="small fw-bold">Nombre del Producto</label><input id="inp-edit-nombre" class="form-control fw-bold" style="color: var(--primary);"></div>
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small fw-bold">Categoría</label>
                         <input list="list-cats" id="inp-edit-categoria" class="form-control">
                     </div>
-                    <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico')"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo Unitario</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico')"></div>
                 </div>
                 <div class="mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important;">
-                    <label class="small fw-bold" style="color: var(--primary);">Precio Público (Auto +30%)</label>
-                    <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Usar formula automatica" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                    <label class="small fw-bold" style="color: var(--primary);">Precio Público Sugerido (+30%)</label>
+                    <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                 </div>
 
-                <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="inp-edit-proveedor" class="form-control"></div>
-                <div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
+                <div class="mb-2"><label class="small fw-bold">Proveedor Asignado</label><input id="inp-edit-proveedor" class="form-control"></div>
+                <div class="mb-2"><label class="small fw-bold">Ficha Técnica / Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
                 
                 <div class="p-3 bg-light rounded border my-3">
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="inp-edit-web" style="cursor:pointer;">
-                        <label class="form-check-label fw-bold small" for="inp-edit-web" style="color: var(--primary);">🌐 Mostrar en Página Web</label>
+                        <label class="form-check-label fw-bold small" for="inp-edit-web" style="color: var(--primary);">🌐 Publicar en Tienda Online</label>
                     </div>
-                    <label class="small fw-bold" style="color: var(--primary);">Categoría Web (Pública):</label>
+                    <label class="small fw-bold" style="color: var(--primary);">Sección E-Commerce:</label>
                     <select id="inp-edit-cat-web" class="form-select form-select-sm" style="border-color: var(--primary);">
                         <option value="tecnologia">Tecnología</option>
                         <option value="electro">Hogar y Electrodomésticos</option>
@@ -489,11 +489,11 @@
                     <img id="img-preview-box" class="preview-img">
                     <div class="placeholder-text text-center text-muted">
                         <div style="font-size:2rem; color: var(--gold);">📷</div>
-                        <div>Toca para cambiar foto</div>
+                        <div>Tocar para actualizar imagen</div>
                     </div>
                 </div>
 
-                <div class="d-grid gap-2"><button class="btn btn-primary" onclick="guardarCambiosAvanzado()">Guardar</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar</button></div>
+                <div class="d-grid gap-2"><button class="btn btn-primary" onclick="guardarCambiosAvanzado()">Guardar Cambios</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar del Sistema</button></div>
             </div>
         </div>
     </div>
@@ -503,28 +503,28 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">Nuevo Producto</h6>
+                <h6 class="fw-bold mb-3" style="color: var(--primary);">Alta de Nuevo Producto</h6>
                 <form onsubmit="event.preventDefault(); crearProducto();">
-                    <div class="mb-2"><label class="small fw-bold">Nombre</label><input id="new-nombre" class="form-control" required></div>
+                    <div class="mb-2"><label class="small fw-bold">Nombre del Ítem</label><input id="new-nombre" class="form-control" required></div>
                     <div class="row g-2 mb-2">
                         <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
-                        <div class="col-6"><label class="small fw-bold">Costo</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico')"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo Base</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico')"></div>
                     </div>
                     <div class="mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important;">
-                        <label class="small fw-bold" style="color: var(--primary);">Precio Público (Auto +30%)</label>
+                        <label class="small fw-bold" style="color: var(--primary);">Precio Venta (+30% Auto)</label>
                         <input type="number" id="new-publico" class="form-control" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                     </div>
 
                     <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div>
-                    <div class="mb-2"><label class="small fw-bold">Descripción</label><textarea id="new-desc" class="form-control"></textarea></div>
-                    <div class="mb-3"><label class="small fw-bold">ID (Auto)</label><input id="new-id" class="form-control bg-light" readonly></div>
+                    <div class="mb-2"><label class="small fw-bold">Detalles / Specs</label><textarea id="new-desc" class="form-control"></textarea></div>
+                    <div class="mb-3"><label class="small fw-bold">Código SKU (Generado)</label><input id="new-id" class="form-control bg-light" readonly></div>
 
                     <div class="p-3 bg-light rounded border my-3">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="new-web" style="cursor:pointer;">
-                            <label class="form-check-label fw-bold small" for="new-web" style="color: var(--primary);">🌐 Mostrar en Página Web</label>
+                            <label class="form-check-label fw-bold small" for="new-web" style="color: var(--primary);">🌐 Visible en Web</label>
                         </div>
-                        <label class="small fw-bold" style="color: var(--primary);">Categoría Web:</label>
+                        <label class="small fw-bold" style="color: var(--primary);">Categoría Online:</label>
                         <select id="new-cat-web" class="form-select form-select-sm" style="border-color: var(--primary);">
                             <option value="tecnologia">Tecnología</option>
                             <option value="electro">Hogar y Electrodomésticos</option>
@@ -535,33 +535,33 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="small fw-bold">Foto:</label>
+                        <label class="small fw-bold">Imagen del Producto:</label>
                         <input type="file" id="new-file-foto" accept="image/*" class="form-control">
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100" style="color: var(--gold);">Crear Producto</button>
+                    <button type="submit" class="btn btn-primary w-100" style="color: var(--gold);">Confirmar Creación</button>
                 </form>
             </div>
         </div>
     </div>
   </div>
 
-  <div class="modal fade" id="modalWA" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3 text-success">Importar WhatsApp</h6><input id="wa-prov" class="form-control mb-2" placeholder="Proveedor"><input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría"><textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pega el chat..."></textarea><button class="btn btn-success w-100" onclick="procesarWA()">Procesar</button></div></div></div></div>
+  <div class="modal fade" id="modalWA" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3 text-success">Importación Masiva desde WhatsApp</h6><p class="small text-muted">Pega el texto del chat con la lista de precios para crear productos automáticamente.</p><input id="wa-prov" class="form-control mb-2" placeholder="Nombre Proveedor"><input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría Asignada"><textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pegar texto aquí..."></textarea><button class="btn btn-success w-100" onclick="procesarWA()">Procesar Texto</button></div></div></div></div>
 
   <div class="modal fade" id="modalPed" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body">
-                <h6 class="fw-bold" style="color: var(--primary);">Nuevo Pedido</h6>
-                <label class="small fw-bold">Producto *</label>
-                <input list="list-prods-all" id="pe-prod" class="form-control mb-2" placeholder="Nombre del producto...">
-                <label class="small fw-bold">Proveedor</label>
-                <input id="pe-prov" class="form-control mb-2" placeholder="Proveedor">
-                <label class="small fw-bold">Costo Estimado (Opcional)</label>
+                <h6 class="fw-bold" style="color: var(--primary);">Generar Solicitud de Compra</h6>
+                <label class="small fw-bold">Producto Requerido *</label>
+                <input list="list-prods-all" id="pe-prod" class="form-control mb-2" placeholder="Buscar o escribir nombre...">
+                <label class="small fw-bold">Proveedor Destino</label>
+                <input id="pe-prov" class="form-control mb-2" placeholder="Nombre Proveedor">
+                <label class="small fw-bold">Presupuesto Estimado (Opcional)</label>
                 <input type="number" id="pe-costo" class="form-control mb-2" placeholder="$">
-                <label class="small fw-bold">Notas</label>
-                <input id="pe-nota" class="form-control mb-2" placeholder="Detalles extra...">
-                <button class="btn btn-primary w-100" onclick="savePed()">Solicitar Pedido</button>
+                <label class="small fw-bold">Observaciones</label>
+                <input id="pe-nota" class="form-control mb-2" placeholder="Especificaciones, colores, etc...">
+                <button class="btn btn-primary w-100" onclick="savePed()">Crear Orden</button>
             </div>
         </div>
     </div>
@@ -571,16 +571,16 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body">
-                <h6 class="fw-bold" style="color: var(--primary);">Editar Pedido</h6>
+                <h6 class="fw-bold" style="color: var(--primary);">Modificar Orden de Compra</h6>
                 <label class="small fw-bold">Producto</label>
                 <input list="list-prods-all" id="ed-ped-prod" class="form-control mb-2">
                 <label class="small fw-bold">Proveedor</label>
                 <input id="ed-ped-prov" class="form-control mb-2">
-                <label class="small fw-bold">Costo Estimado</label>
+                <label class="small fw-bold">Costo Proyectado</label>
                 <input type="number" id="ed-ped-costo" class="form-control mb-2">
-                <label class="small fw-bold">Notas</label>
+                <label class="small fw-bold">Notas Adicionales</label>
                 <input id="ed-ped-nota" class="form-control mb-2">
-                <button class="btn btn-primary w-100" onclick="guardarEdicionPed()">Guardar Cambios</button>
+                <button class="btn btn-primary w-100" onclick="guardarEdicionPed()">Actualizar Orden</button>
             </div>
         </div>
     </div>
@@ -590,19 +590,19 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Corregir Historial</h6>
-                <p class="small text-muted">⚠️ Editar esto afectará los reportes y la cartera.</p>
+                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Ajuste Contable (Corrección)</h6>
+                <p class="small text-muted">⚠️ Advertencia: Modificar transacciones pasadas afectará el balance general y los estados de cuenta.</p>
                 
-                <label class="small fw-bold">Descripción</label>
+                <label class="small fw-bold">Concepto Original</label>
                 <input id="ed-mov-desc" class="form-control mb-2" disabled style="background-color: #e9ecef;">
                 
-                <label class="small fw-bold">Fecha Real</label>
+                <label class="small fw-bold">Fecha Contable Real</label>
                 <input type="date" id="ed-mov-fecha" class="form-control mb-2" style="border-color: var(--gold);">
                 
-                <label class="small fw-bold">Monto Correcto</label>
+                <label class="small fw-bold">Monto Corregido</label>
                 <input type="number" id="ed-mov-monto" class="form-control mb-3" style="font-weight: bold; color: var(--primary);">
                 
-                <button class="btn btn-warning w-100 fw-bold" onclick="guardarEdicionMovimiento()">Guardar Corrección</button>
+                <button class="btn btn-warning w-100 fw-bold" onclick="guardarEdicionMovimiento()">Aplicar Corrección</button>
             </div>
         </div>
     </div>
@@ -622,6 +622,6 @@
       });
     }
   </script>
-  <script src="app.js?v=105"></script>
+  <script src="app.js?v=106"></script>
 </body>
 </html>
