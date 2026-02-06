@@ -260,7 +260,7 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// --- FUNCIÓN CORREGIDA HTTPS (SEGURA) ---
+// --- FUNCIÓN CORREGIDA HTTPS SEGURO (SOLUCIÓN MIXED CONTENT) ---
 function fixDriveLink(url) {
     if (!url) return "";
     
@@ -273,9 +273,8 @@ function fixDriveLink(url) {
         match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     }
 
-    // 3. Si encontramos ID, usamos el dominio lh3 CON HTTPS
+    // 3. ENLACE SEGURO (HTTPS) LH3
     if (match && match[1]) {
-        // CAMBIO CRÍTICO: "https" en lugar de "http"
         return "https://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
     }
     
@@ -590,8 +589,9 @@ function shareQuote() {
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
+
 // ============================================================
-// 🎨 NUEVA LÓGICA DE EMBELLECIMIENTO DE WHATSAPP (AUTO-EMOJIS)
+// 🎨 LÓGICA DE EMBELLECIMIENTO DE WHATSAPP (AUTO-EMOJIS)
 // ============================================================
 
 function embellecerDescripcion(texto) {
@@ -601,7 +601,6 @@ function embellecerDescripcion(texto) {
     let t = texto;
 
     // 2. Diccionario de Palabras Clave -> Emojis
-    // El sistema busca estas palabras y les pone el emoji y salto de línea
     const diccionario = [
         { clave: "Pantalla", emoji: "📱" },
         { clave: "Diseño", emoji: "✨" },
@@ -621,10 +620,8 @@ function embellecerDescripcion(texto) {
         { clave: "Garantía", emoji: "🛡️" }
     ];
 
-    // 3. Aplicar magia: Reemplazar texto plano por Texto Formateado
+    // 3. Aplicar magia
     diccionario.forEach(item => {
-        // Busca la palabra (ej: "Pantalla:") ignorando mayúsculas/minúsculas
-        // Y la reemplaza por: [ENTER] Emoji *Pantalla:*
         const regex = new RegExp(`(${item.clave}:?)`, 'gi');
         t = t.replace(regex, (match) => {
             return `%0A${item.emoji} *${match.trim()}*`; 
@@ -634,28 +631,24 @@ function embellecerDescripcion(texto) {
     return t;
 }
 
-// --- FUNCIÓN PRINCIPAL DE COMPARTIR (ACTUALIZADA) ---
+// --- FUNCIÓN PRINCIPAL DE COMPARTIR (SIN PRECIO + FOTO HTTPS) ---
 function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
 
     var nombre = p.nombre.toUpperCase();
-    
-    // Aquí aplicamos la función de embellecer
     var descripcionBonita = embellecerDescripcion(p.desc);
-    
     var linkFoto = fixDriveLink(p.foto); 
 
-    // Construcción del Mensaje
     var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
     msg += `📦 *PRODUCTO:* ${nombre}%0A`;
-    msg += `📝 *DETALLES:*${descripcionBonita}%0A%0A`; // Ya trae saltos de línea automáticos
+    msg += `📝 *DETALLES:*${descripcionBonita}%0A%0A`; 
     
     if(linkFoto && linkFoto.length > 10) {
         msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
     }
 
-    // Nuevo pie de página solicitado
+    msg += `👉 _¡Pregúntame por el precio!_%0A`; 
     msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
 
     var url = "https://wa.me/?text=" + msg;
@@ -794,143 +787,6 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-function renderCartera() {
-    var c = document.getElementById('cartera-list');
-    var bal = document.getElementById('bal-cartera');
-    if(!c) return;
-    
-    c.innerHTML = '';
-    var totalDeuda = 0;
-    
-    if(!D.deudores || D.deudores.length === 0) {
-        c.innerHTML = '<div class="text-center text-muted p-5">👏 Excelente, no hay deudas pendientes.</div>';
-    } else {
-        D.deudores.forEach(d => {
-            totalDeuda += d.saldo;
-            var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
-            
-            var planDetalle = "";
-            var valCuotaReal = parseFloat(d.valCuota) || 0;
-            var numCuotas = parseInt(d.cuotas) || 1;
-            
-            if(valCuotaReal > 0) {
-                var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
-                if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
-                planDetalle = `
-                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                    <div class="d-flex justify-content-between">
-                        <span>Cuota Fija:</span>
-                        <strong>${COP.format(valCuotaReal)}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between text-danger fw-bold">
-                        <span>Restan:</span>
-                        <span>${cuotasRestantes} Cuotas</span>
-                    </div>
-                </div>`;
-            } else if (numCuotas > 1 && d.saldo > 0) {
-                var cuotaEstimada = d.saldo / numCuotas; 
-                planDetalle = `
-                <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                    <div class="d-flex justify-content-between text-muted">
-                        <span>Plan Original:</span>
-                        <span>${numCuotas} Cuotas</span>
-                    </div>
-                    <div class="d-flex justify-content-between text-danger fw-bold">
-                        <span>Cuota Aprox:</span>
-                        <span>${COP.format(cuotaEstimada)} (Est)</span>
-                    </div>
-                </div>`;
-            }
-
-            c.innerHTML += `
-            <div class="card-k card-debt">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="fw-bold mb-1">${d.cliente}</h6>
-                        <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
-                        ${fechaTxt}
-                    </div>
-                    <div class="text-end">
-                        <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
-                        <div class="mt-1"><span class="badge-debt">Pendiente</span></div>
-                    </div>
-                </div>
-                ${planDetalle}
-            </div>`;
-        });
-    }
-    
-    if(bal) bal.innerText = COP.format(totalDeuda);
-}
-
-function renderWeb() {
-    var q = document.getElementById('web-search').value.toLowerCase().trim();
-    var c = document.getElementById('web-list');
-    c.innerHTML = '';
-    
-    var lista = (D.inv || []).filter(p => p.enWeb === true);
-    
-    if(q) {
-        lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q));
-    }
-
-    if(lista.length === 0) {
-        c.innerHTML = `<div class="text-center text-muted p-5">
-            <div style="font-size:2rem">🌐</div>
-            <p>No hay productos en Web.<br>Actívalos desde Inventario.</p>
-        </div>`;
-        return;
-    }
-
-    lista.slice(0, 50).forEach(p => {
-        var fixedUrl = fixDriveLink(p.foto);
-        var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
-        
-        c.innerHTML += `
-        <div class="card-k">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex gap-2 align-items-center">
-                    ${img}
-                    <div>
-                        <strong>${p.nombre}</strong><br>
-                        <small class="badge bg-primary">${p.catWeb}</small> 
-                        <small class="text-muted">| ${COP.format(p.publico)}</small>
-                    </div>
-                </div>
-                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="toggleWebStatus('${p.id}')">
-                    Desactivar
-                </button>
-            </div>
-        </div>`;
-    });
-}
-
-function toggleWebStatus(id) {
-    var idx = D.inv.findIndex(x => x.id === id);
-    if(idx > -1) {
-        var p = D.inv[idx];
-        p.enWeb = !p.enWeb; 
-        
-        renderWeb();
-        renderInv(); 
-        showToast("Producto actualizado", "info");
-
-        var payload = {
-           id: p.id,
-           nombre: p.nombre,
-           categoria: p.cat,
-           proveedor: p.prov,
-           costo: p.costo,
-           publico: p.publico,
-           descripcion: p.desc,
-           urlExistente: p.foto || "", 
-           enWeb: p.enWeb,
-           catWeb: p.catWeb
-        };
-        callAPI('guardarProductoAvanzado', payload);
-    }
-}
-
 function renderInv(){ 
     var q = document.getElementById('inv-search').value.toLowerCase().trim();
     var filterProv = document.getElementById('filter-prov').value;
@@ -953,11 +809,11 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- BOTONES DE ACCIÓN ---
-        // Botón "Ficha": Envía ficha técnica con foto SIN precio
+        // --- BOTONES NUEVOS ---
+        // 1. Botón "Ficha" (Azul): Envía Ficha sin precio + FOTO HTTPS
         var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
         
-        // Botón Link Web (Dorado)
+        // 2. Botón Link Web (Dorado)
         var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
 
         var div = document.createElement('div');
