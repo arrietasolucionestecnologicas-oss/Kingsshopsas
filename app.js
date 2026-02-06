@@ -260,25 +260,29 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// --- FUNCIÓN CORREGIDA PARA IMÁGENES EN WHATSAPP ---
+// --- FUNCIÓN CORREGIDA: LIMPIEZA QUIRÚRGICA DE ENLACES ---
 function fixDriveLink(url) {
     if (!url) return "";
     
-    // Paso 1: Intentar extraer el ID del formato estándar "id=..."
-    var match = url.match(/id=([a-zA-Z0-9_-]+)/);
+    // 1. Limpieza inicial: decodificar por si viene con %20 y quitar espacios
+    try { url = decodeURIComponent(url).trim(); } catch(e) {}
+
+    // 2. Extraer ID usando Regex estricto (busca id= o /d/)
+    // La parte ([a-zA-Z0-9_-]+) se detiene apenas encuentra un espacio o símbolo raro
+    var match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     
-    // Paso 2: Si no encuentra, intentar formato carpeta "/d/..."
     if (!match) {
         match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     }
 
-    // Paso 3: Si tenemos ID, creamos el enlace de MINIATURA DE ALTA CALIDAD
+    // 3. Si encontramos ID, construimos la URL limpia y forzamos tamaño grande
     if (match && match[1]) {
-        // "sz=w1000" fuerza que la imagen sea grande (1000px) para que se vea bien
+        // match[1] es solo el código, sin el texto "Abrir aplicación"
         return "https://drive.google.com/thumbnail?id=" + match[1] + "&sz=w1000";
     }
     
-    return url;
+    // Fallback: Si no es de Drive, devolvemos la URL original cortando al primer espacio
+    return url.split(' ')[0];
 }
 
 // --- VENTA (POS) ---
