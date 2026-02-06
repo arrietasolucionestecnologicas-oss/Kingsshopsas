@@ -356,7 +356,12 @@
             </div>
          </div>
          
-         <div class="tab-pane fade" id="f-hist"><div class="card-k" id="hist-list"></div></div>
+         <div class="tab-pane fade" id="f-hist">
+             <div class="card-k">
+                 <input type="text" id="hist-search" class="form-control mb-3" placeholder="🔍 Buscar movimiento por nombre..." onkeyup="renderFin()">
+                 <div id="hist-list"></div>
+             </div>
+         </div>
       </div>
     </div>
   </div>
@@ -622,6 +627,6 @@
       });
     }
   </script>
-  <script src="app.js?v=106"></script>
+  <script src="app.js?v=107"></script>
 </body>
 </html>
