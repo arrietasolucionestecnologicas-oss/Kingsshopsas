@@ -604,20 +604,28 @@ function shareQuote() {
     window.open(url, '_blank');
 }
 
-// --- NUEVA FUNCIÓN: COMPARTIR FICHA DE PRODUCTO ---
+// --- FUNCIÓN MODIFICADA: COMPARTIR NOMBRE + DESCRIPCIÓN + FOTO (SIN PRECIO) ---
 function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
 
     var nombre = p.nombre.toUpperCase();
-    var precio = p.publico > 0 ? COP.format(p.publico) : "Consultar precio";
     var descripcion = p.desc || "Sin descripción disponible.";
     
+    // Obtenemos el link limpio de la imagen
+    var linkFoto = fixDriveLink(p.foto); 
+
     var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
     msg += `📦 *PRODUCTO:* ${nombre}%0A`;
-    msg += `💰 *PRECIO:* ${precio}%0A%0A`;
+    // Nota: El precio se omite intencionalmente en esta función
     msg += `📝 *DETALLES:*%0A${descripcion}%0A%0A`;
-    msg += `👉 _¡Escríbenos para apartar el tuyo!_`;
+    
+    // Si tiene foto, la agregamos al mensaje para que WhatsApp cree la miniatura
+    if(linkFoto && linkFoto.length > 10) {
+        msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
+    }
+
+    msg += `👉 _¡Pregúntame por el precio!_`; // Llamado a la acción
 
     var url = "https://wa.me/?text=" + msg;
     window.open(url, '_blank');
@@ -924,10 +932,11 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- NUEVOS BOTONES DE ACCIÓN ---
-        // 1. Botón WhatsApp (Nuevo)
-        var btnShareWA = `<div class="btn-copy-mini text-white" style="background:#25D366; border-color:#25D366;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha por WA"><i class="fab fa-whatsapp"></i> Env</div>`;
-        // 2. Botón Link Web (Existente)
+        // --- BOTONES DE ACCIÓN (ACTUALIZADOS) ---
+        // 1. Botón "Ficha" (Azul): Envía Ficha técnica (Sin Precio)
+        var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
+        
+        // 2. Botón Link Web (Dorado)
         var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
 
         var div = document.createElement('div');
@@ -946,7 +955,7 @@ function renderInv(){
                 <div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div>
                 <div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div>
                 <div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>
-                ${btnShareWA}
+                ${btnShareNoPrice}
                 ${btnLink}
             </div>
         `;
