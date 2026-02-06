@@ -604,6 +604,43 @@ function shareQuote() {
     window.open(url, '_blank');
 }
 
+// --- NUEVA FUNCIÓN: COMPARTIR FICHA DE PRODUCTO ---
+function shareProdWhatsApp(id) {
+    var p = D.inv.find(x => x.id === id);
+    if (!p) return alert("Producto no encontrado");
+
+    var nombre = p.nombre.toUpperCase();
+    var precio = p.publico > 0 ? COP.format(p.publico) : "Consultar precio";
+    var descripcion = p.desc || "Sin descripción disponible.";
+    
+    var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
+    msg += `📦 *PRODUCTO:* ${nombre}%0A`;
+    msg += `💰 *PRECIO:* ${precio}%0A%0A`;
+    msg += `📝 *DETALLES:*%0A${descripcion}%0A%0A`;
+    msg += `👉 _¡Escríbenos para apartar el tuyo!_`;
+
+    var url = "https://wa.me/?text=" + msg;
+    window.open(url, '_blank');
+}
+
+function shareProdLink(id) {
+    if(!id) return;
+    var link = "https://kishopsas.com/?id=" + id;
+    
+    if (navigator.share) {
+        navigator.share({
+            title: 'King\'s Shop',
+            text: 'Mira este producto:',
+            url: link
+        }).catch(err => {
+            copyingDato(link);
+        });
+    } else {
+        copyingDato(link);
+        showToast("Enlace copiado", "info");
+    }
+}
+
 function finalizarVenta() {
    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    var cli = parent.querySelector('#c-cliente').value;
@@ -750,14 +787,14 @@ function renderCartera() {
                 
                 planDetalle = `
                 <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                   <div class="d-flex justify-content-between">
-                       <span>Cuota Fija:</span>
-                       <strong>${COP.format(valCuotaReal)}</strong>
-                   </div>
-                   <div class="d-flex justify-content-between text-danger fw-bold">
-                       <span>Restan:</span>
-                       <span>${cuotasRestantes} Cuotas</span>
-                   </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Cuota Fija:</span>
+                        <strong>${COP.format(valCuotaReal)}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between text-danger fw-bold">
+                        <span>Restan:</span>
+                        <span>${cuotasRestantes} Cuotas</span>
+                    </div>
                 </div>`;
             } else if (numCuotas > 1 && d.saldo > 0) {
                 // CASO 2: Venta Antigua (No tenemos el valor de cuota, lo estimamos)
@@ -765,14 +802,14 @@ function renderCartera() {
                 
                 planDetalle = `
                 <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
-                   <div class="d-flex justify-content-between text-muted">
-                       <span>Plan Original:</span>
-                       <span>${numCuotas} Cuotas</span>
-                   </div>
-                   <div class="d-flex justify-content-between text-danger fw-bold">
-                       <span>Cuota Aprox:</span>
-                       <span>${COP.format(cuotaEstimada)} (Est)</span>
-                   </div>
+                    <div class="d-flex justify-content-between text-muted">
+                        <span>Plan Original:</span>
+                        <span>${numCuotas} Cuotas</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-danger fw-bold">
+                        <span>Cuota Aprox:</span>
+                        <span>${COP.format(cuotaEstimada)} (Est)</span>
+                    </div>
                 </div>`;
             }
 
@@ -887,6 +924,12 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
+        // --- NUEVOS BOTONES DE ACCIÓN ---
+        // 1. Botón WhatsApp (Nuevo)
+        var btnShareWA = `<div class="btn-copy-mini text-white" style="background:#25D366; border-color:#25D366;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha por WA"><i class="fab fa-whatsapp"></i> Env</div>`;
+        // 2. Botón Link Web (Existente)
+        var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
+
         var div = document.createElement('div');
         div.className = 'card-catalog';
         div.innerHTML = `
@@ -900,10 +943,11 @@ function renderInv(){
                 <small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small>
             </div>
             <div class="cat-actions">
-                <div class="btn-copy-mini" onclick="copiarDato('${p.id}')">ID</div>
-                <div class="btn-copy-mini" onclick="copiarDato('${p.nombre}')">Nom</div>
-                <div class="btn-copy-mini" onclick="copiarDato(decodeURIComponent('${descEncoded}'))">Desc</div>
-                <div class="btn-copy-mini" onclick="copiarDato('${p.publico}')">$$</div>
+                <div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div>
+                <div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div>
+                <div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>
+                ${btnShareWA}
+                ${btnLink}
             </div>
         `;
         c.appendChild(div);
