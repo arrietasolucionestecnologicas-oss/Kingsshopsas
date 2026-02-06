@@ -260,15 +260,24 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
+// --- FUNCIÓN CORREGIDA PARA IMÁGENES EN WHATSAPP ---
 function fixDriveLink(url) {
     if (!url) return "";
-    // CORRECCIÓN DE IMÁGENES: Detectar ID y usar formato LH3 directo
-    if (url.includes("drive.google.com") && url.includes("id=")) {
-        var m = url.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m && m[1]) {
-            return "https://lh3.googleusercontent.com/d/" + m[1];
-        }
+    
+    // Paso 1: Intentar extraer el ID del formato estándar "id=..."
+    var match = url.match(/id=([a-zA-Z0-9_-]+)/);
+    
+    // Paso 2: Si no encuentra, intentar formato carpeta "/d/..."
+    if (!match) {
+        match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     }
+
+    // Paso 3: Si tenemos ID, creamos el enlace de MINIATURA DE ALTA CALIDAD
+    if (match && match[1]) {
+        // "sz=w1000" fuerza que la imagen sea grande (1000px) para que se vea bien
+        return "https://drive.google.com/thumbnail?id=" + match[1] + "&sz=w1000";
+    }
+    
     return url;
 }
 
