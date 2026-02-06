@@ -647,8 +647,6 @@ function shareProdWhatsApp(id) {
     if(linkFoto && linkFoto.length > 10) {
         msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
     }
-
-    msg += `👉 _¡Pregúntame por el precio!_%0A`; 
     msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
 
     var url = "https://wa.me/?text=" + msg;
