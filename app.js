@@ -590,30 +590,73 @@ function shareQuote() {
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
+// ============================================================
+// 🎨 NUEVA LÓGICA DE EMBELLECIMIENTO DE WHATSAPP (AUTO-EMOJIS)
+// ============================================================
 
-// --- NUEVA FUNCIÓN: FICHA TÉCNICA (SIN PRECIO + FOTO) ---
+function embellecerDescripcion(texto) {
+    if (!texto) return "Sin detalles disponibles.";
+
+    // 1. Limpieza inicial
+    let t = texto;
+
+    // 2. Diccionario de Palabras Clave -> Emojis
+    // El sistema busca estas palabras y les pone el emoji y salto de línea
+    const diccionario = [
+        { clave: "Pantalla", emoji: "📱" },
+        { clave: "Diseño", emoji: "✨" },
+        { clave: "Rendimiento", emoji: "🚀" },
+        { clave: "Procesador", emoji: "🧠" },
+        { clave: "Cámaras", emoji: "📸" },
+        { clave: "Cámara", emoji: "📷" },
+        { clave: "Batería", emoji: "🔋" },
+        { clave: "Seguridad", emoji: "🔒" },
+        { clave: "Audio", emoji: "🔊" },
+        { clave: "Sonido", emoji: "🔈" },
+        { clave: "Almacenamiento", emoji: "💾" },
+        { clave: "Memoria", emoji: "💾" },
+        { clave: "Conectividad", emoji: "📡" },
+        { clave: "Características", emoji: "📋" },
+        { clave: "Versión", emoji: "ℹ️" },
+        { clave: "Garantía", emoji: "🛡️" }
+    ];
+
+    // 3. Aplicar magia: Reemplazar texto plano por Texto Formateado
+    diccionario.forEach(item => {
+        // Busca la palabra (ej: "Pantalla:") ignorando mayúsculas/minúsculas
+        // Y la reemplaza por: [ENTER] Emoji *Pantalla:*
+        const regex = new RegExp(`(${item.clave}:?)`, 'gi');
+        t = t.replace(regex, (match) => {
+            return `%0A${item.emoji} *${match.trim()}*`; 
+        });
+    });
+
+    return t;
+}
+
+// --- FUNCIÓN PRINCIPAL DE COMPARTIR (ACTUALIZADA) ---
 function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
 
     var nombre = p.nombre.toUpperCase();
-    // var precio = ... (ELIMINADO INTENCIONALMENTE)
-    var descripcion = p.desc || "Sin descripción disponible.";
     
-    // Obtenemos el link limpio de la imagen (formato lh3)
+    // Aquí aplicamos la función de embellecer
+    var descripcionBonita = embellecerDescripcion(p.desc);
+    
     var linkFoto = fixDriveLink(p.foto); 
 
+    // Construcción del Mensaje
     var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
     msg += `📦 *PRODUCTO:* ${nombre}%0A`;
-    // Nota: El precio NO se incluye
-    msg += `📝 *DETALLES:*%0A${descripcion}%0A%0A`;
+    msg += `📝 *DETALLES:*${descripcionBonita}%0A%0A`; // Ya trae saltos de línea automáticos
     
-    // Si tiene foto, la agregamos al mensaje para que WhatsApp cree la miniatura
     if(linkFoto && linkFoto.length > 10) {
         msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
     }
 
-    msg += `👉 _¡Pregúntame por el precio!_`; 
+    // Nuevo pie de página solicitado
+    msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
 
     var url = "https://wa.me/?text=" + msg;
     window.open(url, '_blank');
