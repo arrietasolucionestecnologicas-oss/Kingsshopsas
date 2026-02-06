@@ -260,28 +260,25 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// --- FUNCIÓN CORREGIDA: LIMPIEZA QUIRÚRGICA DE ENLACES ---
+// --- FUNCIÓN CORREGIDA ANTIBLOQUEO PARA IMÁGENES (CDN GOOGLE) ---
 function fixDriveLink(url) {
     if (!url) return "";
     
-    // 1. Limpieza inicial: decodificar por si viene con %20 y quitar espacios
+    // 1. Limpieza inicial
     try { url = decodeURIComponent(url).trim(); } catch(e) {}
 
-    // 2. Extraer ID usando Regex estricto (busca id= o /d/)
-    // La parte ([a-zA-Z0-9_-]+) se detiene apenas encuentra un espacio o símbolo raro
+    // 2. Extraer ID usando Regex estricto
     var match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    
     if (!match) {
         match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     }
 
-    // 3. Si encontramos ID, construimos la URL limpia y forzamos tamaño grande
+    // 3. Si encontramos ID, usamos el dominio lh3 (CDN) que NO bloquea bots de WhatsApp
     if (match && match[1]) {
-        // match[1] es solo el código, sin el texto "Abrir aplicación"
-        return "https://drive.google.com/thumbnail?id=" + match[1] + "&sz=w1000";
+        return "http://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
     }
     
-    // Fallback: Si no es de Drive, devolvemos la URL original cortando al primer espacio
+    // Fallback
     return url.split(' ')[0];
 }
 
@@ -428,7 +425,7 @@ function calcReverse() {
     calcCart();
 }
 
-// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA CORREGIDA JERARQUÍA ESTRICTA) ---
+// --- CORE DEL CÁLCULO FINANCIERO (LÓGICA HÍBRIDA) ---
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -450,7 +447,6 @@ function calcCart() {
 
    if (CART.length > 0) {
        // Si hay productos, el Costo Base es la suma de los COSTOS internos
-       // NOTA: Ignoramos el precio público para el cálculo base, usamos el COSTO.
        baseParaCalculo = CART.reduce((acc, item) => acc + (item.costo || 0), 0);
    } else {
        // Calculadora Libre: El Costo Base es lo que escribas en el input manual
@@ -462,32 +458,18 @@ function calcCart() {
    var totalFinal = 0;
 
    if (tieneTarget) {
-       // CASO A: EL JEFE MANDA (Nivel 2)
-       // El total es exactamente el target, ignoramos utilidad e interés automático.
+       // CASO A: EL JEFE MANDA
        totalFinal = targetVal;
-       
-       // Visualmente indicamos que el interés no aplica automático
        parent.querySelector('#c-int').value = 0;
-
    } else {
-       // CASO B: FÓRMULA ESTÁNDAR (Nivel 1 + Utilidad)
-       // Total = Base + (Base * Utilidad)
-       // Si "Costo Manual" está activo en calc libre sin productos, el input es el precio final
-       
+       // CASO B: FÓRMULA ESTÁNDAR
        if (CART.length === 0 && isManual) {
-           // En calc libre manual, el input es el total directo
            totalFinal = baseParaCalculo;
        } else {
-           // Fórmula: Costo * (1 + Util%)
            totalFinal = baseParaCalculo * (1 + util/100);
        }
-       
-       // Aplicar IVA si corresponde
        if(conIva) totalFinal = totalFinal * 1.19;
-
-       // Aplicar Interés si es Crédito (sobre saldo tras inicial)
        if (metodo === "Crédito") {
-           // Asumimos inicial del 30% por defecto para proyectar interés
            var iniTemp = totalFinal * 0.30;
            var saldoTemp = totalFinal - iniTemp;
            var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
@@ -506,11 +488,9 @@ function calcCart() {
    var inicial = 0;
    
    if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
-       // Si el usuario escribió algo (incluso 0), lo respetamos
        inicial = parseFloat(inpInicial.value);
        if(isNaN(inicial)) inicial = 0;
    } else {
-       // Si está vacío, sugerimos el 30% del total
        inicial = Math.round(totalFinal * 0.30);
    }
    
@@ -526,13 +506,11 @@ function calcCart() {
        if(saldo < 0) saldo = 0;
        var valorCuota = saldo / cuotas;
 
-       // EN CRÉDITO: Siempre mostramos el total calculado en TEXTO
        totalText.forEach(e => {
            e.innerText = COP.format(Math.round(totalFinal));
            e.style.display = 'block';
        });
        
-       // Gestión de visibilidad del input manual (Calculadora libre)
        if(CART.length === 0) {
            inputTotal.style.display = 'inline-block';
        } else {
@@ -554,20 +532,15 @@ function calcCart() {
        }
 
    } else { 
-       // Contado
        calculatedValues.inicial = 0;
        
-       // En contado, mostramos el texto con el precio final
        totalText.forEach(e => {
            e.innerText = COP.format(Math.round(totalFinal));
            e.style.display = 'block';
        });
 
-       // Lógica de visibilidad del input en Contado
        if (CART.length === 0) {
-           // Calculadora libre: Input siempre visible
            inputTotal.style.display = 'inline-block';
-           // Si es manual puro, ocultamos el texto redundante
            if(isManual) totalText.forEach(e => e.style.display = 'none');
        } else {
            inputTotal.style.display = 'none';
@@ -617,20 +590,21 @@ function shareQuote() {
     window.open(url, '_blank');
 }
 
-// --- FUNCIÓN MODIFICADA: COMPARTIR NOMBRE + DESCRIPCIÓN + FOTO (SIN PRECIO) ---
+// --- NUEVA FUNCIÓN: FICHA TÉCNICA (SIN PRECIO + FOTO) ---
 function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
 
     var nombre = p.nombre.toUpperCase();
+    // var precio = ... (ELIMINADO INTENCIONALMENTE)
     var descripcion = p.desc || "Sin descripción disponible.";
     
-    // Obtenemos el link limpio de la imagen
+    // Obtenemos el link limpio de la imagen (formato lh3)
     var linkFoto = fixDriveLink(p.foto); 
 
     var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
     msg += `📦 *PRODUCTO:* ${nombre}%0A`;
-    // Nota: El precio se omite intencionalmente en esta función
+    // Nota: El precio NO se incluye
     msg += `📝 *DETALLES:*%0A${descripcion}%0A%0A`;
     
     // Si tiene foto, la agregamos al mensaje para que WhatsApp cree la miniatura
@@ -638,7 +612,7 @@ function shareProdWhatsApp(id) {
         msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`;
     }
 
-    msg += `👉 _¡Pregúntame por el precio!_`; // Llamado a la acción
+    msg += `👉 _¡Pregúntame por el precio!_`; 
 
     var url = "https://wa.me/?text=" + msg;
     window.open(url, '_blank');
@@ -669,7 +643,6 @@ function finalizarVenta() {
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
    
-   // NUEVO: Capturar número de cuotas del DOM
    var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
@@ -677,9 +650,8 @@ function finalizarVenta() {
    var itemsData = [];
    
    if(CART.length > 0) {
-       // Distribuir el total calculado proporcionalmente al costo de cada item
        var totalCostoRef = CART.reduce((a,b)=>a+(b.costo || 0), 0); 
-       if(totalCostoRef === 0) totalCostoRef = 1; // Evitar división por 0
+       if(totalCostoRef === 0) totalCostoRef = 1;
 
        itemsData = CART.map(p => {
            var peso = (p.costo || 0) / totalCostoRef;
@@ -778,7 +750,6 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA (MEJORADO PARA VENTAS VIEJAS) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -794,18 +765,13 @@ function renderCartera() {
             totalDeuda += d.saldo;
             var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
             
-            // LÓGICA DE CUOTAS RESTANTES (Saldo / Valor Cuota Original)
             var planDetalle = "";
-            
-            // Capturar datos y forzar conversión a número para evitar errores
             var valCuotaReal = parseFloat(d.valCuota) || 0;
             var numCuotas = parseInt(d.cuotas) || 1;
             
             if(valCuotaReal > 0) {
-                // CASO 1: Venta Nueva (Tenemos el valor de la cuota guardado)
                 var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
                 if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
-                
                 planDetalle = `
                 <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
                     <div class="d-flex justify-content-between">
@@ -818,9 +784,7 @@ function renderCartera() {
                     </div>
                 </div>`;
             } else if (numCuotas > 1 && d.saldo > 0) {
-                // CASO 2: Venta Antigua (No tenemos el valor de cuota, lo estimamos)
-                var cuotaEstimada = d.saldo / numCuotas; // Asumimos división simple del saldo actual
-                
+                var cuotaEstimada = d.saldo / numCuotas; 
                 planDetalle = `
                 <div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
                     <div class="d-flex justify-content-between text-muted">
@@ -945,11 +909,11 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
 
-        // --- BOTONES DE ACCIÓN (ACTUALIZADOS) ---
-        // 1. Botón "Ficha" (Azul): Envía Ficha técnica (Sin Precio)
+        // --- BOTONES DE ACCIÓN ---
+        // Botón "Ficha": Envía ficha técnica con foto SIN precio
         var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
         
-        // 2. Botón Link Web (Dorado)
+        // Botón Link Web (Dorado)
         var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
 
         var div = document.createElement('div');
