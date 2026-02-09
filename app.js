@@ -189,7 +189,7 @@ function renderData(res) {
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
-    D.ultimasVentas = res.ultimasVentas || []; 
+    D.ultimasVentas = res.ultimasVentas || []; // Ahora sí viene lleno desde Backend
     D.ped = res.pedidos || [];
     D.deudores = res.deudores || [];
 
@@ -242,12 +242,38 @@ function renderData(res) {
     updateGastosSelect();
 }
 
+// --- FUNCIÓN ACTUALIZADA PARA LLENAR EL SELECT DE GASTOS ---
 function updateGastosSelect() {
     var sg = document.getElementById('g-vinculo');
     if(sg) {
-        sg.innerHTML = '<option value="">-- Ninguna (Gasto General) --</option>';
+        sg.innerHTML = '<option value="">-- Gasto General (Sin Vínculo) --</option>';
+        
+        // 1. Grupo VENTAS (Para corregir utilidad histórica)
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
-            D.ultimasVentas.forEach(v => { var o = document.createElement('option'); o.value = v.id; o.text = v.desc; sg.appendChild(o); });
+            var optGroupV = document.createElement('optgroup');
+            optGroupV.label = "Vincular a Venta (Corregir Utilidad)";
+            D.ultimasVentas.forEach(v => { 
+                var o = document.createElement('option'); 
+                o.value = v.id; 
+                o.text = v.desc; 
+                optGroupV.appendChild(o); 
+            });
+            sg.appendChild(optGroupV);
+        }
+
+        // 2. Grupo PRODUCTOS (Para actualizar Costo Base futuro)
+        if (D.inv && D.inv.length > 0) {
+            var optGroupP = document.createElement('optgroup');
+            optGroupP.label = "Actualizar Inventario (Stock)";
+            // Ordenamos alfabéticamente para facilitar búsqueda
+            var invSorted = [...D.inv].sort((a,b) => a.nombre.localeCompare(b.nombre));
+            invSorted.forEach(p => {
+                var o = document.createElement('option');
+                o.value = p.id;
+                o.text = "Stock: " + p.nombre;
+                optGroupP.appendChild(o);
+            });
+            sg.appendChild(optGroupP);
         }
     }
 }
@@ -567,7 +593,12 @@ function finalizarVenta() {
        });
    } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
-       var costoManual = parseFloat(parent.querySelector('#res-cont-input').value) || 0; 
+       
+       var costoManual = calculatedValues.base;
+       if(costoManual === 0 && calculatedValues.total > 0) {
+           costoManual = Math.round(calculatedValues.total / 1.3);
+       }
+
        itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
 
@@ -674,7 +705,6 @@ function renderCartera() {
         });
     }
     
-    // Sección Cartera Castigada (Separada)
     if (castigados.length > 0) {
         c.innerHTML += `<hr class="my-4"><h6 class="text-muted mb-3"><i class="fas fa-skull-crossbones"></i> Cartera Castigada (${castigados.length})</h6>`;
         castigados.forEach(d => {
@@ -809,7 +839,6 @@ function verificarBanco() {
     if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
 }
 
-// --- RENDER FINANZAS CON BUSCADOR ---
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
