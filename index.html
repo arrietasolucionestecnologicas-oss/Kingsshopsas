@@ -350,8 +350,16 @@
                <input type="text" id="g-desc" class="form-control mb-2" placeholder="Concepto del Egreso">
                <select id="g-cat" class="form-select mb-2"><option>Transporte / Logística</option><option>Alimentación</option><option>Costo Mercancia (Inventario)</option><option>Servicios Públicos</option><option>Nómina</option><option>Otros Gastos</option></select>
                <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor Pagado">
-               <label class="small text-muted">Asociar a Venta Específica (Costeo Directo):</label>
-               <select id="g-vinculo" class="form-select mb-2"><option value="">-- Gasto General (Sin Vínculo) --</option></select>
+               
+               <label class="small text-muted fw-bold mt-2">Vincular a Operación (Corrección de Costos):</label>
+               <select id="g-vinculo" class="form-select mb-2 border-warning" style="border: 1px solid #ffc107;">
+                   <option value="">-- Gasto General (Sin Vínculo) --</option>
+               </select>
+               <small class="d-block mb-3 text-muted" style="font-size: 0.75rem;">
+                   * Si vinculas a una <b>Venta</b>, se recalculará su utilidad real.<br>
+                   * Si vinculas a un <b>Producto</b>, se actualizará su costo base en inventario.
+               </small>
+               
                <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR EGRESO</button>
             </div>
          </div>
@@ -627,6 +635,6 @@
       });
     }
   </script>
-  <script src="app.js?v=107"></script>
+  <script src="app.js?v=110"></script>
 </body>
 </html>
