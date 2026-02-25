@@ -5,13 +5,14 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJ
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar;
 var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
+var refEditId = null;
+var refSaldoActual = 0;
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
 
-// BANDERA GLOBAL PARA INICIAL DE CRÉDITO
 var usuarioForzoInicial = false;
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -145,6 +146,7 @@ window.onload = function() {
   myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
   myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
   myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
+  myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -320,7 +322,6 @@ function renderPos(){
   });
 }
 
-// NUEVO: SISTEMA DE CARRITO MÚLTIPLE
 function toggleCart(p, el) {
    var idx = CART.findIndex(x=>x.id===p.id);
    if(idx > -1) { 
@@ -335,7 +336,6 @@ function toggleCart(p, el) {
    updateCartUI();
 }
 
-// NUEVO: GESTION DE CANTIDADES EN EL CARRITO
 function changeQty(id, delta) {
     var item = CART.find(x => x.id === id);
     if (item) {
@@ -343,14 +343,12 @@ function changeQty(id, delta) {
         if (item.cantidad <= 0) {
             var idx = CART.findIndex(x => x.id === id);
             CART.splice(idx, 1);
-            // Intentar desmarcar de la lista
             renderPos();
         }
         updateCartUI();
     }
 }
 
-// NUEVO: AGREGAR ITEM MANUAL HÍBRIDO
 function agregarItemManual() {
     var nombre = prompt("Nombre del ítem / servicio:");
     if (!nombre) return;
@@ -404,7 +402,6 @@ function updateCartUI(keepOpen = false) {
        if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
        document.querySelectorAll('#cart-items-list').forEach(e => {
            e.style.display = 'block';
-           // RENDERIZADO DEL CARRITO CON CANTIDADES
            var html = '';
            CART.forEach(x => {
                var px = x.publico || 0;
@@ -454,7 +451,6 @@ function calcCart() {
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    var baseParaCalculo = 0;
 
-   // NUEVO: AGREGAR CANTIDADES AL CALCULO
    if (CART.length > 0) {
        baseParaCalculo = CART.reduce((acc, item) => acc + ((item.costo || 0) * (item.cantidad || 1)), 0);
    } else {
@@ -484,9 +480,6 @@ function calcCart() {
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
 
-   // ----------------------------------------------------
-   // NUEVA LÓGICA DE INICIAL: RESPETA EL CERO DEL USUARIO
-   // ----------------------------------------------------
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
@@ -501,7 +494,7 @@ function calcCart() {
        if(isNaN(inicial)) inicial = 0;
    } else {
        inicial = Math.round(totalFinal * 0.30);
-       if(inpInicial) inpInicial.value = inicial; // Mostrar el 30% por defecto inicial
+       if(inpInicial) inpInicial.value = inicial; 
    }
    
    calculatedValues.inicial = inicial;
@@ -548,7 +541,7 @@ function toggleMobileCart() { document.getElementById('mobile-cart').classList.t
 function toggleIni() { 
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     var metodo = parent.querySelector('#c-metodo').value;
-    if(metodo !== "Crédito") { usuarioForzoInicial = false; } // Resetear bandera al salir de crédito
+    if(metodo !== "Crédito") { usuarioForzoInicial = false; } 
     calcCart(); 
 }
 
@@ -566,7 +559,6 @@ function shareQuote() {
     var cli = parent.querySelector('#c-cliente').value || "Cliente";
     var concepto = "";
     if(CART.length > 0) { 
-        // NUEVO: Incluir cantidades en cotización
         concepto = CART.map(x=> `${x.cantidad}x ${x.nombre}`).join(', '); 
     } else { 
         concepto = parent.querySelector('#c-concepto').value || "Varios"; 
@@ -648,7 +640,6 @@ function finalizarVenta() {
    
    var itemsData = [];
    if(CART.length > 0) {
-       // NUEVA LÓGICA DE ITEMS MÚLTIPLES PARA EL BACKEND EXISTENTE
        var totalCostoRef = CART.reduce((a,b) => a + ((b.costo || 0) * (b.cantidad || 1)), 0); 
        var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
        
@@ -762,6 +753,7 @@ function renderCartera() {
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
                         <div class="mt-1 d-flex gap-1 justify-content-end">
                             <span class="badge-debt">Pendiente</span>
+                            <button class="btn btn-xs btn-outline-primary" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente}', ${d.saldo})" title="Refinanciar Deuda">🔄</button>
                             <button class="btn btn-xs btn-outline-dark" onclick="castigarDeuda('${d.idVenta}', '${d.cliente}')" title="Castigar Cartera (Lista Negra)">☠️</button>
                         </div>
                     </div>
@@ -785,6 +777,65 @@ function renderCartera() {
     }
     
     if(bal) bal.innerText = COP.format(totalDeuda);
+}
+
+// NUEVO: FUNCIONES DE REFINANCIACIÓN
+function abrirModalRefinanciar(id, cliente, saldo) {
+    refEditId = id;
+    refSaldoActual = parseFloat(saldo) || 0;
+    document.getElementById('ref-cliente').value = cliente;
+    document.getElementById('ref-saldo-actual').value = COP.format(refSaldoActual);
+    document.getElementById('ref-cargo').value = "0";
+    document.getElementById('ref-cuotas').value = "1";
+    
+    var today = new Date();
+    today.setMonth(today.getMonth() + 1);
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
+    
+    calcRefinanciamiento();
+    myModalRefinanciar.show();
+}
+
+function calcRefinanciamiento() {
+    var cargo = parseFloat(document.getElementById('ref-cargo').value) || 0;
+    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
+    var nuevoSaldo = refSaldoActual + cargo;
+    var nuevaCuota = nuevoSaldo / cuotas;
+    
+    document.getElementById('ref-nuevo-saldo').innerText = COP.format(nuevoSaldo);
+    document.getElementById('ref-nueva-cuota').innerText = COP.format(nuevaCuota) + " / mes";
+}
+
+function procesarRefinanciamiento() {
+    if(!refEditId) return;
+    var cargo = parseFloat(document.getElementById('ref-cargo').value) || 0;
+    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
+    var fecha = document.getElementById('ref-fecha').value;
+    
+    if(!fecha || cuotas < 1) return alert("Verifica las cuotas y la fecha");
+    
+    var d = {
+        idVenta: refEditId,
+        cargoAdicional: cargo,
+        nuevasCuotas: cuotas,
+        nuevaFecha: fecha
+    };
+    
+    document.getElementById('loader').style.display='flex';
+    myModalRefinanciar.hide();
+    
+    callAPI('refinanciarDeuda', d).then(r => {
+        if(r.exito) {
+            showToast("Cartera refinanciada con éxito", "success");
+            location.reload();
+        } else {
+            alert(r.error);
+            document.getElementById('loader').style.display='none';
+        }
+    });
 }
 
 function castigarDeuda(id, nombre) {
@@ -933,7 +984,6 @@ function doGasto() {
     callAPI('registrarGasto', d).then(() => location.reload());
 }
 
-// CORRECCIÓN BUGS FINANCIEROS: HISTORIAL FILTRO (V113)
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
@@ -946,7 +996,6 @@ function renderFin(){
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   
-  // Guardamos el índice original antes de filtrar para que el botón Editar no falle
   dataHist.forEach((x, originalIndex) => {
       x._originalIndex = originalIndex;
   });
@@ -959,7 +1008,6 @@ function renderFin(){
   else { 
     dataHist.forEach((x)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
-        // Usamos _originalIndex
         var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${x._originalIndex})'><i class="fas fa-pencil-alt"></i></button>`;
         var saldoMoment = (x.saldo !== undefined) ? `<small class="text-muted d-block" style="font-size:0.7rem;">Saldo: ${COP.format(x.saldo)}</small>` : '';
         h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="text-end"><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>${saldoMoment}</div>${btnEdit}</div>`; 
