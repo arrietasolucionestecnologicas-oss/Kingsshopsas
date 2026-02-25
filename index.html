@@ -238,7 +238,8 @@
     <div id="view-pos" class="view-sec">
       <div class="main-layout">
         <div class="list-column">
-           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="openFreeCalculator()"><i class="fas fa-calculator"></i> COTIZACIÓN LIBRE (PRODUCTOS NO CATALOGADOS)</button>
+           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="agregarItemManual()"><i class="fas fa-plus"></i> AGREGAR ÍTEM MANUAL (NO CATALOGADO)</button>
+           
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
                <i class="fas fa-search text-muted ms-2 me-2"></i>
                <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Buscar producto en inventario..." onkeyup="renderPos()" style="font-weight:bold;">
@@ -352,9 +353,9 @@
                <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor Pagado">
                
                <label class="small text-muted fw-bold mt-2">Vincular a Operación (Corrección de Costos):</label>
-               <select id="g-vinculo" class="form-select mb-2 border-warning" style="border: 1px solid #ffc107;">
-                   <option value="">-- Gasto General (Sin Vínculo) --</option>
-               </select>
+               <input list="g-vinculo-list" id="g-vinculo" class="form-control mb-2 border-warning" style="border: 1px solid #ffc107;" placeholder="🔍 Escribe para buscar (Venta o Producto)...">
+               <datalist id="g-vinculo-list"></datalist>
+
                <small class="d-block mb-3 text-muted" style="font-size: 0.75rem;">
                    * Si vinculas a una <b>Venta</b>, se recalculará su utilidad real.<br>
                    * Si vinculas a un <b>Producto</b>, se actualizará su costo base en inventario.
@@ -413,12 +414,11 @@
        
        <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Descripción del ítem no catalogado..." style="display:none; border-left:4px solid var(--gold);">
 
-       <div class="d-flex justify-content-between gap-2 mb-2">
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
+       <div class="d-flex justify-content-between gap-2 mb-2" style="display:none !important;"> <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Base Manual</label></div>
        </div>
        
-       <div id="cart-items-list" class="mb-3 small text-muted fst-italic" style="max-height:100px; overflow-y:auto; border-bottom:1px solid #eee; padding-bottom:5px;">No hay ítems seleccionados...</div>
+       <div id="cart-items-list" class="mb-3 mt-2" style="max-height:150px; overflow-y:auto;">No hay ítems seleccionados...</div>
        
        <div class="row g-2 mb-3">
          <div class="col-4 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
@@ -623,8 +623,7 @@
 
   <datalist id="list-cats"></datalist>
   <datalist id="list-prods-all"></datalist>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <datalist id="g-vinculo-list"></datalist> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
     if ('serviceWorker' in navigator) {
@@ -635,6 +634,6 @@
       });
     }
   </script>
-  <script src="app.js?v=110"></script>
+  <script src="app.js?v=113"></script>
 </body>
 </html>
