@@ -11,6 +11,9 @@ var pedEditId = null;
 var movEditObj = null; 
 var calculatedValues = { total: 0, inicial: 0, base: 0 };
 
+// BANDERA GLOBAL PARA INICIAL DE CRÉDITO
+var usuarioForzoInicial = false;
+
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // --- GESTIÓN DE ESTADO OFFLINE/ONLINE ---
@@ -189,7 +192,7 @@ function renderData(res) {
     D.inv = res.inventario || [];
     D.historial = res.historial || []; 
     D.proveedores = res.proveedores || [];
-    D.ultimasVentas = res.ultimasVentas || []; // Ahora sí viene lleno desde Backend
+    D.ultimasVentas = res.ultimasVentas || []; 
     D.ped = res.pedidos || [];
     D.deudores = res.deudores || [];
 
@@ -242,38 +245,24 @@ function renderData(res) {
     updateGastosSelect();
 }
 
-// --- FUNCIÓN ACTUALIZADA PARA LLENAR EL SELECT DE GASTOS ---
 function updateGastosSelect() {
-    var sg = document.getElementById('g-vinculo');
-    if(sg) {
-        sg.innerHTML = '<option value="">-- Gasto General (Sin Vínculo) --</option>';
-        
-        // 1. Grupo VENTAS (Para corregir utilidad histórica)
+    var dl = document.getElementById('g-vinculo-list');
+    if(dl) {
+        dl.innerHTML = ''; 
         if (D.ultimasVentas && D.ultimasVentas.length > 0) {
-            var optGroupV = document.createElement('optgroup');
-            optGroupV.label = "Vincular a Venta (Corregir Utilidad)";
             D.ultimasVentas.forEach(v => { 
                 var o = document.createElement('option'); 
-                o.value = v.id; 
-                o.text = v.desc; 
-                optGroupV.appendChild(o); 
+                o.value = `${v.desc} [${v.id}]`; 
+                dl.appendChild(o); 
             });
-            sg.appendChild(optGroupV);
         }
-
-        // 2. Grupo PRODUCTOS (Para actualizar Costo Base futuro)
         if (D.inv && D.inv.length > 0) {
-            var optGroupP = document.createElement('optgroup');
-            optGroupP.label = "Actualizar Inventario (Stock)";
-            // Ordenamos alfabéticamente para facilitar búsqueda
             var invSorted = [...D.inv].sort((a,b) => a.nombre.localeCompare(b.nombre));
             invSorted.forEach(p => {
                 var o = document.createElement('option');
-                o.value = p.id;
-                o.text = "Stock: " + p.nombre;
-                optGroupP.appendChild(o);
+                o.value = `Stock: ${p.nombre} [${p.id}]`;
+                dl.appendChild(o);
             });
-            sg.appendChild(optGroupP);
         }
     }
 }
@@ -286,7 +275,6 @@ function nav(v, btn){
   localStorage.setItem('lastView', v);
 }
 
-// --- FUNCIÓN CORREGIDA HTTPS SEGURO (SOLUCIÓN MIXED CONTENT) ---
 function fixDriveLink(url) {
     if (!url) return "";
     try { url = decodeURIComponent(url).trim(); } catch(e) {}
@@ -332,14 +320,62 @@ function renderPos(){
   });
 }
 
+// NUEVO: SISTEMA DE CARRITO MÚLTIPLE
 function toggleCart(p, el) {
    var idx = CART.findIndex(x=>x.id===p.id);
-   if(idx > -1) { CART.splice(idx,1); el.classList.remove('active'); } else { CART.push(p); el.classList.add('active'); }
+   if(idx > -1) { 
+       CART.splice(idx,1); 
+       if(el) el.classList.remove('active'); 
+   } else { 
+       var item = Object.assign({}, p);
+       item.cantidad = 1;
+       CART.push(item); 
+       if(el) el.classList.add('active'); 
+   }
    updateCartUI();
 }
 
+// NUEVO: GESTION DE CANTIDADES EN EL CARRITO
+function changeQty(id, delta) {
+    var item = CART.find(x => x.id === id);
+    if (item) {
+        item.cantidad += delta;
+        if (item.cantidad <= 0) {
+            var idx = CART.findIndex(x => x.id === id);
+            CART.splice(idx, 1);
+            // Intentar desmarcar de la lista
+            renderPos();
+        }
+        updateCartUI();
+    }
+}
+
+// NUEVO: AGREGAR ITEM MANUAL HÍBRIDO
+function agregarItemManual() {
+    var nombre = prompt("Nombre del ítem / servicio:");
+    if (!nombre) return;
+    var precioStr = prompt("Precio de venta ($):");
+    if (!precioStr) return;
+    var precio = parseFloat(precioStr);
+    if (isNaN(precio)) return alert("Precio inválido");
+
+    var costoStr = prompt("Costo interno ($) (Deja vacío o 0 si no aplica):");
+    var costo = parseFloat(costoStr) || 0;
+
+    CART.push({
+        id: 'MANUAL-' + Date.now(),
+        nombre: nombre,
+        cat: 'Manual',
+        costo: costo,
+        publico: precio,
+        cantidad: 1,
+        manual: true
+    });
+    updateCartUI(true);
+}
+
 function updateCartUI(keepOpen = false) {
-   var count = CART.length;
+   var count = CART.reduce((acc, item) => acc + (item.cantidad || 1), 0);
    
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -360,15 +396,33 @@ function updateCartUI(keepOpen = false) {
    
    var inputConcepto = parent.querySelector('#c-concepto');
    
-   if(count === 0) {
+   if(CART.length === 0) {
        if(!keepOpen) { document.getElementById('mobile-cart').classList.remove('visible'); }
        if(inputConcepto) inputConcepto.style.display = 'block';
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
    } else {
        if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
-       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
-       var names = CART.map(x=>x.nombre).join(', ');
-       document.querySelectorAll('#cart-items-list').forEach(e => e.innerText = names || 'Selecciona productos...');
+       document.querySelectorAll('#cart-items-list').forEach(e => {
+           e.style.display = 'block';
+           // RENDERIZADO DEL CARRITO CON CANTIDADES
+           var html = '';
+           CART.forEach(x => {
+               var px = x.publico || 0;
+               html += `
+               <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                   <div class="lh-1" style="flex:1;">
+                       <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
+                       <small class="text-muted">${COP.format(px)} c/u</small>
+                   </div>
+                   <div class="d-flex align-items-center gap-2">
+                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
+                       <span class="fw-bold small">${x.cantidad || 1}</span>
+                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
+                   </div>
+               </div>`;
+           });
+           e.innerHTML = html;
+       });
    }
    calcCart();
 }
@@ -379,34 +433,11 @@ function toggleManual() {
 
     var isManual = parent.querySelector('#c-manual').checked;
     var inpTotal = parent.querySelector('#res-cont-input');
-    var txtTotal = parent.querySelector('#res-cont');
     var inpUtil = parent.querySelector('#c-util');
 
     if(isManual) { inpUtil.disabled = true; setTimeout(() => { inpTotal.focus(); }, 100); } else { inpUtil.disabled = false; }
     calcCart();
 }
-
-function openFreeCalculator() {
-    CART = []; 
-    document.querySelectorAll('.pos-row-lite').forEach(e => e.classList.remove('active'));
-    var isMobile = window.innerWidth < 992;
-    if(isMobile) { document.getElementById('mobile-cart').classList.add('visible'); }
-    var parent = (isMobile) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    var chkManual = parent.querySelector('#c-manual');
-    if(chkManual) { 
-        chkManual.checked = true; 
-        var inpTotal = parent.querySelector('#res-cont-input');
-        var txtTotal = parent.querySelector('#res-cont');
-        var inpUtil = parent.querySelector('#c-util');
-        if(inpTotal) { inpTotal.style.display = 'inline-block'; inpTotal.value = ''; inpTotal.focus(); }
-        if(txtTotal) txtTotal.style.display = 'none'; 
-        if(inpUtil) inpUtil.disabled = true;
-    }
-    updateCartUI(true); 
-    showToast("Calculadora Libre Activada", "info");
-}
-
-function calcReverse() { calcCart(); }
 
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
@@ -423,8 +454,9 @@ function calcCart() {
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    var baseParaCalculo = 0;
 
+   // NUEVO: AGREGAR CANTIDADES AL CALCULO
    if (CART.length > 0) {
-       baseParaCalculo = CART.reduce((acc, item) => acc + (item.costo || 0), 0);
+       baseParaCalculo = CART.reduce((acc, item) => acc + ((item.costo || 0) * (item.cantidad || 1)), 0);
    } else {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
@@ -435,7 +467,11 @@ function calcCart() {
        totalFinal = targetVal;
        parent.querySelector('#c-int').value = 0;
    } else {
-       if (CART.length === 0 && isManual) { totalFinal = baseParaCalculo; } else { totalFinal = baseParaCalculo * (1 + util/100); }
+       if (CART.length === 0 && isManual) { 
+           totalFinal = baseParaCalculo; 
+       } else { 
+           totalFinal = baseParaCalculo * (1 + util/100); 
+       }
        if(conIva) totalFinal = totalFinal * 1.19;
        if (metodo === "Crédito") {
            var iniTemp = totalFinal * 0.30;
@@ -448,17 +484,26 @@ function calcCart() {
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
 
+   // ----------------------------------------------------
+   // NUEVA LÓGICA DE INICIAL: RESPETA EL CERO DEL USUARIO
+   // ----------------------------------------------------
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
    var inicial = 0;
    
-   if (isTypingInicial || (inpInicial.value !== "" && parseFloat(inpInicial.value) >= 0)) {
+   if (isTypingInicial) {
+       usuarioForzoInicial = true;
+       inicial = parseFloat(inpInicial.value);
+       if(isNaN(inicial)) inicial = 0;
+   } else if (usuarioForzoInicial && inpInicial.value !== "") {
        inicial = parseFloat(inpInicial.value);
        if(isNaN(inicial)) inicial = 0;
    } else {
        inicial = Math.round(totalFinal * 0.30);
+       if(inpInicial) inpInicial.value = inicial; // Mostrar el 30% por defecto inicial
    }
+   
    calculatedValues.inicial = inicial;
 
    var rowCred = parent.querySelectorAll('#row-cred'); 
@@ -481,7 +526,6 @@ function calcCart() {
        });
        
        if (inpInicial) {
-           if(!isTypingInicial && inpInicial.value === "") inpInicial.value = Math.round(inicial); 
            inpInicial.style.display='block'; 
            inpInicial.disabled = false;
            inpInicial.style.background = '#fff';
@@ -500,19 +544,38 @@ function calcCart() {
 }
 
 function toggleMobileCart() { document.getElementById('mobile-cart').classList.toggle('visible'); }
-function toggleIni() { calcCart(); }
-function clearCart() { CART=[]; renderPos(); updateCartUI(); }
+
+function toggleIni() { 
+    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    var metodo = parent.querySelector('#c-metodo').value;
+    if(metodo !== "Crédito") { usuarioForzoInicial = false; } // Resetear bandera al salir de crédito
+    calcCart(); 
+}
+
+function clearCart() { 
+    CART=[]; 
+    usuarioForzoInicial = false;
+    var inpInicial = document.getElementById('c-inicial');
+    if(inpInicial) inpInicial.value = '';
+    renderPos(); 
+    updateCartUI(); 
+}
 
 function shareQuote() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     var cli = parent.querySelector('#c-cliente').value || "Cliente";
     var concepto = "";
-    if(CART.length > 0) { concepto = CART.map(x=>x.nombre).join(', '); } else { concepto = parent.querySelector('#c-concepto').value || "Varios"; }
+    if(CART.length > 0) { 
+        // NUEVO: Incluir cantidades en cotización
+        concepto = CART.map(x=> `${x.cantidad}x ${x.nombre}`).join(', '); 
+    } else { 
+        concepto = parent.querySelector('#c-concepto').value || "Varios"; 
+    }
     
     var total = calculatedValues.total;
     var metodo = parent.querySelector('#c-metodo').value;
     var msg = `Hola *${cli}*, esta es tu cotización en King's Shop:\n\n`;
-    msg += `📦 *Producto:* ${concepto}\n`;
+    msg += `📦 *Producto(s):* ${concepto}\n`;
     
     if(metodo === "Crédito") {
         var inicial = calculatedValues.inicial;
@@ -585,20 +648,24 @@ function finalizarVenta() {
    
    var itemsData = [];
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b)=>a+(b.costo || 0), 0); 
-       if(totalCostoRef === 0) totalCostoRef = 1;
-       itemsData = CART.map(p => {
-           var peso = (p.costo || 0) / totalCostoRef;
-           return { nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso };
+       // NUEVA LÓGICA DE ITEMS MÚLTIPLES PARA EL BACKEND EXISTENTE
+       var totalCostoRef = CART.reduce((a,b) => a + ((b.costo || 0) * (b.cantidad || 1)), 0); 
+       var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
+       
+       CART.forEach(p => {
+           var qty = p.cantidad || 1;
+           for (var i = 0; i < qty; i++) {
+               var peso = (p.costo || 0) / totalCostoRef;
+               if (totalCostoRef === 0) peso = 1 / totalItemsCount;
+               itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso });
+           }
        });
    } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
-       
        var costoManual = calculatedValues.base;
        if(costoManual === 0 && calculatedValues.total > 0) {
            costoManual = Math.round(calculatedValues.total / 1.3);
        }
-
        itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
 
@@ -653,7 +720,6 @@ function renderProvs() {
 function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
 function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
 
-// --- RENDERIZADO CARTERA MEJORADO (ACTIVA VS CASTIGADA) ---
 function renderCartera() {
     var c = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
@@ -839,6 +905,35 @@ function verificarBanco() {
     if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
 }
 
+function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
+
+function doGasto() {
+    var desc = document.getElementById('g-desc').value;
+    var monto = document.getElementById('g-monto').value;
+    var vinculoRaw = document.getElementById('g-vinculo').value; 
+    
+    if(!desc || !monto) return alert("Falta descripción o monto");
+
+    var vinculoClean = "";
+    var match = vinculoRaw.match(/\[(.*?)\]$/); 
+    if (match && match[1]) {
+        vinculoClean = match[1];
+    } else {
+        vinculoClean = vinculoRaw; 
+    }
+
+    var d = { 
+        desc: desc, 
+        cat: document.getElementById('g-cat').value, 
+        monto: monto, 
+        vinculo: vinculoClean 
+    };
+
+    document.getElementById('loader').style.display = 'flex';
+    callAPI('registrarGasto', d).then(() => location.reload());
+}
+
+// CORRECCIÓN BUGS FINANCIEROS: HISTORIAL FILTRO (V113)
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
@@ -851,15 +946,21 @@ function renderFin(){
   var h=document.getElementById('hist-list'); h.innerHTML=''; 
   var dataHist = D.historial || []; 
   
+  // Guardamos el índice original antes de filtrar para que el botón Editar no falle
+  dataHist.forEach((x, originalIndex) => {
+      x._originalIndex = originalIndex;
+  });
+
   if(q) {
       dataHist = dataHist.filter(x => (x.desc && x.desc.toLowerCase().includes(q)) || (x.monto && x.monto.toString().includes(q)));
   }
 
   if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
-    dataHist.forEach((x, index)=>{ 
+    dataHist.forEach((x)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
-        var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${index})'><i class="fas fa-pencil-alt"></i></button>`;
+        // Usamos _originalIndex
+        var btnEdit = `<button class="btn btn-sm btn-light border-0 text-muted ms-2" onclick='abrirEditMov(${x._originalIndex})'><i class="fas fa-pencil-alt"></i></button>`;
         var saldoMoment = (x.saldo !== undefined) ? `<small class="text-muted d-block" style="font-size:0.7rem;">Saldo: ${COP.format(x.saldo)}</small>` : '';
         h.innerHTML+=`<div class="mov-item d-flex align-items-center mb-2 p-2 border-bottom"><div class="mov-icon me-3 ${i?'text-success':'text-danger'}"><i class="fas fa-${i?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow-1 lh-1"><div class="fw-bold small">${x.desc}</div><small class="text-muted" style="font-size:0.75rem">${x.fecha}</small></div><div class="text-end"><div class="fw-bold ${i?'text-success':'text-danger'}">${i?'+':'-'} ${COP.format(x.monto)}</div>${saldoMoment}</div>${btnEdit}</div>`; 
     }); 
@@ -890,8 +991,6 @@ function guardarEdicionMovimiento() {
 }
 
 function doAbono(){ var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); var monto = document.getElementById('ab-monto').value; var fechaVal = document.getElementById('ab-fecha').value; document.getElementById('loader').style.display='flex'; callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); }
-function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
-function doGasto(){ var desc = document.getElementById('g-desc').value; var monto = document.getElementById('g-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); var d={ desc: desc, cat: document.getElementById('g-cat').value, monto: monto, vinculo: document.getElementById('g-vinculo').value }; document.getElementById('loader').style.display='flex'; callAPI('registrarGasto', d).then(()=>location.reload()); }
 function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
 function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
 function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
