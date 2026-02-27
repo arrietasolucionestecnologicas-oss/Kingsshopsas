@@ -11,7 +11,7 @@ var pedEditId = null;
 var movEditObj = null; 
 var refEditId = null;
 var refSaldoActual = 0;
-var calculatedValues = { total: 0, inicial: 0, base: 0 };
+var calculatedValues = { total: 0, inicial: 0, base: 0, descuento: 0 };
 
 var usuarioForzoInicial = false;
 
@@ -330,7 +330,7 @@ function toggleCart(p, el) {
    } else { 
        var item = Object.assign({}, p);
        item.cantidad = 1;
-       item.conIva = false; // Estado inicial del IVA por producto
+       item.conIva = false;
        CART.push(item); 
        if(el) el.classList.add('active'); 
    }
@@ -454,9 +454,9 @@ function calcCart() {
 
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    var metodo = parent.querySelector('#c-metodo').value;
-   var conIva = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
    var util = parseFloat(parent.querySelector('#c-util').value)||0; 
+   var descuento = parseFloat(parent.querySelector('#c-desc').value)||0; 
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
@@ -482,14 +482,18 @@ function calcCart() {
    if (tieneTarget) {
        totalFinal = targetVal;
        parent.querySelector('#c-int').value = 0;
+       parent.querySelector('#c-desc').value = 0;
+       descuento = 0;
    } else {
        if (CART.length === 0 && isManual) { 
            totalFinal = baseParaCalculo; 
        } else { 
            totalFinal = (baseSinIva * (1 + util/100)) + (baseConIva * (1 + util/100) * 1.19);
        }
-       if(conIva) totalFinal = totalFinal * 1.19; 
        
+       totalFinal -= descuento;
+       if (totalFinal < 0) totalFinal = 0;
+
        if (metodo === "Crédito") {
            var iniTemp = totalFinal * 0.30;
            var saldoTemp = totalFinal - iniTemp;
@@ -500,6 +504,15 @@ function calcCart() {
    
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
+   calculatedValues.descuento = descuento;
+
+   var rowDesc = parent.querySelector('#row-descuento');
+   var resDescVal = parent.querySelector('#res-desc-val');
+   if(descuento > 0 && !tieneTarget) {
+       if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuento); }
+   } else {
+       if(rowDesc) rowDesc.style.display = 'none';
+   }
 
    var inpInicial = parent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
@@ -571,6 +584,11 @@ function clearCart() {
     usuarioForzoInicial = false;
     var inpInicial = document.getElementById('c-inicial');
     if(inpInicial) inpInicial.value = '';
+    
+    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = '0';
+    
     renderPos(); 
     updateCartUI(); 
 }
@@ -639,14 +657,6 @@ function shareProdWhatsApp(id) {
     msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
     var url = "https://wa.me/?text=" + msg;
     window.open(url, '_blank');
-}
-
-function shareProdLink(id) {
-    if(!id) return;
-    var link = "https://kishopsas.com/?id=" + id;
-    if (navigator.share) {
-        navigator.share({ title: 'King\'s Shop', text: 'Mira este producto:', url: link }).catch(err => { copyingDato(link); });
-    } else { copyingDato(link); showToast("Enlace copiado", "info"); }
 }
 
 function finalizarVenta() {
@@ -1080,7 +1090,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// NUEVO MÓDULO: COTIZADOR PDF (V117)
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V118)
 // =======================================================
 function toggleDatosFormales() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -1097,8 +1107,10 @@ function generarCotizacionPDF() {
    var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
    var conIvaGlobal = parent.querySelector('#c-iva').checked;
    
-   if(calculatedValues.total <= 0) return alert("El precio total no puede ser 0");
+   if(calculatedValues.total <= 0 && calculatedValues.base <= 0) return alert("El precio total no puede ser 0");
    
+   // Para que el descuento se vea reflejado al final, los items deben sumar el Total Pre-Descuento
+   var totalPreDescuento = calculatedValues.total + (calculatedValues.descuento || 0);
    var itemsData = [];
    var ivaTotalCotizacion = 0;
 
@@ -1119,7 +1131,8 @@ function generarCotizacionPDF() {
            if (totalCostoRef > 0) pesoTotalItem = base / totalCostoRef;
            else pesoTotalItem = qty / totalItemsCount;
            
-           var totalItem = calculatedValues.total * pesoTotalItem;
+           // El item en PDF absorbe su peso del Total ANTES del descuento
+           var totalItem = totalPreDescuento * pesoTotalItem;
            var unitPrice = totalItem / qty;
            
            if (p.conIva || conIvaGlobal) {
@@ -1136,13 +1149,13 @@ function generarCotizacionPDF() {
        });
    } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
-       if (conIvaGlobal) ivaTotalCotizacion = calculatedValues.total - (calculatedValues.total / 1.19);
+       if (conIvaGlobal) ivaTotalCotizacion = totalPreDescuento - (totalPreDescuento / 1.19);
        itemsData.push({ 
            nombre: nombreManual, 
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
-           valorUnitario: calculatedValues.total, 
-           total: calculatedValues.total 
+           valorUnitario: totalPreDescuento, 
+           total: totalPreDescuento 
        });
    }
 
@@ -1151,7 +1164,12 @@ function generarCotizacionPDF() {
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
-       totales: { total: calculatedValues.total, iva: ivaTotalCotizacion },
+       totales: { 
+           subtotal: totalPreDescuento - ivaTotalCotizacion, 
+           iva: ivaTotalCotizacion,
+           descuento: calculatedValues.descuento || 0,
+           total: calculatedValues.total 
+       },
        fecha: fechaVal
    };
    
