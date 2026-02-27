@@ -432,7 +432,7 @@
 
        <div class="alert alert-light border text-center py-2 mb-3" style="background-color: #fffcf5; border-color: var(--gold) !important;">
           <div id="row-descuento" style="display:none; color: #e74c3c; font-size: 0.85rem; margin-bottom: 5px;">
-              <div class="d-flex justify-content-between"><span>Descuento:</span><strong id="res-desc-val">-$0</strong></div>
+              <div class="d-flex justify-content-between"><span>Descuento Aplicado:</span><strong id="res-desc-val">-$0</strong></div>
           </div>
           
           <div class="d-flex justify-content-between align-items-center">
@@ -683,6 +683,56 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modalEditItem" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body">
+                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Ajuste Individual de Ítem</h6>
+                <input type="hidden" id="edit-item-id">
+                
+                <div class="mb-2">
+                    <label class="small fw-bold">Nombre del Producto/Servicio</label>
+                    <input id="edit-item-nombre" class="form-control">
+                </div>
+                
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="small fw-bold text-muted">Costo Base</label>
+                        <input type="number" id="edit-item-costo" class="form-control bg-light" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="small fw-bold">Margen (%)</label>
+                        <input type="number" id="edit-item-margen" class="form-control border-primary" oninput="calcEditorItem()">
+                    </div>
+                </div>
+                
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="small fw-bold text-danger">Descuento ($)</label>
+                        <input type="number" id="edit-item-desc" class="form-control border-danger" oninput="calcEditorItem()">
+                    </div>
+                    <div class="col-6 d-flex align-items-end">
+                        <div class="form-check form-switch w-100 p-2 bg-light rounded border">
+                            <input class="form-check-input ms-1 mt-1" type="checkbox" id="edit-item-iva" onchange="calcEditorItem()">
+                            <label class="form-check-label small fw-bold ms-2" for="edit-item-iva">Aplicar IVA</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-light border text-center mb-3">
+                    <small class="text-muted">Precio Unitario Final (Calculado):</small><br>
+                    <strong id="edit-item-total" class="fs-4" style="color: var(--gold-hover);">$0</strong>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary w-50 fw-bold" onclick="guardarEditorItem()">✔️ Aplicar al Carrito</button>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
   <datalist id="list-cats"></datalist>
   <datalist id="list-prods-all"></datalist>
   <datalist id="g-vinculo-list"></datalist>
@@ -698,6 +748,6 @@
       });
     }
   </script>
-  <script src="app.js?v=118"></script>
+  <script src="app.js?v=119"></script>
 </body>
 </html>
