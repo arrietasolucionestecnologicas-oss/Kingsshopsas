@@ -330,10 +330,19 @@ function toggleCart(p, el) {
    } else { 
        var item = Object.assign({}, p);
        item.cantidad = 1;
+       item.conIva = false; // Estado inicial del IVA por producto
        CART.push(item); 
        if(el) el.classList.add('active'); 
    }
    updateCartUI();
+}
+
+function toggleItemIva(id) {
+    var item = CART.find(x => x.id === id);
+    if (item) {
+        item.conIva = !item.conIva;
+        updateCartUI();
+    }
 }
 
 function changeQty(id, delta) {
@@ -367,6 +376,7 @@ function agregarItemManual() {
         costo: costo,
         publico: precio,
         cantidad: 1,
+        conIva: false,
         manual: true
     });
     updateCartUI(true);
@@ -412,6 +422,7 @@ function updateCartUI(keepOpen = false) {
                        <small class="text-muted">${COP.format(px)} c/u</small>
                    </div>
                    <div class="d-flex align-items-center gap-2">
+                       <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
                        <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
                        <span class="fw-bold small">${x.cantidad || 1}</span>
                        <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
@@ -449,13 +460,22 @@ function calcCart() {
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
+   
    var baseParaCalculo = 0;
+   var baseSinIva = 0;
+   var baseConIva = 0;
 
    if (CART.length > 0) {
-       baseParaCalculo = CART.reduce((acc, item) => acc + ((item.costo || 0) * (item.cantidad || 1)), 0);
+       CART.forEach(item => {
+           let cost = (item.costo || 0) * (item.cantidad || 1);
+           if (item.conIva) baseConIva += cost;
+           else baseSinIva += cost;
+       });
+       baseParaCalculo = baseSinIva + baseConIva;
    } else {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
+       baseSinIva = baseParaCalculo; 
    }
 
    var totalFinal = 0;
@@ -466,9 +486,10 @@ function calcCart() {
        if (CART.length === 0 && isManual) { 
            totalFinal = baseParaCalculo; 
        } else { 
-           totalFinal = baseParaCalculo * (1 + util/100); 
+           totalFinal = (baseSinIva * (1 + util/100)) + (baseConIva * (1 + util/100) * 1.19);
        }
-       if(conIva) totalFinal = totalFinal * 1.19;
+       if(conIva) totalFinal = totalFinal * 1.19; 
+       
        if (metodo === "Crédito") {
            var iniTemp = totalFinal * 0.30;
            var saldoTemp = totalFinal - iniTemp;
@@ -640,15 +661,27 @@ function finalizarVenta() {
    
    var itemsData = [];
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b) => a + ((b.costo || 0) * (b.cantidad || 1)), 0); 
+       var totalCostoRef = CART.reduce((a,b) => {
+           let cost = (b.costo || 0) * (b.cantidad || 1);
+           if (b.conIva) cost *= 1.19;
+           return a + cost;
+       }, 0); 
        var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
        
        CART.forEach(p => {
            var qty = p.cantidad || 1;
+           var base = (p.costo || 0) * qty;
+           if (p.conIva) base *= 1.19;
+
            for (var i = 0; i < qty; i++) {
-               var peso = (p.costo || 0) / totalCostoRef;
-               if (totalCostoRef === 0) peso = 1 / totalItemsCount;
-               itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: calculatedValues.total * peso });
+               var pesoTotalItem = 0;
+               if (totalCostoRef > 0) pesoTotalItem = base / totalCostoRef;
+               else pesoTotalItem = qty / totalItemsCount;
+               
+               var totalItem = calculatedValues.total * pesoTotalItem;
+               var unitPrice = totalItem / qty;
+
+               itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: unitPrice });
            }
        });
    } else {
@@ -1047,7 +1080,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// NUEVO MÓDULO: COTIZADOR PDF (V116)
+// NUEVO MÓDULO: COTIZADOR PDF (V117)
 // =======================================================
 function toggleDatosFormales() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -1062,26 +1095,40 @@ function generarCotizacionPDF() {
    
    var nit = parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '';
    var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
+   var conIvaGlobal = parent.querySelector('#c-iva').checked;
    
    if(calculatedValues.total <= 0) return alert("El precio total no puede ser 0");
    
    var itemsData = [];
+   var ivaTotalCotizacion = 0;
+
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b) => a + ((b.costo || 0) * (b.cantidad || 1)), 0); 
+       var totalCostoRef = CART.reduce((a,b) => {
+           let cost = (b.costo || 0) * (b.cantidad || 1);
+           if (b.conIva) cost *= 1.19;
+           return a + cost;
+       }, 0); 
        var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
 
        CART.forEach(p => {
            var qty = p.cantidad || 1;
-           // Calcular peso de este item para distribuir el precio de venta final
-           var pesoTotalItem = ((p.costo || 0) * qty) / totalCostoRef;
-           if (totalCostoRef === 0) pesoTotalItem = qty / totalItemsCount;
+           var base = (p.costo || 0) * qty;
+           if (p.conIva) base *= 1.19;
+
+           var pesoTotalItem = 0;
+           if (totalCostoRef > 0) pesoTotalItem = base / totalCostoRef;
+           else pesoTotalItem = qty / totalItemsCount;
            
            var totalItem = calculatedValues.total * pesoTotalItem;
            var unitPrice = totalItem / qty;
            
+           if (p.conIva || conIvaGlobal) {
+               ivaTotalCotizacion += totalItem - (totalItem / 1.19);
+           }
+           
            itemsData.push({ 
                nombre: p.nombre, 
-               descripcion: p.desc ? p.desc.substring(0, 80) : p.cat, 
+               descripcion: p.desc ? p.desc : p.cat,
                cantidad: qty, 
                valorUnitario: unitPrice, 
                total: totalItem 
@@ -1089,6 +1136,7 @@ function generarCotizacionPDF() {
        });
    } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
+       if (conIvaGlobal) ivaTotalCotizacion = calculatedValues.total - (calculatedValues.total / 1.19);
        itemsData.push({ 
            nombre: nombreManual, 
            descripcion: "Servicio / Ítem Manual", 
@@ -1099,12 +1147,11 @@ function generarCotizacionPDF() {
    }
 
    var fechaVal = parent.querySelector('#c-fecha').value;
-   var ivaVal = parent.querySelector('#c-iva').checked ? calculatedValues.total - (calculatedValues.total/1.19) : 0;
    
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
-       totales: { total: calculatedValues.total, iva: ivaVal },
+       totales: { total: calculatedValues.total, iva: ivaTotalCotizacion },
        fecha: fechaVal
    };
    
