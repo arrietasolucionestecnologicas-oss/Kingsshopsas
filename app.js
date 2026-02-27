@@ -1153,7 +1153,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V120)
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V121)
 // =======================================================
 function toggleDatosFormales() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -1198,9 +1198,10 @@ function generarCotizacionPDF() {
                    nombre: p.nombre, 
                    descripcion: p.desc ? p.desc : p.cat,
                    cantidad: qty, 
-                   valorUnitario: unitPrice, 
+                   valorUnitarioBase: unitPrice, 
+                   descuentoUnitario: 0,
+                   valorUnitarioFinal: unitPrice,
                    total: totalItem,
-                   descuento: 0,
                    conIva: false
                });
            } else if (p.manual) {
@@ -1211,9 +1212,10 @@ function generarCotizacionPDF() {
                    nombre: p.nombre, 
                    descripcion: "Servicio / Ítem Manual",
                    cantidad: qty, 
-                   valorUnitario: unitPrice, 
+                   valorUnitarioBase: unitPrice, 
+                   descuentoUnitario: 0,
+                   valorUnitarioFinal: unitPrice,
                    total: totalItem,
-                   descuento: 0,
                    conIva: false
                });
            } else {
@@ -1241,9 +1243,10 @@ function generarCotizacionPDF() {
                    nombre: p.nombre, 
                    descripcion: p.desc ? p.desc : p.cat,
                    cantidad: qty, 
-                   valorUnitario: unitBase, 
-                   total: totalBase,
-                   descuento: totalDescItem,
+                   valorUnitarioBase: unitBase, 
+                   descuentoUnitario: d,
+                   valorUnitarioFinal: (postDesc / qty),
+                   total: postDesc,
                    conIva: p.conIva || conIvaGlobal
                });
            }
@@ -1268,9 +1271,10 @@ function generarCotizacionPDF() {
            nombre: parent.querySelector('#c-concepto').value || "Venta Manual", 
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
-           valorUnitario: manualVal, 
-           total: manualVal,
-           descuento: 0,
+           valorUnitarioBase: manualVal,
+           descuentoUnitario: descuentoGlobal,
+           valorUnitarioFinal: postDesc,
+           total: postDesc,
            conIva: conIvaGlobal && !tieneTarget
        });
    }
@@ -1287,9 +1291,10 @@ function generarCotizacionPDF() {
                nombre: "Intereses de Financiación",
                descripcion: "Costo financiero por pago a crédito (" + cuotas + " cuotas)",
                cantidad: 1,
-               valorUnitario: interesAplicado,
+               valorUnitarioBase: interesAplicado,
+               descuentoUnitario: 0,
+               valorUnitarioFinal: interesAplicado,
                total: interesAplicado,
-               descuento: 0,
                conIva: false
            });
            subtotalBaseCotizacion += interesAplicado; 
