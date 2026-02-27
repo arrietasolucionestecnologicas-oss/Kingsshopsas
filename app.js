@@ -779,7 +779,6 @@ function renderCartera() {
     if(bal) bal.innerText = COP.format(totalDeuda);
 }
 
-// NUEVO: FUNCIONES DE REFINANCIACIÓN
 function abrirModalRefinanciar(id, cliente, saldo) {
     refEditId = id;
     refSaldoActual = parseFloat(saldo) || 0;
@@ -1046,3 +1045,76 @@ function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, p
 function delPed(id) { Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display='flex'; callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); } }); }
 function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`, input: 'number', inputLabel: 'Costo Real de Compra', inputPlaceholder: 'Ej: 50000', showCancelButton: true, confirmButtonText: 'Sí, Registrar Gasto e Inventario', cancelButtonText: 'Cancelar', inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; } }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display = 'flex'; callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); } }); }
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
+
+// =======================================================
+// NUEVO MÓDULO: COTIZADOR PDF (V116)
+// =======================================================
+function toggleDatosFormales() {
+    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    var box = parent.querySelector('#box-datos-formales');
+    if(box.style.display === 'none') { box.style.display = 'block'; } else { box.style.display = 'none'; }
+}
+
+function generarCotizacionPDF() {
+   var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   var cli = parent.querySelector('#c-cliente').value;
+   if(!cli) return alert("Falta el Nombre del Cliente para la cotización");
+   
+   var nit = parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '';
+   var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
+   
+   if(calculatedValues.total <= 0) return alert("El precio total no puede ser 0");
+   
+   var itemsData = [];
+   if(CART.length > 0) {
+       var totalCostoRef = CART.reduce((a,b) => a + ((b.costo || 0) * (b.cantidad || 1)), 0); 
+       var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
+
+       CART.forEach(p => {
+           var qty = p.cantidad || 1;
+           // Calcular peso de este item para distribuir el precio de venta final
+           var pesoTotalItem = ((p.costo || 0) * qty) / totalCostoRef;
+           if (totalCostoRef === 0) pesoTotalItem = qty / totalItemsCount;
+           
+           var totalItem = calculatedValues.total * pesoTotalItem;
+           var unitPrice = totalItem / qty;
+           
+           itemsData.push({ 
+               nombre: p.nombre, 
+               descripcion: p.desc ? p.desc.substring(0, 80) : p.cat, 
+               cantidad: qty, 
+               valorUnitario: unitPrice, 
+               total: totalItem 
+           });
+       });
+   } else {
+       var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
+       itemsData.push({ 
+           nombre: nombreManual, 
+           descripcion: "Servicio / Ítem Manual", 
+           cantidad: 1, 
+           valorUnitario: calculatedValues.total, 
+           total: calculatedValues.total 
+       });
+   }
+
+   var fechaVal = parent.querySelector('#c-fecha').value;
+   var ivaVal = parent.querySelector('#c-iva').checked ? calculatedValues.total - (calculatedValues.total/1.19) : 0;
+   
+   var d = {
+       cliente: { nombre: cli, nit: nit, telefono: tel },
+       items: itemsData,
+       totales: { total: calculatedValues.total, iva: ivaVal },
+       fecha: fechaVal
+   };
+   
+   document.getElementById('loader').style.display='flex';
+   callAPI('generarCotizacionPDF', d).then(r => { 
+       document.getElementById('loader').style.display='none';
+       if(r.exito) { 
+           window.open(r.url, '_blank');
+       } else { 
+           alert("Error generando PDF: " + r.error); 
+       } 
+   });
+}
