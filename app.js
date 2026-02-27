@@ -333,7 +333,6 @@ function toggleCart(p, el) {
        item.cantidad = 1;
        item.conIva = false;
        
-       // Toma el margen global actual como punto de partida
        var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
        item.margenIndividual = globalUtil;
        item.descuentoIndividual = 0;
@@ -345,7 +344,6 @@ function toggleCart(p, el) {
    updateCartUI();
 }
 
-// NUEVO: FUNCIONES DEL MODAL DE EDICIÓN DE ÍTEM (V119)
 function abrirEditorItem(id) {
     var item = CART.find(x => x.id === id);
     if (!item) return;
@@ -467,7 +465,7 @@ function updateCartUI(keepOpen = false) {
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
    }
    
-   calcCart(); // En V119, calcCart se encarga de renderizar la lista tras calcular precios exactos
+   calcCart(); 
 }
 
 function toggleManual() {
@@ -500,7 +498,6 @@ function calcCart() {
    var baseParaCalculo = 0;
    var totalFinal = 0;
 
-   // NUEVA LÓGICA V119: CÁLCULO ÍTEM POR ÍTEM
    if (CART.length > 0) {
        CART.forEach(item => {
            let c = item.costo || 0;
@@ -562,7 +559,6 @@ function calcCart() {
    calculatedValues.total = totalFinal;
    calculatedValues.descuento = descuentoGlobal;
 
-   // Renderizado de la lista en base a los cálculos individuales
    if (CART.length > 0) {
        var listContainer = parent.querySelector('#cart-items-list');
        if (listContainer) {
@@ -1157,7 +1153,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V120)
 // =======================================================
 function toggleDatosFormales() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -1173,62 +1169,142 @@ function generarCotizacionPDF() {
    var nit = parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '';
    var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
    var conIvaGlobal = parent.querySelector('#c-iva').checked;
+   var utilGlobal = parseFloat(parent.querySelector('#c-util').value)||0; 
+   var descuentoGlobal = parseFloat(parent.querySelector('#c-desc').value)||0; 
+   var targetVal = parseFloat(parent.querySelector('#c-target').value);
+   var tieneTarget = !isNaN(targetVal) && targetVal > 0;
+   var metodo = parent.querySelector('#c-metodo').value;
+   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0;
+   var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    
    if(calculatedValues.total <= 0 && calculatedValues.base <= 0) return alert("El precio total no puede ser 0");
    
    var itemsData = [];
    var ivaTotalCotizacion = 0;
-   var subtotalCotizacion = 0;
+   var subtotalBaseCotizacion = 0;
+   var descuentoTotalCotizacion = 0;
 
    if(CART.length > 0) {
+       descuentoTotalCotizacion += descuentoGlobal;
+       
        CART.forEach(p => {
            var qty = p.cantidad || 1;
-           var unitPrice = p.precioUnitarioFinal || 0;
-           var totalItem = unitPrice * qty;
            
-           var itemIva = 0;
-           if (p.conIva || conIvaGlobal) {
-               itemIva = totalItem - (totalItem / 1.19);
+           if (tieneTarget) {
+               var unitPrice = p.precioUnitarioFinal || 0;
+               var totalItem = unitPrice * qty;
+               subtotalBaseCotizacion += totalItem;
+               itemsData.push({ 
+                   nombre: p.nombre, 
+                   descripcion: p.desc ? p.desc : p.cat,
+                   cantidad: qty, 
+                   valorUnitario: unitPrice, 
+                   total: totalItem,
+                   descuento: 0,
+                   conIva: false
+               });
+           } else if (p.manual) {
+               var unitPrice = p.precioUnitarioFinal || 0;
+               var totalItem = unitPrice * qty;
+               subtotalBaseCotizacion += totalItem;
+               itemsData.push({ 
+                   nombre: p.nombre, 
+                   descripcion: "Servicio / Ítem Manual",
+                   cantidad: qty, 
+                   valorUnitario: unitPrice, 
+                   total: totalItem,
+                   descuento: 0,
+                   conIva: false
+               });
+           } else {
+               var c = p.costo || 0;
+               var m = p.margenIndividual !== undefined ? p.margenIndividual : utilGlobal;
+               var d = p.descuentoIndividual || 0;
+               
+               var unitBase = c * (1 + m/100);
+               var totalBase = unitBase * qty;
+               var totalDescItem = d * qty;
+               
+               subtotalBaseCotizacion += totalBase;
+               descuentoTotalCotizacion += totalDescItem;
+               
+               var postDesc = totalBase - totalDescItem;
+               if (postDesc < 0) postDesc = 0;
+               
+               var itemIva = 0;
+               if (p.conIva || conIvaGlobal) {
+                   itemIva = postDesc * 0.19; 
+               }
+               ivaTotalCotizacion += itemIva;
+               
+               itemsData.push({ 
+                   nombre: p.nombre, 
+                   descripcion: p.desc ? p.desc : p.cat,
+                   cantidad: qty, 
+                   valorUnitario: unitBase, 
+                   total: totalBase,
+                   descuento: totalDescItem,
+                   conIva: p.conIva || conIvaGlobal
+               });
            }
-           ivaTotalCotizacion += itemIva;
-           subtotalCotizacion += (totalItem - itemIva);
-           
-           itemsData.push({ 
-               nombre: p.nombre, 
-               descripcion: p.desc ? p.desc : p.cat,
-               cantidad: qty, 
-               valorUnitario: unitPrice, 
-               total: totalItem 
-           });
        });
    } else {
-       var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
-       var baseManual = calculatedValues.total;
-       var ivaManual = 0;
-       if (conIvaGlobal) ivaManual = baseManual - (baseManual / 1.19);
+       var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
+       if (tieneTarget) manualVal = targetVal;
        
-       ivaTotalCotizacion = ivaManual;
-       subtotalCotizacion = baseManual - ivaManual;
+       if (tieneTarget) descuentoGlobal = 0;
+       
+       descuentoTotalCotizacion = descuentoGlobal;
+       subtotalBaseCotizacion = manualVal;
+       
+       var postDesc = manualVal - descuentoGlobal;
+       if(postDesc < 0) postDesc = 0;
+       
+       if (conIvaGlobal && !tieneTarget) {
+           ivaTotalCotizacion = postDesc * 0.19;
+       }
        
        itemsData.push({ 
-           nombre: nombreManual, 
+           nombre: parent.querySelector('#c-concepto').value || "Venta Manual", 
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
-           valorUnitario: baseManual, 
-           total: baseManual 
+           valorUnitario: manualVal, 
+           total: manualVal,
+           descuento: 0,
+           conIva: conIvaGlobal && !tieneTarget
        });
+   }
+   
+   var interesAplicado = 0;
+   if (metodo === "Crédito" && !tieneTarget) {
+       var preTotal = subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion;
+       var iniTemp = preTotal * 0.30;
+       var saldoTemp = preTotal - iniTemp;
+       interesAplicado = saldoTemp * (tasaMensual/100) * cuotas;
+       
+       if (interesAplicado > 0) {
+           itemsData.push({
+               nombre: "Intereses de Financiación",
+               descripcion: "Costo financiero por pago a crédito (" + cuotas + " cuotas)",
+               cantidad: 1,
+               valorUnitario: interesAplicado,
+               total: interesAplicado,
+               descuento: 0,
+               conIva: false
+           });
+           subtotalBaseCotizacion += interesAplicado; 
+       }
    }
 
    var fechaVal = parent.querySelector('#c-fecha').value;
-   
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
        totales: { 
-           subtotal: subtotalCotizacion, 
+           subtotal: subtotalBaseCotizacion, 
+           descuento: descuentoTotalCotizacion,
            iva: ivaTotalCotizacion,
-           descuento: calculatedValues.descuento || 0,
-           total: calculatedValues.total 
+           total: subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion 
        },
        fecha: fechaVal
    };
