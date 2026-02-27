@@ -5,7 +5,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJ
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem;
 var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
@@ -147,6 +147,7 @@ window.onload = function() {
   myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
   myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
   myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
+  myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -331,10 +332,60 @@ function toggleCart(p, el) {
        var item = Object.assign({}, p);
        item.cantidad = 1;
        item.conIva = false;
+       
+       // Toma el margen global actual como punto de partida
+       var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
+       item.margenIndividual = globalUtil;
+       item.descuentoIndividual = 0;
+       item.precioUnitarioFinal = 0;
+       
        CART.push(item); 
        if(el) el.classList.add('active'); 
    }
    updateCartUI();
+}
+
+// NUEVO: FUNCIONES DEL MODAL DE EDICIÓN DE ÍTEM (V119)
+function abrirEditorItem(id) {
+    var item = CART.find(x => x.id === id);
+    if (!item) return;
+    document.getElementById('edit-item-id').value = item.id;
+    document.getElementById('edit-item-nombre').value = item.nombre;
+    document.getElementById('edit-item-costo').value = item.costo || 0;
+    
+    var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
+    document.getElementById('edit-item-margen').value = item.margenIndividual !== undefined ? item.margenIndividual : globalUtil;
+    document.getElementById('edit-item-desc').value = item.descuentoIndividual || 0;
+    document.getElementById('edit-item-iva').checked = item.conIva || false;
+    
+    calcEditorItem();
+    myModalEditItem.show();
+}
+
+function calcEditorItem() {
+    var costo = parseFloat(document.getElementById('edit-item-costo').value) || 0;
+    var margen = parseFloat(document.getElementById('edit-item-margen').value) || 0;
+    var desc = parseFloat(document.getElementById('edit-item-desc').value) || 0;
+    var iva = document.getElementById('edit-item-iva').checked;
+    
+    var precio = costo * (1 + margen/100) - desc;
+    if (precio < 0) precio = 0;
+    if (iva) precio *= 1.19;
+    
+    document.getElementById('edit-item-total').innerText = COP.format(Math.round(precio));
+}
+
+function guardarEditorItem() {
+    var id = document.getElementById('edit-item-id').value;
+    var item = CART.find(x => x.id === id);
+    if (item) {
+        item.nombre = document.getElementById('edit-item-nombre').value;
+        item.margenIndividual = parseFloat(document.getElementById('edit-item-margen').value) || 0;
+        item.descuentoIndividual = parseFloat(document.getElementById('edit-item-desc').value) || 0;
+        item.conIva = document.getElementById('edit-item-iva').checked;
+    }
+    myModalEditItem.hide();
+    updateCartUI(true);
 }
 
 function toggleItemIva(id) {
@@ -377,7 +428,10 @@ function agregarItemManual() {
         publico: precio,
         cantidad: 1,
         conIva: false,
-        manual: true
+        manual: true,
+        margenIndividual: 0,
+        descuentoIndividual: 0,
+        precioUnitarioFinal: precio
     });
     updateCartUI(true);
 }
@@ -410,29 +464,10 @@ function updateCartUI(keepOpen = false) {
        document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
    } else {
        if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
-       document.querySelectorAll('#cart-items-list').forEach(e => {
-           e.style.display = 'block';
-           var html = '';
-           CART.forEach(x => {
-               var px = x.publico || 0;
-               html += `
-               <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                   <div class="lh-1" style="flex:1;">
-                       <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
-                       <small class="text-muted">${COP.format(px)} c/u</small>
-                   </div>
-                   <div class="d-flex align-items-center gap-2">
-                       <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
-                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
-                       <span class="fw-bold small">${x.cantidad || 1}</span>
-                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
-                   </div>
-               </div>`;
-           });
-           e.innerHTML = html;
-       });
+       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
    }
-   calcCart();
+   
+   calcCart(); // En V119, calcCart se encarga de renderizar la lista tras calcular precios exactos
 }
 
 function toggleManual() {
@@ -454,46 +489,67 @@ function calcCart() {
 
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
    var metodo = parent.querySelector('#c-metodo').value;
+   var conIvaGlobal = parent.querySelector('#c-iva').checked;
    var isManual = parent.querySelector('#c-manual').checked;
-   var util = parseFloat(parent.querySelector('#c-util').value)||0; 
-   var descuento = parseFloat(parent.querySelector('#c-desc').value)||0; 
+   var utilGlobal = parseFloat(parent.querySelector('#c-util').value)||0; 
+   var descuentoGlobal = parseFloat(parent.querySelector('#c-desc').value)||0; 
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    
    var baseParaCalculo = 0;
-   var baseSinIva = 0;
-   var baseConIva = 0;
+   var totalFinal = 0;
 
+   // NUEVA LÓGICA V119: CÁLCULO ÍTEM POR ÍTEM
    if (CART.length > 0) {
        CART.forEach(item => {
-           let cost = (item.costo || 0) * (item.cantidad || 1);
-           if (item.conIva) baseConIva += cost;
-           else baseSinIva += cost;
+           let c = item.costo || 0;
+           let q = item.cantidad || 1;
+           
+           if (item.manual) {
+               totalFinal += (item.precioUnitarioFinal * q);
+               baseParaCalculo += (item.precioUnitarioFinal * q);
+           } else {
+               let m = item.margenIndividual !== undefined ? item.margenIndividual : utilGlobal;
+               let d = item.descuentoIndividual || 0;
+               
+               let px = c * (1 + m/100) - d;
+               if (px < 0) px = 0;
+               
+               if (item.conIva || conIvaGlobal) px *= 1.19;
+               
+               item.precioUnitarioFinal = px;
+               
+               baseParaCalculo += (c * q);
+               totalFinal += (px * q);
+           }
        });
-       baseParaCalculo = baseSinIva + baseConIva;
+       
+       totalFinal -= descuentoGlobal;
+       if (totalFinal < 0) totalFinal = 0;
+
    } else {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
-       baseSinIva = baseParaCalculo; 
+       totalFinal = baseParaCalculo * (1 + utilGlobal/100) - descuentoGlobal;
+       if (totalFinal < 0) totalFinal = 0;
+       if (conIvaGlobal) totalFinal *= 1.19; 
    }
 
-   var totalFinal = 0;
    if (tieneTarget) {
        totalFinal = targetVal;
        parent.querySelector('#c-int').value = 0;
        parent.querySelector('#c-desc').value = 0;
-       descuento = 0;
-   } else {
-       if (CART.length === 0 && isManual) { 
-           totalFinal = baseParaCalculo; 
-       } else { 
-           totalFinal = (baseSinIva * (1 + util/100)) + (baseConIva * (1 + util/100) * 1.19);
-       }
+       descuentoGlobal = 0;
        
-       totalFinal -= descuento;
-       if (totalFinal < 0) totalFinal = 0;
-
+       if (CART.length > 0) {
+           let totalPrevio = CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal||0) * b.cantidad), 0);
+           CART.forEach(item => {
+               let peso = totalPrevio > 0 ? ((item.precioUnitarioFinal||0) * item.cantidad) / totalPrevio : 1 / CART.length;
+               item.precioUnitarioFinal = (targetVal * peso) / item.cantidad;
+           });
+       }
+   } else {
        if (metodo === "Crédito") {
            var iniTemp = totalFinal * 0.30;
            var saldoTemp = totalFinal - iniTemp;
@@ -504,12 +560,38 @@ function calcCart() {
    
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
-   calculatedValues.descuento = descuento;
+   calculatedValues.descuento = descuentoGlobal;
+
+   // Renderizado de la lista en base a los cálculos individuales
+   if (CART.length > 0) {
+       var listContainer = parent.querySelector('#cart-items-list');
+       if (listContainer) {
+           var html = '';
+           CART.forEach(x => {
+               var px = x.precioUnitarioFinal || 0;
+               html += `
+               <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                   <div class="lh-1" style="flex:1;">
+                       <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
+                       <small class="text-muted">${COP.format(Math.round(px))} c/u</small>
+                   </div>
+                   <div class="d-flex align-items-center gap-2">
+                       <button class="btn btn-sm btn-light border py-0 px-2 text-primary" onclick="abrirEditorItem('${x.id}')" title="Editar precio/descuento de este ítem">✏️</button>
+                       <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
+                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
+                       <span class="fw-bold small">${x.cantidad || 1}</span>
+                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
+                   </div>
+               </div>`;
+           });
+           listContainer.innerHTML = html;
+       }
+   }
 
    var rowDesc = parent.querySelector('#row-descuento');
    var resDescVal = parent.querySelector('#res-desc-val');
-   if(descuento > 0 && !tieneTarget) {
-       if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuento); }
+   if(descuentoGlobal > 0 && !tieneTarget) {
+       if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuentoGlobal); }
    } else {
        if(rowDesc) rowDesc.style.display = 'none';
    }
@@ -671,26 +753,11 @@ function finalizarVenta() {
    
    var itemsData = [];
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b) => {
-           let cost = (b.costo || 0) * (b.cantidad || 1);
-           if (b.conIva) cost *= 1.19;
-           return a + cost;
-       }, 0); 
-       var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
-       
        CART.forEach(p => {
            var qty = p.cantidad || 1;
-           var base = (p.costo || 0) * qty;
-           if (p.conIva) base *= 1.19;
+           var unitPrice = p.precioUnitarioFinal || 0;
 
            for (var i = 0; i < qty; i++) {
-               var pesoTotalItem = 0;
-               if (totalCostoRef > 0) pesoTotalItem = base / totalCostoRef;
-               else pesoTotalItem = qty / totalItemsCount;
-               
-               var totalItem = calculatedValues.total * pesoTotalItem;
-               var unitPrice = totalItem / qty;
-
                itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: unitPrice });
            }
        });
@@ -1090,7 +1157,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V118)
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA
 // =======================================================
 function toggleDatosFormales() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -1109,35 +1176,22 @@ function generarCotizacionPDF() {
    
    if(calculatedValues.total <= 0 && calculatedValues.base <= 0) return alert("El precio total no puede ser 0");
    
-   // Para que el descuento se vea reflejado al final, los items deben sumar el Total Pre-Descuento
-   var totalPreDescuento = calculatedValues.total + (calculatedValues.descuento || 0);
    var itemsData = [];
    var ivaTotalCotizacion = 0;
+   var subtotalCotizacion = 0;
 
    if(CART.length > 0) {
-       var totalCostoRef = CART.reduce((a,b) => {
-           let cost = (b.costo || 0) * (b.cantidad || 1);
-           if (b.conIva) cost *= 1.19;
-           return a + cost;
-       }, 0); 
-       var totalItemsCount = CART.reduce((a,b) => a + (b.cantidad || 1), 0);
-
        CART.forEach(p => {
            var qty = p.cantidad || 1;
-           var base = (p.costo || 0) * qty;
-           if (p.conIva) base *= 1.19;
-
-           var pesoTotalItem = 0;
-           if (totalCostoRef > 0) pesoTotalItem = base / totalCostoRef;
-           else pesoTotalItem = qty / totalItemsCount;
+           var unitPrice = p.precioUnitarioFinal || 0;
+           var totalItem = unitPrice * qty;
            
-           // El item en PDF absorbe su peso del Total ANTES del descuento
-           var totalItem = totalPreDescuento * pesoTotalItem;
-           var unitPrice = totalItem / qty;
-           
+           var itemIva = 0;
            if (p.conIva || conIvaGlobal) {
-               ivaTotalCotizacion += totalItem - (totalItem / 1.19);
+               itemIva = totalItem - (totalItem / 1.19);
            }
+           ivaTotalCotizacion += itemIva;
+           subtotalCotizacion += (totalItem - itemIva);
            
            itemsData.push({ 
                nombre: p.nombre, 
@@ -1149,13 +1203,19 @@ function generarCotizacionPDF() {
        });
    } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
-       if (conIvaGlobal) ivaTotalCotizacion = totalPreDescuento - (totalPreDescuento / 1.19);
+       var baseManual = calculatedValues.total;
+       var ivaManual = 0;
+       if (conIvaGlobal) ivaManual = baseManual - (baseManual / 1.19);
+       
+       ivaTotalCotizacion = ivaManual;
+       subtotalCotizacion = baseManual - ivaManual;
+       
        itemsData.push({ 
            nombre: nombreManual, 
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
-           valorUnitario: totalPreDescuento, 
-           total: totalPreDescuento 
+           valorUnitario: baseManual, 
+           total: baseManual 
        });
    }
 
@@ -1165,7 +1225,7 @@ function generarCotizacionPDF() {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
        totales: { 
-           subtotal: totalPreDescuento - ivaTotalCotizacion, 
+           subtotal: subtotalCotizacion, 
            iva: ivaTotalCotizacion,
            descuento: calculatedValues.descuento || 0,
            total: calculatedValues.total 
