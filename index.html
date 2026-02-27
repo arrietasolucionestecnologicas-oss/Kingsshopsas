@@ -421,15 +421,20 @@
        <div id="cart-items-list" class="mb-3 mt-2" style="max-height:150px; overflow-y:auto;">No hay ítems seleccionados...</div>
        
        <div class="row g-2 mb-3">
-         <div class="col-4 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
-         <div class="col-4 text-center"><small>Tasa Int. %</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
-         <div class="col-4 text-center"><small>Plazo (Meses)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Desc. $</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Tasa Int.%</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Plazo (M)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
        </div>
        
        <label class="small fw-bold text-muted mt-2">Fecha de Registro:</label>
        <input type="date" id="c-fecha" class="form-control mb-3" style="border-color: var(--gold);">
 
        <div class="alert alert-light border text-center py-2 mb-3" style="background-color: #fffcf5; border-color: var(--gold) !important;">
+          <div id="row-descuento" style="display:none; color: #e74c3c; font-size: 0.85rem; margin-bottom: 5px;">
+              <div class="d-flex justify-content-between"><span>Descuento:</span><strong id="res-desc-val">-$0</strong></div>
+          </div>
+          
           <div class="d-flex justify-content-between align-items-center">
              <span>Valor Total Venta:</span>
              <div class="text-end">
@@ -693,6 +698,6 @@
       });
     }
   </script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
 </body>
 </html>
