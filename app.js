@@ -437,32 +437,37 @@ function agregarItemManual() {
 function updateCartUI(keepOpen = false) {
    var count = CART.reduce((acc, item) => acc + (item.cantidad || 1), 0);
    
-   var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-   var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-   if(!parent) parent = document.getElementById('desktop-cart-container');
-   
    var btnFloat = document.getElementById('btn-float-cart');
    btnFloat.style.display = count > 0 ? 'block' : 'none';
    btnFloat.innerText = "🛒 " + count;
    
-   var dateInput = parent.querySelector('#c-fecha');
-   if(dateInput && !dateInput.value) {
-       var today = new Date();
-       var yyyy = today.getFullYear();
-       var mm = String(today.getMonth() + 1).padStart(2, '0');
-       var dd = String(today.getDate()).padStart(2, '0');
-       dateInput.value = `${yyyy}-${mm}-${dd}`;
-   }
+   var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
-   var inputConcepto = parent.querySelector('#c-concepto');
-   
-   if(CART.length === 0) {
-       if(!keepOpen) { document.getElementById('mobile-cart').classList.remove('visible'); }
-       if(inputConcepto) inputConcepto.style.display = 'block';
-       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
-   } else {
-       if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
-       document.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
+   panels.forEach(parent => {
+       if(!parent) return;
+       var dateInput = parent.querySelector('#c-fecha');
+       if(dateInput && !dateInput.value) {
+           var today = new Date();
+           var yyyy = today.getFullYear();
+           var mm = String(today.getMonth() + 1).padStart(2, '0');
+           var dd = String(today.getDate()).padStart(2, '0');
+           dateInput.value = `${yyyy}-${mm}-${dd}`;
+       }
+       
+       var inputConcepto = parent.querySelector('#c-concepto');
+       
+       if(CART.length === 0) {
+           if(inputConcepto) inputConcepto.style.display = 'block';
+           parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
+       } else {
+           if(inputConcepto) { inputConcepto.style.display = 'none'; inputConcepto.value = ''; }
+           parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
+       }
+   });
+
+   if(CART.length === 0 && !keepOpen) {
+       var mobCart = document.getElementById('mobile-cart');
+       if(mobCart) mobCart.classList.remove('visible');
    }
    
    calcCart(); 
@@ -470,29 +475,35 @@ function updateCartUI(keepOpen = false) {
 
 function toggleManual() {
     var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    if(!activeParent) activeParent = document.getElementById('desktop-cart-container');
 
-    var isManual = parent.querySelector('#c-manual').checked;
-    var inpTotal = parent.querySelector('#res-cont-input');
-    var inpUtil = parent.querySelector('#c-util');
+    var isManual = activeParent.querySelector('#c-manual').checked;
+    var inpTotal = activeParent.querySelector('#res-cont-input');
+    var inpUtil = activeParent.querySelector('#c-util');
 
-    if(isManual) { inpUtil.disabled = true; setTimeout(() => { inpTotal.focus(); }, 100); } else { inpUtil.disabled = false; }
+    if(isManual) { 
+        if(inpUtil) inpUtil.disabled = true; 
+        setTimeout(() => { if(inpTotal) inpTotal.focus(); }, 100); 
+    } else { 
+        if(inpUtil) inpUtil.disabled = false; 
+    }
     calcCart();
 }
 
 function calcCart() {
    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-   var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-   if(!parent) parent = document.getElementById('desktop-cart-container'); 
+   var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   if(!activeParent) activeParent = document.getElementById('desktop-cart-container'); 
 
-   var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
-   var metodo = parent.querySelector('#c-metodo').value;
-   var conIvaGlobal = parent.querySelector('#c-iva').checked;
-   var isManual = parent.querySelector('#c-manual').checked;
-   var utilGlobal = parseFloat(parent.querySelector('#c-util').value)||0; 
-   var descuentoGlobal = parseFloat(parent.querySelector('#c-desc').value)||0; 
-   var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0; 
-   var targetVal = parseFloat(parent.querySelector('#c-target').value);
+   var cuotas = parseInt(activeParent.querySelector('#c-cuotas').value)||1;
+   var metodo = activeParent.querySelector('#c-metodo').value;
+   var conIvaGlobal = activeParent.querySelector('#c-iva').checked;
+   var isManual = activeParent.querySelector('#c-manual').checked;
+   var utilGlobal = parseFloat(activeParent.querySelector('#c-util').value)||0; 
+   var descuentoGlobal = parseFloat(activeParent.querySelector('#c-desc').value)||0; 
+   var tasaMensual = parseFloat(activeParent.querySelector('#c-int').value)||0; 
+   var targetVal = parseFloat(activeParent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    
    var baseParaCalculo = 0;
@@ -526,7 +537,7 @@ function calcCart() {
        if (totalFinal < 0) totalFinal = 0;
 
    } else {
-       var manualVal = parseFloat(parent.querySelector('#res-cont-input').value);
+       var manualVal = parseFloat(activeParent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
        totalFinal = baseParaCalculo * (1 + utilGlobal/100) - descuentoGlobal;
        if (totalFinal < 0) totalFinal = 0;
@@ -535,8 +546,8 @@ function calcCart() {
 
    if (tieneTarget) {
        totalFinal = targetVal;
-       parent.querySelector('#c-int').value = 0;
-       parent.querySelector('#c-desc').value = 0;
+       if(activeParent.querySelector('#c-int')) activeParent.querySelector('#c-int').value = 0;
+       if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
        descuentoGlobal = 0;
        
        if (CART.length > 0) {
@@ -559,42 +570,9 @@ function calcCart() {
    calculatedValues.total = totalFinal;
    calculatedValues.descuento = descuentoGlobal;
 
-   if (CART.length > 0) {
-       var listContainer = parent.querySelector('#cart-items-list');
-       if (listContainer) {
-           var html = '';
-           CART.forEach(x => {
-               var px = x.precioUnitarioFinal || 0;
-               html += `
-               <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                   <div class="lh-1" style="flex:1;">
-                       <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
-                       <small class="text-muted">${COP.format(Math.round(px))} c/u</small>
-                   </div>
-                   <div class="d-flex align-items-center gap-2">
-                       <button class="btn btn-sm btn-light border py-0 px-2 text-primary" onclick="abrirEditorItem('${x.id}')" title="Editar precio/descuento de este ítem">✏️</button>
-                       <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
-                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
-                       <span class="fw-bold small">${x.cantidad || 1}</span>
-                       <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
-                   </div>
-               </div>`;
-           });
-           listContainer.innerHTML = html;
-       }
-   }
-
-   var rowDesc = parent.querySelector('#row-descuento');
-   var resDescVal = parent.querySelector('#res-desc-val');
-   if(descuentoGlobal > 0 && !tieneTarget) {
-       if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuentoGlobal); }
-   } else {
-       if(rowDesc) rowDesc.style.display = 'none';
-   }
-
-   var inpInicial = parent.querySelector('#c-inicial');
+   var inpInicial = activeParent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
-   var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && parent.contains(activeEl));
+   var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && activeParent.contains(activeEl));
    var inicial = 0;
    
    if (isTypingInicial) {
@@ -606,49 +584,110 @@ function calcCart() {
        if(isNaN(inicial)) inicial = 0;
    } else {
        inicial = Math.round(totalFinal * 0.30);
-       if(inpInicial) inpInicial.value = inicial; 
    }
    
    calculatedValues.inicial = inicial;
-
-   var rowCred = parent.querySelectorAll('#row-cred'); 
-   var totalText = document.querySelectorAll('#res-cont');
-   var inputTotal = parent.querySelector('#res-cont-input');
-
+   var valorCuota = 0;
    if(metodo === "Crédito") {
        var saldo = totalFinal - inicial;
        if(saldo < 0) saldo = 0;
-       var valorCuota = saldo / cuotas;
-
-       totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
-       if(CART.length === 0) { inputTotal.style.display = 'inline-block'; } else { inputTotal.style.display = 'none'; }
-
-       rowCred.forEach(e => { 
-           e.style.display = 'block'; 
-           e.querySelector('#res-ini').innerText = COP.format(Math.round(inicial)); 
-           e.querySelector('#res-cuota-val').innerText = COP.format(Math.round(valorCuota)); 
-           e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} mes(es)`; 
-       });
-       
-       if (inpInicial) {
-           inpInicial.style.display='block'; 
-           inpInicial.disabled = false;
-           inpInicial.style.background = '#fff';
-       }
-   } else { 
-       calculatedValues.inicial = 0;
-       totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
-       if (CART.length === 0) {
-           inputTotal.style.display = 'inline-block';
-           if(isManual) totalText.forEach(e => e.style.display = 'none');
-       } else { inputTotal.style.display = 'none'; }
-       
-       rowCred.forEach(e => e.style.display = 'none'); 
-       if(inpInicial) inpInicial.style.display='none'; 
+       valorCuota = saldo / cuotas;
    }
+
+   var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+   
+   panels.forEach(parent => {
+       if(!parent) return;
+
+       if (parent !== activeParent) {
+           if(parent.querySelector('#c-cuotas') && document.activeElement !== parent.querySelector('#c-cuotas')) parent.querySelector('#c-cuotas').value = cuotas;
+           if(parent.querySelector('#c-metodo') && document.activeElement !== parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = metodo;
+           if(parent.querySelector('#c-iva') && document.activeElement !== parent.querySelector('#c-iva')) parent.querySelector('#c-iva').checked = conIvaGlobal;
+           if(parent.querySelector('#c-manual') && document.activeElement !== parent.querySelector('#c-manual')) parent.querySelector('#c-manual').checked = isManual;
+           if(parent.querySelector('#c-util') && document.activeElement !== parent.querySelector('#c-util')) parent.querySelector('#c-util').value = utilGlobal;
+           if(parent.querySelector('#c-desc') && document.activeElement !== parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = descuentoGlobal;
+           if(parent.querySelector('#c-int') && document.activeElement !== parent.querySelector('#c-int')) parent.querySelector('#c-int').value = tasaMensual;
+           if(parent.querySelector('#c-target') && document.activeElement !== parent.querySelector('#c-target')) parent.querySelector('#c-target').value = isNaN(targetVal) ? '' : targetVal;
+           if(parent.querySelector('#c-cliente') && document.activeElement !== parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = activeParent.querySelector('#c-cliente').value;
+           if(parent.querySelector('#c-nit') && document.activeElement !== parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = activeParent.querySelector('#c-nit').value;
+           if(parent.querySelector('#c-tel') && document.activeElement !== parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = activeParent.querySelector('#c-tel').value;
+       }
+
+       if (CART.length > 0) {
+           var listContainer = parent.querySelector('#cart-items-list');
+           if (listContainer) {
+               var html = '';
+               CART.forEach(x => {
+                   var px = x.precioUnitarioFinal || 0;
+                   html += `
+                   <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                       <div class="lh-1" style="flex:1;">
+                           <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
+                           <small class="text-muted">${COP.format(Math.round(px))} c/u</small>
+                       </div>
+                       <div class="d-flex align-items-center gap-2">
+                           <button class="btn btn-sm btn-light border py-0 px-2 text-primary" onclick="abrirEditorItem('${x.id}')" title="Editar precio/descuento de este ítem">✏️</button>
+                           <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
+                           <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
+                           <span class="fw-bold small">${x.cantidad || 1}</span>
+                           <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
+                       </div>
+                   </div>`;
+               });
+               listContainer.innerHTML = html;
+           }
+       }
+
+       var rowDesc = parent.querySelector('#row-descuento');
+       var resDescVal = parent.querySelector('#res-desc-val');
+       if(descuentoGlobal > 0 && !tieneTarget) {
+           if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuentoGlobal); }
+       } else {
+           if(rowDesc) rowDesc.style.display = 'none';
+       }
+
+       var pInpInicial = parent.querySelector('#c-inicial');
+       if(!isTypingInicial || parent === activeParent) {
+           if(pInpInicial) pInpInicial.value = inicial; 
+       }
+
+       var rowCred = parent.querySelectorAll('#row-cred'); 
+       var totalText = parent.querySelectorAll('#res-cont');
+       var inputTotal = parent.querySelector('#res-cont-input');
+
+       if(metodo === "Crédito") {
+           totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
+           if(CART.length === 0) { if(inputTotal) inputTotal.style.display = 'inline-block'; } else { if(inputTotal) inputTotal.style.display = 'none'; }
+
+           rowCred.forEach(e => { 
+               e.style.display = 'block'; 
+               if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerText = COP.format(Math.round(inicial)); 
+               if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = COP.format(Math.round(valorCuota)); 
+               if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} mes(es)`; 
+           });
+           
+           if (pInpInicial) {
+               pInpInicial.style.display='block'; 
+               pInpInicial.disabled = false;
+               pInpInicial.style.background = '#fff';
+           }
+       } else { 
+           totalText.forEach(e => { e.innerText = COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
+           if (CART.length === 0) {
+               if(inputTotal) inputTotal.style.display = 'inline-block';
+               if(isManual) totalText.forEach(e => e.style.display = 'none');
+           } else { if(inputTotal) inputTotal.style.display = 'none'; }
+           
+           rowCred.forEach(e => e.style.display = 'none'); 
+           if(pInpInicial) pInpInicial.style.display='none'; 
+       }
+   });
 }
 
-function toggleMobileCart() { document.getElementById('mobile-cart').classList.toggle('visible'); }
+function toggleMobileCart() { 
+    document.getElementById('mobile-cart').classList.toggle('visible'); 
+    updateCartUI(true);
+}
 
 function toggleIni() { 
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
@@ -660,12 +699,15 @@ function toggleIni() {
 function clearCart() { 
     CART=[]; 
     usuarioForzoInicial = false;
-    var inpInicial = document.getElementById('c-inicial');
-    if(inpInicial) inpInicial.value = '';
     
-    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = '0';
+    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+    panels.forEach(parent => {
+        if(!parent) return;
+        var inpInicial = parent.querySelector('#c-inicial');
+        if(inpInicial) inpInicial.value = '';
+        var inpDesc = parent.querySelector('#c-desc');
+        if(inpDesc) inpDesc.value = '0';
+    });
     
     renderPos(); 
     updateCartUI(); 
@@ -1153,16 +1195,24 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V121)
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V122)
 // =======================================================
 function toggleDatosFormales() {
-    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    var box = parent.querySelector('#box-datos-formales');
-    if(box.style.display === 'none') { box.style.display = 'block'; } else { box.style.display = 'none'; }
+    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+    panels.forEach(parent => {
+        if(!parent) return;
+        var box = parent.querySelector('#box-datos-formales');
+        if(box) {
+            if(box.style.display === 'none') { box.style.display = 'block'; } else { box.style.display = 'none'; }
+        }
+    });
 }
 
 function generarCotizacionPDF() {
-   var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+   var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   if(!parent) parent = document.getElementById('desktop-cart-container');
+
    var cli = parent.querySelector('#c-cliente').value;
    if(!cli) return alert("Falta el Nombre del Cliente para la cotización");
    
