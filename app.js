@@ -1151,7 +1151,7 @@ function renderFin(){
       dataHist = dataHist.filter(x => (x.desc && x.desc.toLowerCase().includes(q)) || (x.monto && x.monto.toString().includes(q)));
   }
 
-  if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
+  if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movements registrados.</div>'; } 
   else { 
     dataHist.forEach((x)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
@@ -1195,7 +1195,7 @@ function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', 
 function verBancos() { const num = "0090894825"; Swal.fire({title:'Bancolombia',text:num,icon:'info',confirmButtonText:'Copiar'}).then((r)=>{if(r.isConfirmed)navigator.clipboard.writeText(num)}); }
 
 // =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA (V122)
+// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA
 // =======================================================
 function toggleDatosFormales() {
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
