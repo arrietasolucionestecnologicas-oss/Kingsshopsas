@@ -747,20 +747,7 @@ function shareQuote() {
 
 function embellecerDescripcion(texto) {
     if (!texto) return "Sin detalles disponibles.";
-    let t = texto;
-    const diccionario = [
-        { clave: "Pantalla", emoji: "📱" }, { clave: "Diseño", emoji: "✨" }, { clave: "Rendimiento", emoji: "🚀" },
-        { clave: "Procesador", emoji: "🧠" }, { clave: "Cámaras", emoji: "📸" }, { clave: "Cámara", emoji: "📷" },
-        { clave: "Batería", emoji: "🔋" }, { clave: "Seguridad", emoji: "🔒" }, { clave: "Audio", emoji: "🔊" },
-        { clave: "Sonido", emoji: "🔈" }, { clave: "Almacenamiento", emoji: "💾" }, { clave: "Memoria", emoji: "💾" },
-        { clave: "Conectividad", emoji: "📡" }, { clave: "Características", emoji: "📋" }, { clave: "Versión", emoji: "ℹ️" },
-        { clave: "Garantía", emoji: "🛡️" }
-    ];
-    diccionario.forEach(item => {
-        const regex = new RegExp(`(${item.clave}:?)`, 'gi');
-        t = t.replace(regex, (match) => { return `\n${item.emoji} *${match.trim()}*`; });
-    });
-    return t;
+    return texto;
 }
 
 function shareProdWhatsApp(id) {
@@ -774,7 +761,7 @@ function shareProdWhatsApp(id) {
     msg += `📝 *DETALLES:*\n${descripcionBonita}\n\n`; 
     if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *FOTO:* ${linkFoto}\n\n`; }
     msg += `👉 _¡Pregúntame por el precio!_\n`; 
-    msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
+    msg += `🤝 _Estamos atentos a cualquier inquietud_ 👑`; 
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
@@ -817,7 +804,7 @@ async function shareProductNative(id) {
         var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
         var desc = embellecerDescripcion(p.desc);
         
-        var shareText = `🔥 ${nombre}\n\n💰 Precio: ${precio}\n\n📦 Descripción:\n${desc}\n\n📲 Contáctanos ahora`;
+        var shareText = `🔥 ${nombre}\n\n💰 Precio: ${precio}\n\n📦 Descripción:\n${desc}\n\n🤝 Estamos atentos a cualquier inquietud`;
         
         var shareData = {
             title: nombre,
