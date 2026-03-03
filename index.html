@@ -216,6 +216,8 @@
     
     .nav-pills .nav-link.active { background-color: var(--primary) !important; color: var(--gold) !important; }
     .nav-pills .nav-link { color: var(--primary) !important; }
+
+    #modalEditItem { z-index: 6000 !important; }
   </style>
 </head>
 <body>
@@ -408,7 +410,10 @@
     <div class="cotizador-panel">
        <div class="d-flex justify-content-between mb-2 align-items-center">
          <h5 class="fw-bold m-0" style="color: var(--primary);">Resumen de Operación</h5>
-         <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Vaciar</button>
+         <div>
+            <button class="btn btn-sm btn-light border fw-bold text-secondary me-1" onclick="toggleMobileCart()">🔽 Ocultar</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Vaciar</button>
+         </div>
        </div>
        
        <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Descripción del ítem no catalogado..." style="display:none; border-left:4px solid var(--gold);">
@@ -748,6 +753,6 @@
       });
     }
   </script>
-  <script src="app.js?v=126"></script>
+  <script src="app.js?v=127"></script>
 </body>
 </html>
