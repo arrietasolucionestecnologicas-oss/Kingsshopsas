@@ -779,6 +779,89 @@ function shareProdWhatsApp(id) {
     window.open(url, '_blank');
 }
 
+async function getFileFromUrlAsync(url, defaultName) {
+    try {
+        if (url.startsWith('data:image')) {
+            var arr = url.split(',');
+            var mime = arr[0].match(/:(.*?);/)[1];
+            var bstr = atob(arr[1]);
+            var n = bstr.length;
+            var u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], defaultName + ".jpg", {type: mime});
+        } else {
+            const response = await fetch(url, { mode: 'cors' });
+            const blob = await response.blob();
+            return new File([blob], defaultName + ".jpg", {type: blob.type || "image/jpeg"});
+        }
+    } catch(e) {
+        console.error("Fallo al convertir URL a File:", e);
+        return null;
+    }
+}
+
+async function shareProductNative(id) {
+    var loader = document.getElementById('loader');
+    if(loader) loader.style.display = 'flex';
+    
+    try {
+        var p = D.inv.find(x => x.id === id);
+        if (!p) {
+            if(loader) loader.style.display = 'none';
+            return alert("Producto no encontrado");
+        }
+        
+        var nombre = p.nombre.toUpperCase();
+        var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
+        var desc = embellecerDescripcion(p.desc);
+        
+        var shareText = `🔥 ${nombre}\n\n💰 Precio: ${precio}\n\n📦 Descripción:\n${desc}\n\n📲 Contáctanos ahora`;
+        
+        var shareData = {
+            title: nombre,
+            text: shareText
+        };
+
+        var hasImage = false;
+        var fixedUrl = fixDriveLink(p.foto);
+        
+        if (fixedUrl && fixedUrl.length > 5) {
+            var cleanName = p.nombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            var file = await getFileFromUrlAsync(fixedUrl, cleanName);
+            if (file) {
+                shareData.files = [file];
+                hasImage = true;
+            }
+        }
+        
+        if(loader) loader.style.display = 'none';
+
+        if (navigator.canShare && navigator.share) {
+            if (hasImage && !navigator.canShare({ files: shareData.files })) {
+                console.warn("El dispositivo no soporta compartir archivos, se enviará solo texto.");
+                delete shareData.files;
+            }
+            
+            await navigator.share(shareData);
+            showToast("¡Compartido con éxito!", "success");
+        } else {
+            alert("Tu navegador no soporta compartir nativamente. Abriendo WhatsApp clásico.");
+            shareProdWhatsApp(id);
+        }
+    } catch(error) {
+        if(loader) loader.style.display = 'none';
+        console.error("Error compartiendo:", error);
+        if (error.name !== 'AbortError') {
+            alert("No se pudo compartir el archivo nativamente. Abriendo texto clásico.");
+            shareProdWhatsApp(id); 
+        } else {
+            showToast("Compartir cancelado por el usuario", "info");
+        }
+    }
+}
+
 function finalizarVenta() {
    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    var cli = parent.querySelector('#c-cliente').value;
@@ -1045,11 +1128,12 @@ function renderInv(){
         var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
         var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
+        var btnShareNative = `<div class="btn-copy-mini text-white" style="background:#25D366; border-color:#25D366;" onclick="shareProductNative('${p.id}')" title="Compartir Tarjeta Web"><i class="fas fa-share-nodes"></i> Enviar</div>`;
         var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
 
         var div = document.createElement('div');
         div.className = 'card-catalog';
-        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNoPrice}${btnLink}</div>`;
+        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNative}${btnLink}</div>`;
         c.appendChild(div);
     }); 
 }
@@ -1151,7 +1235,7 @@ function renderFin(){
       dataHist = dataHist.filter(x => (x.desc && x.desc.toLowerCase().includes(q)) || (x.monto && x.monto.toString().includes(q)));
   }
 
-  if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movements registrados.</div>'; } 
+  if(dataHist.length === 0) { h.innerHTML = '<div class="text-center text-muted p-3">Sin movimientos registrados.</div>'; } 
   else { 
     dataHist.forEach((x)=>{ 
         var i=(x.tipo.includes('ingreso')||x.tipo.includes('abono')); 
