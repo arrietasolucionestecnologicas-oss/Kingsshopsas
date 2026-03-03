@@ -758,7 +758,7 @@ function embellecerDescripcion(texto) {
     ];
     diccionario.forEach(item => {
         const regex = new RegExp(`(${item.clave}:?)`, 'gi');
-        t = t.replace(regex, (match) => { return `%0A${item.emoji} *${match.trim()}*`; });
+        t = t.replace(regex, (match) => { return `${item.emoji} *${match.trim()}*`; });
     });
     return t;
 }
@@ -769,13 +769,13 @@ function shareProdWhatsApp(id) {
     var nombre = p.nombre.toUpperCase();
     var descripcionBonita = embellecerDescripcion(p.desc);
     var linkFoto = fixDriveLink(p.foto); 
-    var msg = `👑 *KING'S SHOP* 👑%0A%0A`;
-    msg += `📦 *PRODUCTO:* ${nombre}%0A`;
-    msg += `📝 *DETALLES:*${descripcionBonita}%0A%0A`; 
-    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *FOTO:* ${linkFoto}%0A%0A`; }
-    msg += `👉 _¡Pregúntame por el precio!_%0A`; 
+    var msg = `👑 *KING'S SHOP* 👑\n\n`;
+    msg += `📦 *PRODUCTO:* ${nombre}\n`;
+    msg += `📝 *DETALLES:*\n${descripcionBonita}\n\n`; 
+    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *FOTO:* ${linkFoto}\n\n`; }
+    msg += `👉 _¡Pregúntame por el precio!_\n`; 
     msg += `🤝 _Siempre es un gusto atenderte_ 👑`; 
-    var url = "https://wa.me/?text=" + msg;
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
 
