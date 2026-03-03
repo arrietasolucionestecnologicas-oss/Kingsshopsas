@@ -758,7 +758,7 @@ function embellecerDescripcion(texto) {
     ];
     diccionario.forEach(item => {
         const regex = new RegExp(`(${item.clave}:?)`, 'gi');
-        t = t.replace(regex, (match) => { return `${item.emoji} *${match.trim()}*`; });
+        t = t.replace(regex, (match) => { return `\n${item.emoji} *${match.trim()}*`; });
     });
     return t;
 }
