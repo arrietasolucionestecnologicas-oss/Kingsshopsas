@@ -332,11 +332,23 @@ function toggleCart(p, el) {
        var item = Object.assign({}, p);
        item.cantidad = 1;
        item.conIva = false;
+       item.modificadoManualmente = false; // Flag para proteger edición de lápiz
        
-       var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
-       item.margenIndividual = globalUtil;
+       // Nueva Lógica de Prioridades
+       if (item.publico > 0) {
+           item.precioUnitarioFinal = item.publico; // Prioridad 2: Precio de base de datos
+           if(item.costo > 0) {
+               item.margenIndividual = ((item.publico / item.costo) - 1) * 100;
+           } else {
+               item.margenIndividual = 100;
+           }
+       } else {
+           var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
+           item.margenIndividual = globalUtil; // Prioridad 3: Regla General
+           item.precioUnitarioFinal = (item.costo || 0) * (1 + globalUtil/100);
+       }
+       
        item.descuentoIndividual = 0;
-       item.precioUnitarioFinal = 0;
        
        CART.push(item); 
        if(el) el.classList.add('active'); 
@@ -351,8 +363,7 @@ function abrirEditorItem(id) {
     document.getElementById('edit-item-nombre').value = item.nombre;
     document.getElementById('edit-item-costo').value = item.costo || 0;
     
-    var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
-    document.getElementById('edit-item-margen').value = item.margenIndividual !== undefined ? item.margenIndividual : globalUtil;
+    document.getElementById('edit-item-margen').value = item.margenIndividual.toFixed(1);
     document.getElementById('edit-item-desc').value = item.descuentoIndividual || 0;
     document.getElementById('edit-item-iva').checked = item.conIva || false;
     
@@ -363,14 +374,17 @@ function abrirEditorItem(id) {
 function calcEditorItem() {
     var costo = parseFloat(document.getElementById('edit-item-costo').value) || 0;
     var margen = parseFloat(document.getElementById('edit-item-margen').value) || 0;
-    var desc = parseFloat(document.getElementById('edit-item-desc').value) || 0;
+    var descPrc = parseFloat(document.getElementById('edit-item-desc').value) || 0; // Ahora es %
     var iva = document.getElementById('edit-item-iva').checked;
     
-    var precio = costo * (1 + margen/100) - desc;
-    if (precio < 0) precio = 0;
-    if (iva) precio *= 1.19;
+    var precioLista = costo * (1 + margen/100);
+    var descuentoMonto = precioLista * (descPrc / 100);
+    var precioNeto = precioLista - descuentoMonto;
     
-    document.getElementById('edit-item-total').innerText = COP.format(Math.round(precio));
+    if (precioNeto < 0) precioNeto = 0;
+    if (iva) precioNeto *= 1.19;
+    
+    document.getElementById('edit-item-total').innerText = COP.format(Math.round(precioNeto));
 }
 
 function guardarEditorItem() {
@@ -379,8 +393,9 @@ function guardarEditorItem() {
     if (item) {
         item.nombre = document.getElementById('edit-item-nombre').value;
         item.margenIndividual = parseFloat(document.getElementById('edit-item-margen').value) || 0;
-        item.descuentoIndividual = parseFloat(document.getElementById('edit-item-desc').value) || 0;
+        item.descuentoIndividual = parseFloat(document.getElementById('edit-item-desc').value) || 0; // %
         item.conIva = document.getElementById('edit-item-iva').checked;
+        item.modificadoManualmente = true; // Protegemos este item de los cambios globales
     }
     myModalEditItem.hide();
     updateCartUI(true);
@@ -427,7 +442,8 @@ function agregarItemManual() {
         cantidad: 1,
         conIva: false,
         manual: true,
-        margenIndividual: 0,
+        modificadoManualmente: true,
+        margenIndividual: costo > 0 ? ((precio/costo)-1)*100 : 100,
         descuentoIndividual: 0,
         precioUnitarioFinal: precio
     });
@@ -501,13 +517,14 @@ function calcCart() {
    var conIvaGlobal = activeParent.querySelector('#c-iva').checked;
    var isManual = activeParent.querySelector('#c-manual').checked;
    var utilGlobal = parseFloat(activeParent.querySelector('#c-util').value)||0; 
-   var descuentoGlobal = parseFloat(activeParent.querySelector('#c-desc').value)||0; 
+   var descuentoGlobalPrc = parseFloat(activeParent.querySelector('#c-desc').value)||0; // Ahora es % 
    var tasaMensual = parseFloat(activeParent.querySelector('#c-int').value)||0; 
    var targetVal = parseFloat(activeParent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    
    var baseParaCalculo = 0;
    var totalFinal = 0;
+   var descuentoDineroTotal = 0; // Para mostrar el resumen en COP
 
    if (CART.length > 0) {
        CART.forEach(item => {
@@ -518,10 +535,18 @@ function calcCart() {
                totalFinal += (item.precioUnitarioFinal * q);
                baseParaCalculo += (item.precioUnitarioFinal * q);
            } else {
-               let m = item.margenIndividual !== undefined ? item.margenIndividual : utilGlobal;
-               let d = item.descuentoIndividual || 0;
+               // Aplicar regla de persistencia visual
+               let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
                
-               let px = c * (1 + m/100) - d;
+               let precioLista = c * (1 + m/100);
+               
+               // El % global pisa al individual si el usuario lo usa, si no, se respeta el individual
+               let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
+               
+               let descuentoDinero = precioLista * (dPrc / 100);
+               descuentoDineroTotal += (descuentoDinero * q);
+               
+               let px = precioLista - descuentoDinero;
                if (px < 0) px = 0;
                
                if (item.conIva || conIvaGlobal) px *= 1.19;
@@ -532,14 +557,13 @@ function calcCart() {
                totalFinal += (px * q);
            }
        });
-       
-       totalFinal -= descuentoGlobal;
-       if (totalFinal < 0) totalFinal = 0;
-
    } else {
        var manualVal = parseFloat(activeParent.querySelector('#res-cont-input').value);
        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
-       totalFinal = baseParaCalculo * (1 + utilGlobal/100) - descuentoGlobal;
+       let precioListaBruto = baseParaCalculo * (1 + utilGlobal/100);
+       descuentoDineroTotal = precioListaBruto * (descuentoGlobalPrc / 100);
+       totalFinal = precioListaBruto - descuentoDineroTotal;
+       
        if (totalFinal < 0) totalFinal = 0;
        if (conIvaGlobal) totalFinal *= 1.19; 
    }
@@ -548,7 +572,7 @@ function calcCart() {
        totalFinal = targetVal;
        if(activeParent.querySelector('#c-int')) activeParent.querySelector('#c-int').value = 0;
        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
-       descuentoGlobal = 0;
+       descuentoDineroTotal = 0;
        
        if (CART.length > 0) {
            let totalPrevio = CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal||0) * b.cantidad), 0);
@@ -568,7 +592,7 @@ function calcCart() {
    
    calculatedValues.base = baseParaCalculo; 
    calculatedValues.total = totalFinal;
-   calculatedValues.descuento = descuentoGlobal;
+   calculatedValues.descuento = descuentoDineroTotal;
 
    var inpInicial = activeParent.querySelector('#c-inicial');
    var activeEl = document.activeElement;
@@ -605,7 +629,7 @@ function calcCart() {
            if(parent.querySelector('#c-iva') && document.activeElement !== parent.querySelector('#c-iva')) parent.querySelector('#c-iva').checked = conIvaGlobal;
            if(parent.querySelector('#c-manual') && document.activeElement !== parent.querySelector('#c-manual')) parent.querySelector('#c-manual').checked = isManual;
            if(parent.querySelector('#c-util') && document.activeElement !== parent.querySelector('#c-util')) parent.querySelector('#c-util').value = utilGlobal;
-           if(parent.querySelector('#c-desc') && document.activeElement !== parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = descuentoGlobal;
+           if(parent.querySelector('#c-desc') && document.activeElement !== parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = descuentoGlobalPrc;
            if(parent.querySelector('#c-int') && document.activeElement !== parent.querySelector('#c-int')) parent.querySelector('#c-int').value = tasaMensual;
            if(parent.querySelector('#c-target') && document.activeElement !== parent.querySelector('#c-target')) parent.querySelector('#c-target').value = isNaN(targetVal) ? '' : targetVal;
            if(parent.querySelector('#c-cliente') && document.activeElement !== parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = activeParent.querySelector('#c-cliente').value;
@@ -619,15 +643,16 @@ function calcCart() {
                var html = '';
                CART.forEach(x => {
                    var px = x.precioUnitarioFinal || 0;
+                   var isLocked = x.modificadoManualmente ? `<i class="fas fa-lock" style="font-size:0.6rem; color:var(--gold);"></i>` : '';
                    html += `
                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
                        <div class="lh-1" style="flex:1;">
-                           <small class="fw-bold" style="color:var(--primary);">${x.nombre}</small><br>
+                           <small class="fw-bold" style="color:var(--primary);">${isLocked} ${x.nombre}</small><br>
                            <small class="text-muted">${COP.format(Math.round(px))} c/u</small>
                        </div>
                        <div class="d-flex align-items-center gap-2">
-                           <button class="btn btn-sm btn-light border py-0 px-2 text-primary" onclick="abrirEditorItem('${x.id}')" title="Editar precio/descuento de este ítem">✏️</button>
-                           <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA a este ítem"><small>IVA</small></button>
+                           <button class="btn btn-sm ${x.modificadoManualmente ? 'btn-dark' : 'btn-light border'} py-0 px-2 text-primary" onclick="abrirEditorItem('${x.id}')" title="Editar precio/descuento">✏️</button>
+                           <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="toggleItemIva('${x.id}')" title="Aplicar IVA"><small>IVA</small></button>
                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', -1)">-</button>
                            <span class="fw-bold small">${x.cantidad || 1}</span>
                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="changeQty('${x.id}', 1)">+</button>
@@ -640,8 +665,8 @@ function calcCart() {
 
        var rowDesc = parent.querySelector('#row-descuento');
        var resDescVal = parent.querySelector('#res-desc-val');
-       if(descuentoGlobal > 0 && !tieneTarget) {
-           if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuentoGlobal); }
+       if(descuentoDineroTotal > 0 && !tieneTarget) {
+           if(rowDesc) { rowDesc.style.display = 'block'; resDescVal.innerText = "- " + COP.format(descuentoDineroTotal); }
        } else {
            if(rowDesc) rowDesc.style.display = 'none';
        }
@@ -1100,108 +1125,6 @@ function toggleWebStatus(id) {
     }
 }
 
-function renderInv(){ 
-    var q = document.getElementById('inv-search').value.toLowerCase().trim();
-    var filterProv = document.getElementById('filter-prov').value;
-    var c = document.getElementById('inv-list');
-    c.innerHTML=''; 
-    var lista = D.inv || [];
-    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
-    if(filterProv) { var fClean = filterProv.trim().toLowerCase(); lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean)); }
-
-    lista.slice(0, 50).forEach(p=>{
-        var descEncoded = encodeURIComponent(p.desc || "");
-        var fixedUrl = fixDriveLink(p.foto);
-        var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
-        var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
-        var btnShareNoPrice = `<div class="btn-copy-mini text-white" style="background:#17a2b8; border-color:#17a2b8;" onclick="shareProdWhatsApp('${p.id}')" title="Enviar Ficha (Sin Precio)"><i class="fas fa-file-alt"></i> Ficha</div>`;
-        var btnShareNative = `<div class="btn-copy-mini text-white" style="background:#25D366; border-color:#25D366;" onclick="shareProductNative('${p.id}')" title="Compartir Tarjeta Web"><i class="fas fa-share-nodes"></i> Enviar</div>`;
-        var btnLink = `<div class="btn-copy-mini" style="background:var(--gold); color:black;" onclick="shareProdLink('${p.id}')" title="Copiar Link Web"><i class="fas fa-link"></i></div>`;
-
-        var div = document.createElement('div');
-        div.className = 'card-catalog';
-        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNative}${btnLink}</div>`;
-        c.appendChild(div);
-    }); 
-}
-
-function copyingDato(txt) {
-    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
-    navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); });
-}
-
-function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
-
-function guardarCambiosAvanzado(){
-   if(!prodEdit) return; 
-   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value, costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
-   var f = document.getElementById('inp-file-foto').files[0];
-   var promise = Promise.resolve(null);
-   if(f) { promise = compressImage(f); }
-   promise.then(b64 => {
-       var idx = D.inv.findIndex(x => x.id === prodEdit.id);
-       if(idx > -1) { if(b64) { newVal.foto = b64; } D.inv[idx] = newVal; }
-       renderInv(); renderPos(); myModalEdit.hide(); showToast("Guardando cambios...", "info");
-       var payload = { id: newVal.id, nombre: newVal.nombre, categoria: newVal.cat, proveedor: newVal.prov, costo: newVal.costo, publico: newVal.publico, descripcion: newVal.desc, urlExistente: prodEdit.foto || "", enWeb: newVal.enWeb, catWeb: newVal.catWeb };
-       if(b64) { payload.imagenBase64 = b64.split(',')[1]; payload.mimeType = f.type; payload.nombreArchivo = f.name; }
-       callAPI('guardarProductoAvanzado', payload).then(r => { if(r.exito) { showToast("¡Guardado exitoso!", "success"); } else { showToast("Error guardando: " + r.error, "danger"); } });
-   });
-}
-
-function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
-function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
-
-function crearProducto(){ 
-    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
-    var f = document.getElementById('new-file-foto').files[0];
-    var promise = Promise.resolve(null);
-    if(f) { promise = compressImage(f); }
-    promise.then(b64 => {
-        var localProd = { id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, desc: d.descripcion, foto: b64 || "", enWeb: d.enWeb, catWeb: d.catWeb };
-        D.inv.unshift(localProd); renderInv(); myModalNuevo.hide(); showToast("Creando producto...", "info");
-        if(b64) { d.imagenBase64 = b64.split(',')[1]; d.mimeType = f.type; d.nombreArchivo = f.name; }
-        callAPI('crearProductoManual', d).then(r=>{ if(r.exito){ showToast("Producto sincronizado", "success"); } else { showToast("Error al crear en servidor", "danger"); } });
-    });
-}
-
-function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
-
-function verificarBanco() {
-    var real = parseFloat(document.getElementById('audit-banco').value) || 0;
-    var sys = (D.metricas && D.metricas.saldo) ? D.metricas.saldo : 0;
-    var diff = sys - real;
-    var el = document.getElementById('audit-res');
-    if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
-}
-
-function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
-
-function doGasto() {
-    var desc = document.getElementById('g-desc').value;
-    var monto = document.getElementById('g-monto').value;
-    var vinculoRaw = document.getElementById('g-vinculo').value; 
-    
-    if(!desc || !monto) return alert("Falta descripción o monto");
-
-    var vinculoClean = "";
-    var match = vinculoRaw.match(/\[(.*?)\]$/); 
-    if (match && match[1]) {
-        vinculoClean = match[1];
-    } else {
-        vinculoClean = vinculoRaw; 
-    }
-
-    var d = { 
-        desc: desc, 
-        cat: document.getElementById('g-cat').value, 
-        monto: monto, 
-        vinculo: vinculoClean 
-    };
-
-    document.getElementById('loader').style.display = 'flex';
-    callAPI('registrarGasto', d).then(() => location.reload());
-}
-
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
@@ -1291,7 +1214,7 @@ function generarCotizacionPDF() {
    var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
    var conIvaGlobal = parent.querySelector('#c-iva').checked;
    var utilGlobal = parseFloat(parent.querySelector('#c-util').value)||0; 
-   var descuentoGlobal = parseFloat(parent.querySelector('#c-desc').value)||0; 
+   var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc').value)||0; // Ahora es % 
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    var metodo = parent.querySelector('#c-metodo').value;
@@ -1303,11 +1226,9 @@ function generarCotizacionPDF() {
    var itemsData = [];
    var ivaTotalCotizacion = 0;
    var subtotalBaseCotizacion = 0;
-   var descuentoTotalCotizacion = 0;
+   var descuentoTotalCotizacion = 0; // Dinero ahorrado
 
    if(CART.length > 0) {
-       descuentoTotalCotizacion += descuentoGlobal;
-       
        CART.forEach(p => {
            var qty = p.cantidad || 1;
            
@@ -1320,6 +1241,7 @@ function generarCotizacionPDF() {
                    descripcion: p.desc ? p.desc : p.cat,
                    cantidad: qty, 
                    valorUnitarioBase: unitPrice, 
+                   descuentoPrc: 0,
                    descuentoUnitario: 0,
                    valorUnitarioFinal: unitPrice,
                    total: totalItem,
@@ -1334,6 +1256,7 @@ function generarCotizacionPDF() {
                    descripcion: "Servicio / Ítem Manual",
                    cantidad: qty, 
                    valorUnitarioBase: unitPrice, 
+                   descuentoPrc: 0,
                    descuentoUnitario: 0,
                    valorUnitarioFinal: unitPrice,
                    total: totalItem,
@@ -1341,12 +1264,14 @@ function generarCotizacionPDF() {
                });
            } else {
                var c = p.costo || 0;
-               var m = p.margenIndividual !== undefined ? p.margenIndividual : utilGlobal;
-               var d = p.descuentoIndividual || 0;
+               var m = p.modificadoManualmente ? p.margenIndividual : utilGlobal;
                
                var unitBase = c * (1 + m/100);
                var totalBase = unitBase * qty;
-               var totalDescItem = d * qty;
+               
+               var dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (p.descuentoIndividual || 0);
+               var descUnitario = unitBase * (dPrc / 100);
+               var totalDescItem = descUnitario * qty;
                
                subtotalBaseCotizacion += totalBase;
                descuentoTotalCotizacion += totalDescItem;
@@ -1365,7 +1290,8 @@ function generarCotizacionPDF() {
                    descripcion: p.desc ? p.desc : p.cat,
                    cantidad: qty, 
                    valorUnitarioBase: unitBase, 
-                   descuentoUnitario: d,
+                   descuentoPrc: dPrc,
+                   descuentoUnitario: descUnitario,
                    valorUnitarioFinal: (postDesc / qty),
                    total: postDesc,
                    conIva: p.conIva || conIvaGlobal
@@ -1376,12 +1302,13 @@ function generarCotizacionPDF() {
        var manualVal = parseFloat(parent.querySelector('#res-cont-input').value) || 0;
        if (tieneTarget) manualVal = targetVal;
        
-       if (tieneTarget) descuentoGlobal = 0;
+       var dPrc = tieneTarget ? 0 : descuentoGlobalPrc;
+       var descuentoDinero = manualVal * (dPrc / 100);
        
-       descuentoTotalCotizacion = descuentoGlobal;
+       descuentoTotalCotizacion = descuentoDinero;
        subtotalBaseCotizacion = manualVal;
        
-       var postDesc = manualVal - descuentoGlobal;
+       var postDesc = manualVal - descuentoDinero;
        if(postDesc < 0) postDesc = 0;
        
        if (conIvaGlobal && !tieneTarget) {
@@ -1393,7 +1320,8 @@ function generarCotizacionPDF() {
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
            valorUnitarioBase: manualVal,
-           descuentoUnitario: descuentoGlobal,
+           descuentoPrc: dPrc,
+           descuentoUnitario: descuentoDinero,
            valorUnitarioFinal: postDesc,
            total: postDesc,
            conIva: conIvaGlobal && !tieneTarget
@@ -1413,6 +1341,7 @@ function generarCotizacionPDF() {
                descripcion: "Costo financiero por pago a crédito (" + cuotas + " cuotas)",
                cantidad: 1,
                valorUnitarioBase: interesAplicado,
+               descuentoPrc: 0,
                descuentoUnitario: 0,
                valorUnitarioFinal: interesAplicado,
                total: interesAplicado,
