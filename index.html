@@ -427,7 +427,7 @@
        
        <div class="row g-2 mb-3">
          <div class="col-3 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
-         <div class="col-3 text-center"><small>Desc. $</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Desc. %</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="calcCart()"></div>
          <div class="col-3 text-center"><small>Tasa Int.%</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
          <div class="col-3 text-center"><small>Plazo (M)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
        </div>
@@ -713,7 +713,7 @@
                 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="small fw-bold text-danger">Descuento Unitario ($)</label>
+                        <label class="small fw-bold text-danger">Descuento Unitario (%)</label>
                         <input type="number" id="edit-item-desc" class="form-control border-danger" oninput="calcEditorItem()">
                     </div>
                     <div class="col-6 d-flex align-items-end">
@@ -753,6 +753,6 @@
       });
     }
   </script>
-  <script src="app.js?v=128"></script>
+  <script src="app.js?v=130"></script>
 </body>
 </html>
