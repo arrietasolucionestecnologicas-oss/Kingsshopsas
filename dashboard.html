@@ -15,7 +15,7 @@
     .btn-close-dash { background: #e94560; border: none; padding: 8px 20px; color: white; border-radius: 30px; font-weight: bold; font-size: 0.85rem; transition: 0.3s; text-decoration: none; }
     .btn-close-dash:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(233, 69, 96, 0.4); color:white; }
     
-    /* Selector de Mes (Reemplaza botones antiguos) */
+    /* Selector de Mes */
     .filter-group { background: #16213e; margin: 20px; padding: 15px; border-radius: 10px; display: flex; gap: 15px; border: 1px solid #0f3460; align-items: center; flex-wrap: wrap; justify-content: center; }
     .custom-month-input { background: #0f3460; border: 1px solid #4ecca3; color: white; padding: 8px 15px; border-radius: 8px; font-weight: bold; outline: none; }
     .custom-month-input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
@@ -25,39 +25,42 @@
     .kpi-card { background: #16213e; border-radius: 12px; padding: 20px; position: relative; overflow: hidden; height: 100%; transition: 0.3s; border: 1px solid transparent; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
     .kpi-card:hover { transform: translateY(-5px); border-color: #4ecca3; }
     .kpi-icon { position: absolute; right: -10px; top: -10px; font-size: 4rem; opacity: 0.05; transform: rotate(15deg); }
-    .kpi-label { font-size: 0.8rem; text-transform: uppercase; color: #8892b0; letter-spacing: 1px; margin-bottom: 5px; }
+    .kpi-label { font-size: 0.8rem; text-transform: uppercase; color: #4ecca3; letter-spacing: 1px; margin-bottom: 5px; }
     .kpi-value { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
-    .kpi-sub { font-size: 0.85rem; margin-top: 8px; }
+    
+    /* CORRECCIÓN DE COLORES TEXT-MUTED */
+    .text-muted { color: #aab2bd !important; }
+    .kpi-sub { font-size: 0.85rem; margin-top: 8px; color: #aab2bd; }
     
     .panel-box { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #1f2940; height: 100%; }
     .panel-title { font-weight: 700; color: #4ecca3; margin-bottom: 20px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
     
     .table-dark-custom { width: 100%; font-size: 0.9rem; }
-    .table-dark-custom td { padding: 10px 0; border-bottom: 1px solid #1f2940; color: #c0c0c0; }
+    .table-dark-custom td { padding: 10px 0; border-bottom: 1px solid #1f2940; color: #e0e0e0; }
     .table-dark-custom tr:last-child td { border-bottom: none; }
     .badge-rank { background: #0f3460; color: #4ecca3; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 10px; }
     
-    .text-pos { color: #4ecca3; } .text-neg { color: #e94560; } .text-warn { color: #fca311; }
+    .text-pos { color: #4ecca3 !important; } .text-neg { color: #ff4d4d !important; } .text-warn { color: #fca311 !important; }
     #loader { position: fixed; inset: 0; background: rgba(26, 26, 46, 0.95); z-index: 999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 
     /* HISTORIAL Y BUSCADOR */
-    .search-hist { background: #0f3460; border: 1px solid #1f2940; color: white; padding: 8px 15px; border-radius: 8px; width: 100%; outline: none; margin-bottom: 15px; }
-    .search-hist::placeholder { color: #8892b0; }
+    .search-hist { background: #0f3460; border: 1px solid #4ecca3; color: white; padding: 8px 15px; border-radius: 8px; width: 100%; outline: none; margin-bottom: 15px; }
+    .search-hist::placeholder { color: #aab2bd; }
     
     .hist-row { background: #1a1a2e; padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1f2940; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
     .hist-row:hover { border-color: #4ecca3; background: #0f3460; }
     .h-cliente { font-weight: bold; color: #fff; font-size: 0.95rem; }
-    .h-prod { color: #8892b0; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .h-prod { color: #aab2bd; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     .h-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; font-weight: bold; }
-    .bg-pend { background: rgba(233, 69, 96, 0.2); color: #e94560; border: 1px solid #e94560; }
+    .bg-pend { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
     .bg-pag { background: rgba(78, 204, 163, 0.2); color: #4ecca3; border: 1px solid #4ecca3; }
 
     /* MODAL RADIOGRAFÍA FINANCIERA */
-    .modal-content { background-color: #16213e; color: white; border: 1px solid #0f3460; border-radius: 15px; }
+    .modal-content { background-color: #16213e; color: white; border: 1px solid #4ecca3; border-radius: 15px; }
     .modal-header { border-bottom: 1px solid #0f3460; }
     .modal-title { color: #4ecca3; font-weight: bold; }
-    .rad-box { background: #1a1a2e; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed #1f2940; }
-    .rad-label { color: #8892b0; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px; display: block; }
+    .rad-box { background: #1a1a2e; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed #4ecca3; }
+    .rad-label { color: #aab2bd; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px; display: block; }
     .rad-val { font-size: 1.1rem; font-weight: bold; color: white; }
     .rad-secret { filter: blur(4px); cursor: pointer; transition: 0.2s; }
     .rad-secret.revealed { filter: blur(0); }
@@ -75,17 +78,17 @@
   <div class="container-fluid px-4">
     <div class="d-flex justify-content-center">
       <div class="filter-group">
-        <label class="text-muted fw-bold small">Trazabilidad de:</label>
+        <label class="fw-bold small" style="color: #4ecca3;">Trazabilidad de:</label>
         <input type="month" id="input-mes" class="custom-month-input">
         <button class="btn-aplicar" onclick="loadCustomMonth()"><i class="fas fa-search"></i> Extraer Datos</button>
       </div>
     </div>
 
     <div class="row g-3 mb-4">
-      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #4ecca3;"><i class="fas fa-dollar-sign kpi-icon"></i><div class="kpi-label">Ventas Brutas</div><div class="kpi-value" id="k-ventas">...</div><div class="kpi-sub text-success"><i class="fas fa-check-circle"></i> Ingresos Totales</div></div></div>
-      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #fca311;"><i class="fas fa-chart-pie kpi-icon"></i><div class="kpi-label">Margen Real</div><div class="kpi-value" id="k-margen">...%</div><div class="kpi-sub" id="k-util-monto">Util: $0</div></div></div>
-      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #e94560;"><i class="fas fa-hand-holding-usd kpi-icon"></i><div class="kpi-label">Cartera (Deuda)</div><div class="kpi-value text-neg" id="k-deuda">...</div><div class="kpi-sub text-muted">Global Pendiente</div></div></div>
-      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #3a86ff;"><i class="fas fa-receipt kpi-icon"></i><div class="kpi-label">Ticket Promedio</div><div class="kpi-value" id="k-ticket">...</div><div class="kpi-sub text-muted">Por transacción</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #4ecca3;"><i class="fas fa-dollar-sign kpi-icon"></i><div class="kpi-label">Ventas Brutas</div><div class="kpi-value" id="k-ventas">...</div><div class="kpi-sub text-pos"><i class="fas fa-check-circle"></i> Ingresos Totales</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #fca311;"><i class="fas fa-chart-pie kpi-icon"></i><div class="kpi-label">Margen Real</div><div class="kpi-value" id="k-margen">...%</div><div class="kpi-sub fw-bold" id="k-util-monto">Util: $0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #ff4d4d;"><i class="fas fa-hand-holding-usd kpi-icon"></i><div class="kpi-label">Cartera (Deuda)</div><div class="kpi-value text-neg" id="k-deuda">...</div><div class="kpi-sub">Global Pendiente</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #3a86ff;"><i class="fas fa-receipt kpi-icon"></i><div class="kpi-label">Ticket Promedio</div><div class="kpi-value" id="k-ticket">...</div><div class="kpi-sub">Por transacción</div></div></div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -97,7 +100,7 @@
               </div>
               <input type="text" id="hist-search" class="search-hist" placeholder="Buscar cliente, producto o ID..." onkeyup="filterHistorial()">
               <div id="hist-container" style="flex:1; overflow-y:auto; padding-right:5px; min-height:300px; max-height:400px;">
-                  <div class="text-center text-muted mt-5">Cargando operaciones...</div>
+                  <div class="text-center mt-5" style="color: #aab2bd;">Cargando operaciones...</div>
               </div>
           </div>
       </div>
@@ -111,9 +114,9 @@
     </div>
 
     <div class="row g-3">
-      <div class="col-md-4"><div class="panel-box"><div class="panel-title"><span><i class="fas fa-wallet"></i> Gastos del Mes</span></div><div style="height: 200px; position:relative;"><canvas id="chart-gastos"></canvas></div><div id="gastos-summary" class="mt-3 small text-muted text-center fst-italic"></div></div></div>
+      <div class="col-md-4"><div class="panel-box"><div class="panel-title"><span><i class="fas fa-wallet"></i> Gastos del Mes</span></div><div style="height: 200px; position:relative;"><canvas id="chart-gastos"></canvas></div><div id="gastos-summary" class="mt-3 small text-center fst-italic" style="color: #aab2bd;"></div></div></div>
       <div class="col-md-4"><div class="panel-box"><div class="panel-title"><span><i class="fas fa-crown"></i> Top Clientes</span></div><table class="table-dark-custom" id="list-clientes"></table></div></div>
-      <div class="col-md-4"><div class="panel-box" style="border-color: #e94560;"><div class="panel-title"><span class="text-neg"><i class="fas fa-bed"></i> Inventario Dormido</span></div><div class="alert alert-dark border-0 small mb-2 p-2" style="background:#1a1a2e; color:#8892b0;"><i class="fas fa-info-circle"></i> Productos sin ventas en el periodo</div><table class="table-dark-custom" id="list-dormidos"></table></div></div>
+      <div class="col-md-4"><div class="panel-box" style="border-color: #ff4d4d;"><div class="panel-title"><span class="text-neg"><i class="fas fa-bed"></i> Inventario Dormido</span></div><div class="alert alert-dark border-0 small mb-2 p-2" style="background:#1a1a2e; color:#aab2bd;"><i class="fas fa-info-circle"></i> Productos sin ventas en el periodo</div><table class="table-dark-custom" id="list-dormidos"></table></div></div>
     </div>
   </div>
 
@@ -126,21 +129,21 @@
         </div>
         <div class="modal-body">
             <div class="d-flex justify-content-between mb-3 border-bottom border-secondary pb-2">
-                <span class="text-muted small" id="rad-id">VEN-0000</span>
-                <span class="text-muted small" id="rad-fecha">00/00/0000</span>
+                <span class="small" id="rad-id" style="color: #aab2bd;">VEN-0000</span>
+                <span class="small" id="rad-fecha" style="color: #aab2bd;">00/00/0000</span>
             </div>
 
             <div class="rad-box">
                 <span class="rad-label">Cliente / Beneficiario</span>
                 <div class="rad-val text-info" id="rad-cliente">...</div>
-                <div class="text-muted small mt-1" id="rad-prod">...</div>
+                <div class="small mt-1" id="rad-prod" style="color: #aab2bd;">...</div>
             </div>
 
             <div class="row g-2 mb-3">
                 <div class="col-6">
-                    <div class="rad-box mb-0 h-100" style="border-color: var(--gold);">
+                    <div class="rad-box mb-0 h-100" style="border-color: #fca311;">
                         <span class="rad-label">Total Pactado</span>
-                        <div class="rad-val" id="rad-total" style="color: var(--gold);">...</div>
+                        <div class="rad-val" id="rad-total" style="color: #fca311;">...</div>
                         <span class="badge bg-dark mt-1" id="rad-metodo">...</span>
                     </div>
                 </div>
@@ -148,30 +151,30 @@
                     <div class="rad-box mb-0 h-100" id="box-deuda">
                         <span class="rad-label">Saldo Actual</span>
                         <div class="rad-val text-neg" id="rad-saldo">...</div>
-                        <div class="small text-muted mt-1" id="rad-plan">...</div>
+                        <div class="small mt-1" id="rad-plan" style="color: #aab2bd;">...</div>
                     </div>
                 </div>
             </div>
 
-            <div class="rad-box" style="background: rgba(233, 69, 96, 0.05); border-color: #e94560;">
+            <div class="rad-box" style="background: rgba(255, 77, 77, 0.05); border-color: #ff4d4d;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="rad-label text-neg mb-0"><i class="fas fa-lock"></i> Datos Confidenciales</span>
                     <button class="btn btn-sm btn-outline-danger py-0" onclick="revelarSecretos()" style="font-size:0.7rem;">👁️ Revelar</button>
                 </div>
                 <div class="row">
                     <div class="col-6">
-                        <small class="text-muted">Costo Base:</small><br>
+                        <small style="color: #aab2bd;">Costo Base:</small><br>
                         <strong class="rad-secret" id="rad-costo">...</strong>
                     </div>
                     <div class="col-6">
-                        <small class="text-muted">Utilidad Neta:</small><br>
-                        <strong class="rad-secret text-success" id="rad-ganancia">...</strong>
+                        <small style="color: #aab2bd;">Utilidad Neta:</small><br>
+                        <strong class="rad-secret text-pos" id="rad-ganancia">...</strong>
                     </div>
                 </div>
             </div>
 
             <div class="text-center mt-3">
-                <small class="text-muted">Vendedor Responsable: <strong class="text-white" id="rad-vendedor">...</strong></small>
+                <small style="color: #aab2bd;">Vendedor Responsable: <strong class="text-white" id="rad-vendedor">...</strong></small>
             </div>
         </div>
       </div>
@@ -180,9 +183,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // ============================================
-    // ⚠️ PEGA AQUÍ TU URL (LA MISMA DE APP.JS)
-    // ============================================
     const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
 
     var chartFlow, chartGastos, chartCats;
@@ -191,13 +191,10 @@
 
     window.onload = function() { 
         modalRad = new bootstrap.Modal(document.getElementById('modalRadiografia'));
-        
-        // Setear el input month al mes actual
         var hoy = new Date();
         var mm = String(hoy.getMonth() + 1).padStart(2, '0');
         var yyyy = hoy.getFullYear();
         document.getElementById('input-mes').value = `${yyyy}-${mm}`;
-        
         loadCustomMonth(); 
     };
 
@@ -221,9 +218,8 @@
         var parts = val.split('-');
         var payload = {
             anio: parseInt(parts[0]),
-            mes: parseInt(parts[1]) - 1 // JS los meses van de 0 a 11
+            mes: parseInt(parts[1]) - 1 
         };
-        
         document.getElementById('loader').style.display = 'flex';
         callAPI('getDashboardData', payload).then(renderData);
     }
@@ -233,25 +229,17 @@
       document.getElementById('k-ventas').innerText = fmt(data.kpis.ventas);
       document.getElementById('k-margen').innerText = data.kpis.margen + "%";
       document.getElementById('k-util-monto').innerText = "Util: " + fmt(data.kpis.utilidad);
-      document.getElementById('k-util-monto').className = data.kpis.utilidad >= 0 ? "kpi-sub text-pos" : "kpi-sub text-neg";
+      document.getElementById('k-util-monto').className = data.kpis.utilidad >= 0 ? "kpi-sub text-pos fw-bold" : "kpi-sub text-neg fw-bold";
       document.getElementById('k-deuda').innerText = fmt(data.kpis.deuda);
       document.getElementById('k-ticket').innerText = fmt(data.kpis.ticket);
-
-      // Render Charts
       renderFlowChart(data.charts.flujoVentas, data.charts.flujoGastos);
       renderGastosChart(data.charts.gastosLabels, data.charts.gastosData);
-      
-      // Top Clientes
       var htmlCli = "";
       data.listas.clientes.forEach((c, i) => { htmlCli += `<tr><td><span class="badge-rank">#${i+1}</span> ${c.k}</td><td class="text-end fw-bold text-pos">${fmt(c.v)}</td></tr>`; });
-      document.getElementById('list-clientes').innerHTML = htmlCli || "<tr><td class='text-center text-muted'>Sin datos</td></tr>";
-
-      // Inventario Dormido
+      document.getElementById('list-clientes').innerHTML = htmlCli || "<tr><td class='text-center' style='color: #aab2bd;'>Sin datos</td></tr>";
       var htmlSleep = "";
-      data.listas.dormidos.forEach(p => { htmlSleep += `<tr><td>${p.nombre}</td><td class="text-end text-muted small">Costo: ${fmt(p.costo)}</td></tr>`; });
-      document.getElementById('list-dormidos').innerHTML = htmlSleep || "<tr><td class='text-center text-muted'>¡Todo se vendió!</td></tr>";
-
-      // HISTORIAL DE OPERACIONES
+      data.listas.dormidos.forEach(p => { htmlSleep += `<tr><td>${p.nombre}</td><td class="text-end small" style="color: #4ecca3; font-weight: bold;">Costo: ${fmt(p.costo)}</td></tr>`; });
+      document.getElementById('list-dormidos').innerHTML = htmlSleep || "<tr><td class='text-center' style='color: #aab2bd;'>¡Todo se vendió!</td></tr>";
       dataHistorial = data.historialOperaciones || [];
       document.getElementById('count-hist').innerText = dataHistorial.length;
       renderHistorialTable(dataHistorial);
@@ -261,23 +249,21 @@
         var c = document.getElementById('hist-container');
         c.innerHTML = '';
         if(lista.length === 0) {
-            c.innerHTML = '<div class="text-center text-muted mt-5">No hay ventas registradas en este mes.</div>';
+            c.innerHTML = '<div class="text-center mt-5" style="color: #aab2bd;">No hay ventas registradas en este mes.</div>';
             return;
         }
-
         lista.forEach((v, index) => {
             var isPagado = (v.estado === 'Pagado');
             var badge = isPagado ? `<span class="h-badge bg-pag">PAGADO</span>` : `<span class="h-badge bg-pend">DEBE ${fmt(v.saldo)}</span>`;
-            
             c.innerHTML += `
             <div class="hist-row" onclick="abrirRadiografia(${index})">
                 <div>
                     <div class="h-cliente">${v.cliente}</div>
                     <div class="h-prod">${v.producto}</div>
-                    <small class="text-muted" style="font-size:0.7rem;">${v.fechaStr} | ${v.id}</small>
+                    <small style="font-size:0.7rem; color: #aab2bd;">${v.fechaStr} | ${v.id}</small>
                 </div>
                 <div class="text-end">
-                    <div class="fw-bold" style="color:var(--gold);">${fmt(v.total)}</div>
+                    <div class="fw-bold" style="color:#fca311;">${fmt(v.total)}</div>
                     <div class="mt-1">${badge}</div>
                 </div>
             </div>`;
@@ -287,34 +273,23 @@
     function filterHistorial() {
         var q = document.getElementById('hist-search').value.toLowerCase().trim();
         if(!q) { renderHistorialTable(dataHistorial); return; }
-        
-        var filtrados = dataHistorial.filter(v => 
-            v.cliente.toLowerCase().includes(q) || 
-            v.producto.toLowerCase().includes(q) || 
-            v.id.toLowerCase().includes(q)
-        );
+        var filtrados = dataHistorial.filter(v => v.cliente.toLowerCase().includes(q) || v.producto.toLowerCase().includes(q) || v.id.toLowerCase().includes(q));
         renderHistorialTable(filtrados);
     }
 
     function abrirRadiografia(index) {
         var v = dataHistorial[index];
         if(!v) return;
-
         document.getElementById('rad-id').innerText = v.id;
         document.getElementById('rad-fecha').innerText = v.fechaStr;
         document.getElementById('rad-cliente').innerText = v.cliente;
         document.getElementById('rad-prod').innerText = v.producto;
         document.getElementById('rad-total').innerText = fmt(v.total);
         document.getElementById('rad-metodo').innerText = v.metodo.toUpperCase();
-        
         document.getElementById('rad-costo').innerText = fmt(v.costo);
         document.getElementById('rad-ganancia').innerText = fmt(v.ganancia);
-        
-        // Ocultar secretos al abrir
         document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
-
         document.getElementById('rad-vendedor').innerText = v.vendedor;
-
         var boxDeuda = document.getElementById('box-deuda');
         if (v.estado === 'Pagado') {
             boxDeuda.style.borderColor = '#4ecca3';
@@ -322,13 +297,12 @@
             document.getElementById('rad-saldo').className = 'rad-val text-pos';
             document.getElementById('rad-plan').innerText = `Inicial: ${fmt(v.inicial)}`;
         } else {
-            boxDeuda.style.borderColor = '#e94560';
+            boxDeuda.style.borderColor = '#ff4d4d';
             document.getElementById('rad-saldo').innerText = fmt(v.saldo);
             document.getElementById('rad-saldo').className = 'rad-val text-neg';
             var cuotaTxt = v.cuotas > 1 ? `${v.cuotas} cuotas de ${fmt(v.valCuota)}` : `Pago único pendiente`;
             document.getElementById('rad-plan').innerText = `Inicial: ${fmt(v.inicial)} | ${cuotaTxt}`;
         }
-
         modalRad.show();
     }
 
@@ -338,13 +312,15 @@
 
     function renderFlowChart(vData, gData) {
       var ctx = document.getElementById('chart-flow').getContext('2d'); if(chartFlow) chartFlow.destroy();
-      chartFlow = new Chart(ctx, { type: 'line', data: { labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], datasets: [ { label: 'Ingresos', data: vData, borderColor: '#4ecca3', backgroundColor: 'rgba(78, 204, 163, 0.1)', tension: 0.4, fill: true }, { label: 'Gastos', data: gData, borderColor: '#e94560', backgroundColor: 'rgba(0,0,0,0)', tension: 0.4, borderDash: [5, 5] } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { grid: { color: '#1f2940' }, ticks: { color: '#8892b0' } }, x: { grid: { display: false }, ticks: { color: '#8892b0' } } } } });
+      chartFlow = new Chart(ctx, { type: 'line', data: { labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], datasets: [ { label: 'Ingresos', data: vData, borderColor: '#4ecca3', backgroundColor: 'rgba(78, 204, 163, 0.1)', tension: 0.4, fill: true }, { label: 'Gastos', data: gData, borderColor: '#ff4d4d', backgroundColor: 'rgba(0,0,0,0)', tension: 0.4, borderDash: [5, 5] } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { grid: { color: '#1f2940' }, ticks: { color: '#8892b0' } }, x: { grid: { display: false }, ticks: { color: '#8892b0' } } } } });
     }
+
     function renderGastosChart(labels, values) {
       var ctx = document.getElementById('chart-gastos').getContext('2d'); if(chartGastos) chartGastos.destroy();
       if(values.length === 0) { document.getElementById('gastos-summary').innerText = "Sin gastos registrados."; return; } else { document.getElementById('gastos-summary').innerText = ""; }
-      chartGastos = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: values, backgroundColor: ['#e94560', '#fca311', '#3a86ff', '#8338ec', '#ff006e'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#ccc', boxWidth: 10 } } }, cutout: '70%' } });
+      chartGastos = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: values, backgroundColor: ['#ff4d4d', '#fca311', '#3a86ff', '#8338ec', '#ff006e'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#ccc', boxWidth: 10 } } }, cutout: '70%' } });
     }
+
     function fmt(n) { return "$" + Number(n).toLocaleString('es-CO'); }
   </script>
 </body>
