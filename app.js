@@ -1125,6 +1125,106 @@ function toggleWebStatus(id) {
     }
 }
 
+function renderInv(){ 
+    var q = document.getElementById('inv-search').value.toLowerCase().trim();
+    var filterProv = document.getElementById('filter-prov').value;
+    var c = document.getElementById('inv-list');
+    c.innerHTML=''; 
+    var lista = D.inv || [];
+    if(q) { lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); }
+    if(filterProv) { var fClean = filterProv.trim().toLowerCase(); lista = lista.filter(p => p.prov && String(p.prov).trim().toLowerCase().includes(fClean)); }
+
+    lista.slice(0, 50).forEach(p=>{
+        var descEncoded = encodeURIComponent(p.desc || "");
+        var fixedUrl = fixDriveLink(p.foto);
+        var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
+        var precioDisplay = p.publico > 0 ? COP.format(p.publico) : 'N/A';
+        var btnShareNative = `<div class="btn-copy-mini text-white" style="background:#25D366; border-color:#25D366;" onclick="shareProductNative('${p.id}')" title="Compartir Tarjeta Web"><i class="fas fa-share-nodes"></i> Enviar</div>`;
+
+        var div = document.createElement('div');
+        div.className = 'card-catalog';
+        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNative}</div>`;
+        c.appendChild(div);
+    }); 
+}
+
+function copyingDato(txt) {
+    if(!txt || txt === 'undefined' || txt === '0') return alert("Dato vacío o no disponible");
+    navigator.clipboard.writeText(txt).then(() => { showToast("Copiado: " + txt.substring(0,10) + "..."); });
+}
+
+function previewFile(){ var f=document.getElementById('inp-file-foto').files[0]; if(f){var r=new FileReader();r.onload=e=>{document.getElementById('img-preview-box').src=e.target.result;document.getElementById('img-preview-box').style.display='block';};r.readAsDataURL(f);} }
+
+function guardarCambiosAvanzado(){
+   if(!prodEdit) return; 
+   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value, costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
+   var f = document.getElementById('inp-file-foto').files[0];
+   var promise = Promise.resolve(null);
+   if(f) { promise = compressImage(f); }
+   promise.then(b64 => {
+       var idx = D.inv.findIndex(x => x.id === prodEdit.id);
+       if(idx > -1) { if(b64) { newVal.foto = b64; } D.inv[idx] = newVal; }
+       renderInv(); renderPos(); myModalEdit.hide(); showToast("Guardando cambios...", "info");
+       var payload = { id: newVal.id, nombre: newVal.nombre, categoria: newVal.cat, proveedor: newVal.prov, costo: newVal.costo, publico: newVal.publico, descripcion: newVal.desc, urlExistente: prodEdit.foto || "", enWeb: newVal.enWeb, catWeb: newVal.catWeb };
+       if(b64) { payload.imagenBase64 = b64.split(',')[1]; payload.mimeType = f.type; payload.nombreArchivo = f.name; }
+       callAPI('guardarProductoAvanzado', payload).then(r => { if(r.exito) { showToast("¡Guardado exitoso!", "success"); } else { showToast("Error guardando: " + r.error, "danger"); } });
+   });
+}
+
+function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
+function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
+
+function crearProducto(){ 
+    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
+    var f = document.getElementById('new-file-foto').files[0];
+    var promise = Promise.resolve(null);
+    if(f) { promise = compressImage(f); }
+    promise.then(b64 => {
+        var localProd = { id: d.id, nombre: d.nombre, cat: d.categoria, prov: d.proveedor, costo: d.costo, publico: d.publico, desc: d.descripcion, foto: b64 || "", enWeb: d.enWeb, catWeb: d.catWeb };
+        D.inv.unshift(localProd); renderInv(); myModalNuevo.hide(); showToast("Creando producto...", "info");
+        if(b64) { d.imagenBase64 = b64.split(',')[1]; d.mimeType = f.type; d.nombreArchivo = f.name; }
+        callAPI('crearProductoManual', d).then(r=>{ if(r.exito){ showToast("Producto sincronizado", "success"); } else { showToast("Error al crear en servidor", "danger"); } });
+    });
+}
+
+function procesarWA(){ var p=document.getElementById('wa-prov').value,c=document.getElementById('wa-cat').value,t=document.getElementById('wa-text').value; if(!c||!t)return alert("Falta datos"); var btn=document.querySelector('#modalWA .btn-success'); btn.innerText="Procesando..."; btn.disabled=true; callAPI('procesarImportacionDirecta', {prov:p, cat:c, txt:t}).then(r=>{alert(r.mensaje||r.error);location.reload()}); }
+
+function verificarBanco() {
+    var real = parseFloat(document.getElementById('audit-banco').value) || 0;
+    var sys = (D.metricas && D.metricas.saldo) ? D.metricas.saldo : 0;
+    var diff = sys - real;
+    var el = document.getElementById('audit-res');
+    if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
+}
+
+function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
+
+function doGasto() {
+    var desc = document.getElementById('g-desc').value;
+    var monto = document.getElementById('g-monto').value;
+    var vinculoRaw = document.getElementById('g-vinculo').value; 
+    
+    if(!desc || !monto) return alert("Falta descripción o monto");
+
+    var vinculoClean = "";
+    var match = vinculoRaw.match(/\[(.*?)\]$/); 
+    if (match && match[1]) {
+        vinculoClean = match[1];
+    } else {
+        vinculoClean = vinculoRaw; 
+    }
+
+    var d = { 
+        desc: desc, 
+        cat: document.getElementById('g-cat').value, 
+        monto: monto, 
+        vinculo: vinculoClean 
+    };
+
+    document.getElementById('loader').style.display = 'flex';
+    callAPI('registrarGasto', d).then(() => location.reload());
+}
+
 function renderFin(){ 
   var s=document.getElementById('ab-cli'); s.innerHTML='<option value="">Seleccione...</option>'; 
   (D.deudores || []).filter(d => d.estado !== 'Castigado').forEach(d=>{ s.innerHTML+=`<option value="${d.idVenta}">${d.cliente} - ${d.producto} (Debe: ${COP.format(d.saldo)})</option>`; });
