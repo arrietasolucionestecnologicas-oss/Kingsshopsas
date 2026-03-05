@@ -206,11 +206,30 @@ function renderData(res) {
         document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
     }
     
+    var provSet = new Set();
+    D.proveedores.forEach(p => {
+        if(p.nombre) provSet.add(String(p.nombre).toUpperCase().trim());
+    });
+    (D.inv || []).forEach(p => {
+        if(p.prov) provSet.add(String(p.prov).toUpperCase().trim());
+    });
+    var allProvs = Array.from(provSet).sort();
+
     var provSelect = document.getElementById('filter-prov');
     if(provSelect) {
-        provSelect.innerHTML = '<option value="">Todos</option>';
-        D.proveedores.forEach(p => {
-            provSelect.innerHTML += `<option value="${p.nombre}">${p.nombre}</option>`;
+        provSelect.innerHTML = '<option value="">Todos los Proveedores</option>';
+        allProvs.forEach(p => {
+            provSelect.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+    }
+
+    var dlProvs = document.getElementById('list-provs-all');
+    if(dlProvs) {
+        dlProvs.innerHTML = '';
+        allProvs.forEach(p => {
+            var o = document.createElement('option');
+            o.value = p;
+            dlProvs.appendChild(o);
         });
     }
     
@@ -332,11 +351,10 @@ function toggleCart(p, el) {
        var item = Object.assign({}, p);
        item.cantidad = 1;
        item.conIva = false;
-       item.modificadoManualmente = false; // Flag para proteger edición de lápiz
+       item.modificadoManualmente = false; 
        
-       // Nueva Lógica de Prioridades
        if (item.publico > 0) {
-           item.precioUnitarioFinal = item.publico; // Prioridad 2: Precio de base de datos
+           item.precioUnitarioFinal = item.publico; 
            if(item.costo > 0) {
                item.margenIndividual = ((item.publico / item.costo) - 1) * 100;
            } else {
@@ -344,7 +362,7 @@ function toggleCart(p, el) {
            }
        } else {
            var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
-           item.margenIndividual = globalUtil; // Prioridad 3: Regla General
+           item.margenIndividual = globalUtil; 
            item.precioUnitarioFinal = (item.costo || 0) * (1 + globalUtil/100);
        }
        
@@ -374,7 +392,7 @@ function abrirEditorItem(id) {
 function calcEditorItem() {
     var costo = parseFloat(document.getElementById('edit-item-costo').value) || 0;
     var margen = parseFloat(document.getElementById('edit-item-margen').value) || 0;
-    var descPrc = parseFloat(document.getElementById('edit-item-desc').value) || 0; // Ahora es %
+    var descPrc = parseFloat(document.getElementById('edit-item-desc').value) || 0; 
     var iva = document.getElementById('edit-item-iva').checked;
     
     var precioLista = costo * (1 + margen/100);
@@ -393,9 +411,9 @@ function guardarEditorItem() {
     if (item) {
         item.nombre = document.getElementById('edit-item-nombre').value;
         item.margenIndividual = parseFloat(document.getElementById('edit-item-margen').value) || 0;
-        item.descuentoIndividual = parseFloat(document.getElementById('edit-item-desc').value) || 0; // %
+        item.descuentoIndividual = parseFloat(document.getElementById('edit-item-desc').value) || 0; 
         item.conIva = document.getElementById('edit-item-iva').checked;
-        item.modificadoManualmente = true; // Protegemos este item de los cambios globales
+        item.modificadoManualmente = true; 
     }
     myModalEditItem.hide();
     updateCartUI(true);
@@ -517,14 +535,14 @@ function calcCart() {
    var conIvaGlobal = activeParent.querySelector('#c-iva').checked;
    var isManual = activeParent.querySelector('#c-manual').checked;
    var utilGlobal = parseFloat(activeParent.querySelector('#c-util').value)||0; 
-   var descuentoGlobalPrc = parseFloat(activeParent.querySelector('#c-desc').value)||0; // Ahora es % 
+   var descuentoGlobalPrc = parseFloat(activeParent.querySelector('#c-desc').value)||0; 
    var tasaMensual = parseFloat(activeParent.querySelector('#c-int').value)||0; 
    var targetVal = parseFloat(activeParent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    
    var baseParaCalculo = 0;
    var totalFinal = 0;
-   var descuentoDineroTotal = 0; // Para mostrar el resumen en COP
+   var descuentoDineroTotal = 0; 
 
    if (CART.length > 0) {
        CART.forEach(item => {
@@ -535,12 +553,10 @@ function calcCart() {
                totalFinal += (item.precioUnitarioFinal * q);
                baseParaCalculo += (item.precioUnitarioFinal * q);
            } else {
-               // Aplicar regla de persistencia visual
                let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
                
                let precioLista = c * (1 + m/100);
                
-               // El % global pisa al individual si el usuario lo usa, si no, se respeta el individual
                let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
                
                let descuentoDinero = precioLista * (dPrc / 100);
@@ -1197,7 +1213,7 @@ function previewFile(){ var f=document.getElementById('inp-file-foto').files[0];
 
 function guardarCambiosAvanzado(){
    if(!prodEdit) return; 
-   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value, costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
+   var newVal = { id: prodEdit.id, nombre: document.getElementById('inp-edit-nombre').value, cat: document.getElementById('inp-edit-categoria').value, prov: document.getElementById('inp-edit-proveedor').value.toUpperCase().trim(), costo: parseFloat(document.getElementById('inp-edit-costo').value), publico: parseFloat(document.getElementById('inp-edit-publico').value), desc: document.getElementById('inp-edit-desc').value, foto: prodEdit.foto || "", enWeb: document.getElementById('inp-edit-web').checked, catWeb: document.getElementById('inp-edit-cat-web').value };
    var f = document.getElementById('inp-file-foto').files[0];
    var promise = Promise.resolve(null);
    if(f) { promise = compressImage(f); }
@@ -1215,7 +1231,7 @@ function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarPr
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
 function crearProducto(){ 
-    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value, costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
+    var d={ nombre:document.getElementById('new-nombre').value, categoria:document.getElementById('new-categoria').value, proveedor:document.getElementById('new-proveedor').value.toUpperCase().trim(), costo: parseFloat(document.getElementById('new-costo').value), publico: parseFloat(document.getElementById('new-publico').value), descripcion: document.getElementById('new-desc').value, enWeb: document.getElementById('new-web').checked, catWeb: document.getElementById('new-cat-web').value, id:document.getElementById('new-id').value||'GEN-'+Math.random() }; 
     var f = document.getElementById('new-file-foto').files[0];
     var promise = Promise.resolve(null);
     if(f) { promise = compressImage(f); }
@@ -1411,7 +1427,7 @@ function generarCotizacionPDF() {
    var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
    var conIvaGlobal = parent.querySelector('#c-iva').checked;
    var utilGlobal = parseFloat(parent.querySelector('#c-util').value)||0; 
-   var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc').value)||0; // Ahora es % 
+   var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc').value)||0; 
    var targetVal = parseFloat(parent.querySelector('#c-target').value);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
    var metodo = parent.querySelector('#c-metodo').value;
@@ -1423,7 +1439,7 @@ function generarCotizacionPDF() {
    var itemsData = [];
    var ivaTotalCotizacion = 0;
    var subtotalBaseCotizacion = 0;
-   var descuentoTotalCotizacion = 0; // Dinero ahorrado
+   var descuentoTotalCotizacion = 0; 
 
    if(CART.length > 0) {
        CART.forEach(p => {
