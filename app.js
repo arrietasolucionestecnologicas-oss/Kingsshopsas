@@ -912,7 +912,19 @@ function finalizarVenta() {
 }
 
 function abrirModalProv() { renderProvs(); myModalProv.show(); }
-function abrirModalNuevo() { document.getElementById('new-id').value=''; document.getElementById('new-file-foto').value = ""; myModalNuevo.show(); }
+function abrirModalNuevo() { 
+    document.getElementById('new-id').value=''; 
+    document.getElementById('new-file-foto').value = ""; 
+    document.getElementById('new-nombre').value = '';
+    document.getElementById('new-categoria').value = '';
+    document.getElementById('new-proveedor').value = '';
+    document.getElementById('new-costo').value = '';
+    document.getElementById('new-publico').value = '';
+    document.getElementById('new-desc').value = '';
+    document.getElementById('new-web').checked = false;
+    document.getElementById('new-cat-web').value = 'tecnologia';
+    myModalNuevo.show(); 
+}
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
@@ -1225,7 +1237,24 @@ function verificarBanco() {
     if(Math.abs(diff) < 1) { el.innerHTML = '<span class="badge bg-success">✅ Perfecto</span>'; } else { el.innerHTML = `<span class="badge bg-danger">❌ Desfase: ${COP.format(diff)}</span>`; }
 }
 
-function doIngresoExtra() { var desc = document.getElementById('inc-desc').value; var cat = document.getElementById('inc-cat').value; var monto = document.getElementById('inc-monto').value; if(!desc || !monto) return alert("Falta descripción o monto"); document.getElementById('loader').style.display = 'flex'; callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto }).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); }
+function doIngresoExtra() {
+    var desc = document.getElementById('inc-desc').value;
+    var cat = document.getElementById('inc-cat').value;
+    var monto = document.getElementById('inc-monto').value;
+    if(!desc || !monto) return alert("Falta descripción o monto");
+    
+    var ingresoNum = parseFloat(monto) || 0;
+    if(D.metricas) D.metricas.saldo += ingresoNum;
+    D.historial.unshift({ desc: "Ingreso Extra: " + desc, tipo: "ingresos", monto: ingresoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+    
+    document.getElementById('inc-desc').value = '';
+    document.getElementById('inc-monto').value = '';
+    renderFin();
+    if(D.metricas) document.getElementById('bal-caja').innerText = COP.format(D.metricas.saldo||0);
+    showToast("Ingreso registrado", "success");
+    
+    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto });
+}
 
 function doGasto() {
     var desc = document.getElementById('g-desc').value;
@@ -1249,8 +1278,18 @@ function doGasto() {
         vinculo: vinculoClean 
     };
 
-    document.getElementById('loader').style.display = 'flex';
-    callAPI('registrarGasto', d).then(() => location.reload());
+    var gastoNum = parseFloat(monto) || 0;
+    if(D.metricas) D.metricas.saldo -= gastoNum;
+    D.historial.unshift({ desc: "Gasto: " + desc, tipo: "egreso", monto: gastoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+
+    document.getElementById('g-desc').value = '';
+    document.getElementById('g-monto').value = '';
+    document.getElementById('g-vinculo').value = '';
+    renderFin();
+    if(D.metricas) document.getElementById('bal-caja').innerText = COP.format(D.metricas.saldo||0);
+    showToast("Gasto registrado", "success");
+
+    callAPI('registrarGasto', d);
 }
 
 function renderFin(){ 
@@ -1307,7 +1346,37 @@ function guardarEdicionMovimiento() {
     callAPI('editarMovimiento', payload).then(r => { if(r.exito) { showToast("Movimiento corregido", "success"); location.reload(); } else { alert("Error al editar: " + r.error); document.getElementById('loader').style.display = 'none'; } });
 }
 
-function doAbono(){ var id=document.getElementById('ab-cli').value; if(!id)return alert("Seleccione un cliente"); var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text; var cli=txt.split('(')[0].trim(); var monto = document.getElementById('ab-monto').value; var fechaVal = document.getElementById('ab-fecha').value; document.getElementById('loader').style.display='flex'; callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal}).then(()=>location.reload()); }
+function doAbono(){
+    var id=document.getElementById('ab-cli').value;
+    if(!id)return alert("Seleccione un cliente");
+    var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text;
+    var cli=txt.split('(')[0].trim();
+    var monto = document.getElementById('ab-monto').value;
+    var fechaVal = document.getElementById('ab-fecha').value;
+    
+    var abonoNum = parseFloat(monto) || 0;
+    if(D.metricas) D.metricas.saldo += abonoNum;
+    
+    var dIndex = D.deudores.findIndex(x => x.idVenta === id);
+    if(dIndex > -1) {
+        D.deudores[dIndex].saldo -= abonoNum;
+        if(D.deudores[dIndex].saldo < 0) D.deudores[dIndex].saldo = 0;
+        if(D.deudores[dIndex].saldo <= 100) {
+            D.deudores[dIndex].estado = 'Pagado';
+        }
+    }
+    
+    D.historial.unshift({ desc: "Abono: " + cli, tipo: "abono", monto: abonoNum, fecha: fechaVal || new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+    
+    document.getElementById('ab-monto').value = '';
+    renderCartera();
+    renderFin();
+    if(D.metricas) document.getElementById('bal-caja').innerText = COP.format(D.metricas.saldo||0);
+    showToast("Abono registrado", "success");
+    
+    callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal});
+}
+
 function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
 function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
 function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
