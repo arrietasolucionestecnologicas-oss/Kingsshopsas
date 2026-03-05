@@ -750,7 +750,7 @@ function shareQuote() {
     
     var total = calculatedValues.total;
     var metodo = parent.querySelector('#c-metodo').value;
-    var msg = `Hola *${cli}*, esta es tu cotización en King's Shop:\n\n`;
+    var msg = `Hola *${cli.trim()}*, esta es tu cotización en King's Shop:\n\n`;
     msg += `📦 *Producto(s):* ${concepto}\n`;
     
     if(metodo === "Crédito") {
@@ -1032,7 +1032,7 @@ function notificarCobroWA(idVenta) {
     var fechaTxt = d.fechaLimite || "Pago Inmediato";
     
     var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola *${d.cliente}*, esperamos que estés teniendo un excelente día. 👋\n\n`;
+    msg += `Hola *${d.cliente.trim()}*, esperamos que estés teniendo un excelente día. 👋\n\n`;
     msg += `Te escribimos desde el área de cartera para enviarte el recordatorio de tu pago programado:\n\n`;
     msg += `📦 *Producto:* ${d.producto}\n`;
     
