@@ -996,6 +996,7 @@ function renderCartera() {
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
                         <div class="mt-1 d-flex gap-1 justify-content-end">
                             <span class="badge-debt">Pendiente</span>
+                            <button class="btn btn-xs btn-outline-success" onclick="notificarCobroWA('${d.idVenta}')" title="Notificar Cobro"><i class="fab fa-whatsapp"></i></button>
                             <button class="btn btn-xs btn-outline-primary" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente}', ${d.saldo})" title="Refinanciar Deuda">🔄</button>
                             <button class="btn btn-xs btn-outline-dark" onclick="castigarDeuda('${d.idVenta}', '${d.cliente}')" title="Castigar Cartera (Lista Negra)">☠️</button>
                         </div>
@@ -1020,6 +1021,33 @@ function renderCartera() {
     }
     
     if(bal) bal.innerText = COP.format(totalDeuda);
+}
+
+function notificarCobroWA(idVenta) {
+    var d = D.deudores.find(x => x.idVenta === idVenta);
+    if (!d) return alert("Error: Deuda no encontrada en memoria.");
+    
+    var valCuotaReal = parseFloat(d.valCuota) || 0;
+    var numCuotas = parseInt(d.cuotas) || 1;
+    var fechaTxt = d.fechaLimite || "Pago Inmediato";
+    
+    var msg = `👑 *KING'S SHOP* 👑\n\n`;
+    msg += `Hola *${d.cliente}*, esperamos que estés teniendo un excelente día. 👋\n\n`;
+    msg += `Te escribimos desde el área de cartera para enviarte el recordatorio de tu pago programado:\n\n`;
+    msg += `📦 *Producto:* ${d.producto}\n`;
+    
+    if (valCuotaReal > 0 && numCuotas > 1) {
+        msg += `💳 *Valor de la Cuota:* ${COP.format(valCuotaReal)}\n`;
+    }
+    
+    msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
+    msg += `📊 *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
+    msg += `🏦 *Medios de Pago:*\n`;
+    msg += `Puedes realizar tu transferencia a Bancolombia o Nequi.\n\n`;
+    msg += `Quedamos atentos a tu comprobante. ¡Gracias por tu puntualidad y preferencia! 🤝`;
+
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
 }
 
 function abrirModalRefinanciar(id, cliente, saldo) {
