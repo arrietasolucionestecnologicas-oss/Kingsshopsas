@@ -499,7 +499,7 @@
                     <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                 </div>
 
-                <div class="mb-2"><label class="small fw-bold">Proveedor Asignado</label><input id="inp-edit-proveedor" class="form-control"></div>
+                <div class="mb-2"><label class="small fw-bold">Proveedor Asignado</label><input list="list-provs-all" id="inp-edit-proveedor" class="form-control"></div>
                 <div class="mb-2"><label class="small fw-bold">Ficha Técnica / Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
                 
                 <div class="p-3 bg-light rounded border my-3">
@@ -548,7 +548,7 @@
                         <input type="number" id="new-publico" class="form-control" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                     </div>
 
-                    <div class="mb-2"><label class="small fw-bold">Proveedor</label><input id="new-proveedor" class="form-control"></div>
+                    <div class="mb-2"><label class="small fw-bold">Proveedor</label><input list="list-provs-all" id="new-proveedor" class="form-control"></div>
                     <div class="mb-2"><label class="small fw-bold">Detalles / Specs</label><textarea id="new-desc" class="form-control"></textarea></div>
                     <div class="mb-3"><label class="small fw-bold">Código SKU (Generado)</label><input id="new-id" class="form-control bg-light" readonly></div>
 
@@ -739,6 +739,7 @@
   </div>
 
   <datalist id="list-cats"></datalist>
+  <datalist id="list-provs-all"></datalist>
   <datalist id="list-prods-all"></datalist>
   <datalist id="g-vinculo-list"></datalist>
 
