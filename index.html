@@ -59,7 +59,7 @@
 
     /* LAYOUT VENTAS */
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
-    .list-column { flex: 1; }
+    .list-column { flex: 1; min-width: 0; }
     .panel-column { width: 350px; position: sticky; top: 10px; display: none; } 
     @media (min-width: 992px) { .panel-column { display: block; } }
 
@@ -78,10 +78,10 @@
     .pos-row-lite:hover { transform: translateX(3px); border-left-color: var(--gold); }
     .pos-row-lite.active { border-left-color: var(--gold); background: #fffcf5; border-right: 1px solid var(--gold); }
     
-    .pos-row-lite .info { flex: 1; }
+    .pos-row-lite .info { flex: 1; min-width: 0; padding-right: 10px; }
     .pos-row-lite .name { font-weight: 700; color: var(--primary); font-size: 0.95rem; margin-bottom: 2px; }
     .pos-row-lite .meta { font-size: 0.75rem; color: #888; }
-    .pos-row-lite .price { font-weight: 700; font-size: 1.1rem; color: var(--gold-hover); text-align: right; min-width: 80px; }
+    .pos-row-lite .price { font-weight: 700; font-size: 1.1rem; color: var(--gold-hover); text-align: right; white-space: nowrap; }
     
     /* --- ESTILO CATÁLOGO: GRID (STOCK) --- */
     .catalog-grid {
@@ -138,7 +138,7 @@
     .input-line { border:none; border-bottom: 2px solid #eee; width:100%; text-align:center; font-weight:bold; outline:none; color: var(--primary); }
 
     /* PANEL MOVIL */
-    .mobile-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 5000; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 30px rgba(0,0,0,0.3); transform: translateY(110%); transition: transform 0.3s; }
+    .mobile-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 5000; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 30px rgba(0,0,0,0.3); transform: translateY(110%); transition: transform 0.3s; max-height: 85vh; overflow-y: auto; }
     .mobile-panel.visible { transform: translateY(0); }
 
     .card-k { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: none; }
@@ -479,13 +479,36 @@
     </div>
   </template>
 
-  <div class="modal fade" id="modalProv" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3" style="color: var(--primary);">👥 Directorio de Proveedores</h6><div class="input-group mb-3"><input id="new-prov-name" class="form-control" placeholder="Nombre Empresa/Prov"><input id="new-prov-tel" class="form-control" placeholder="Teléfono/WhatsApp"><button class="btn btn-primary" onclick="guardarProvManual()">💾 Guardar</button></div><div id="list-provs" style="max-height:300px; overflow-y:auto;"></div></div></div></div></div>
+  <div class="modal fade" id="modalProv" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold" style="color: var(--primary);">👥 Directorio de Proveedores</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group mb-3">
+            <input id="new-prov-name" class="form-control" placeholder="Nombre Empresa/Prov">
+            <input id="new-prov-tel" class="form-control" placeholder="Teléfono/WhatsApp">
+            <button class="btn btn-primary" onclick="guardarProvManual()">💾 Guardar</button>
+          </div>
+          <div id="list-provs" style="max-height:300px; overflow-y:auto;"></div>
+          <div class="d-flex gap-2 mt-3">
+             <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="modalEdicion" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">Modificar Producto</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">Modificar Producto</h6>
                 <div class="mb-2"><label class="small fw-bold">Nombre del Producto</label><input id="inp-edit-nombre" class="form-control fw-bold" style="color: var(--primary);"></div>
                 <div class="row g-2 mb-2">
                     <div class="col-6">
@@ -526,17 +549,24 @@
                     </div>
                 </div>
 
-                <div class="d-grid gap-2"><button class="btn btn-primary" onclick="guardarCambiosAvanzado()">Guardar Cambios</button><button class="btn btn-outline-danger" onclick="eliminarProductoActual()">Eliminar del Sistema</button></div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary w-50" onclick="guardarCambiosAvanzado()">Guardar Cambios</button>
+                </div>
+                <button class="btn btn-outline-danger w-100 mt-2" onclick="eliminarProductoActual()">Eliminar del Sistema</button>
             </div>
         </div>
     </div>
   </div>
 
   <div class="modal fade" id="modalNuevo" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">Alta de Nuevo Producto</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">Alta de Nuevo Producto</h6>
                 <form onsubmit="event.preventDefault(); crearProducto();">
                     <div class="mb-2"><label class="small fw-bold">Nombre del Ítem</label><input id="new-nombre" class="form-control" required></div>
                     <div class="row g-2 mb-2">
@@ -572,20 +602,45 @@
                         <input type="file" id="new-file-foto" accept="image/*" class="form-control">
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100" style="color: var(--gold);">Confirmar Creación</button>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary w-50 fw-bold" style="color: var(--gold);">Confirmar</button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
   </div>
 
-  <div class="modal fade" id="modalWA" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-body"><h6 class="fw-bold mb-3 text-success">Importación Masiva desde WhatsApp</h6><p class="small text-muted">Pega el texto del chat con la lista de precios para crear productos automáticamente.</p><input id="wa-prov" class="form-control mb-2" placeholder="Nombre Proveedor"><input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría Asignada"><textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pegar texto aquí..."></textarea><button class="btn btn-success w-100" onclick="procesarWA()">Procesar Texto</button></div></div></div></div>
+  <div class="modal fade" id="modalWA" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold text-success"><i class="fab fa-whatsapp"></i> Importación Masiva</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted">Pega el texto del chat con la lista de precios para crear productos automáticamente.</p>
+          <input id="wa-prov" class="form-control mb-2" placeholder="Nombre Proveedor">
+          <input list="list-cats" id="wa-cat" class="form-control mb-2" placeholder="Categoría Asignada">
+          <textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pegar texto aquí..."></textarea>
+          <div class="d-flex gap-2">
+             <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+             <button class="btn btn-success w-50" onclick="procesarWA()">Procesar Texto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="modalPed" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">Generar Solicitud de Compra</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold" style="color: var(--primary);">Generar Solicitud de Compra</h6>
                 <label class="small fw-bold">Producto Requerido *</label>
                 <input list="list-prods-all" id="pe-prod" class="form-control mb-2" placeholder="Buscar o escribir nombre...">
                 <label class="small fw-bold">Proveedor Destino</label>
@@ -594,17 +649,23 @@
                 <input type="number" id="pe-costo" class="form-control mb-2" placeholder="$">
                 <label class="small fw-bold">Observaciones</label>
                 <input id="pe-nota" class="form-control mb-2" placeholder="Especificaciones, colores, etc...">
-                <button class="btn btn-primary w-100" onclick="savePed()">Crear Orden</button>
+                <div class="d-flex gap-2 mt-3">
+                   <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                   <button class="btn btn-primary w-50" onclick="savePed()">Crear Orden</button>
+                </div>
             </div>
         </div>
     </div>
   </div>
 
   <div class="modal fade" id="modalEditPed" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">Modificar Orden de Compra</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold" style="color: var(--primary);">Modificar Orden de Compra</h6>
                 <label class="small fw-bold">Producto</label>
                 <input list="list-prods-all" id="ed-ped-prod" class="form-control mb-2">
                 <label class="small fw-bold">Proveedor</label>
@@ -613,17 +674,23 @@
                 <input type="number" id="ed-ped-costo" class="form-control mb-2">
                 <label class="small fw-bold">Notas Adicionales</label>
                 <input id="ed-ped-nota" class="form-control mb-2">
-                <button class="btn btn-primary w-100" onclick="guardarEdicionPed()">Actualizar Orden</button>
+                <div class="d-flex gap-2 mt-3">
+                   <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                   <button class="btn btn-primary w-50" onclick="guardarEdicionPed()">Actualizar Orden</button>
+                </div>
             </div>
         </div>
     </div>
   </div>
 
   <div class="modal fade" id="modalEditMov" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">✏️ Ajuste Contable (Corrección)</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Ajuste Contable (Corrección)</h6>
                 <p class="small text-muted">⚠️ Advertencia: Modificar transacciones pasadas afectará el balance general y los estados de cuenta.</p>
                 
                 <label class="small fw-bold">Concepto Original</label>
@@ -635,18 +702,23 @@
                 <label class="small fw-bold">Monto Corregido</label>
                 <input type="number" id="ed-mov-monto" class="form-control mb-3" style="font-weight: bold; color: var(--primary);">
                 
-                <button class="btn btn-warning w-100 fw-bold" onclick="guardarEdicionMovimiento()">Aplicar Corrección</button>
+                <div class="d-flex gap-2 mt-3">
+                   <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+                   <button class="btn btn-warning w-50 fw-bold" onclick="guardarEdicionMovimiento()">Aplicar Corrección</button>
+                </div>
             </div>
         </div>
     </div>
   </div>
 
   <div class="modal fade" id="modalRefinanciar" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">🔄 Refinanciar Deuda</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">🔄 Refinanciar Deuda</h6>
-                
                 <label class="small fw-bold text-muted">Cliente</label>
                 <input id="ref-cliente" class="form-control mb-2 bg-light" readonly>
                 
@@ -689,10 +761,13 @@
   </div>
 
   <div class="modal fade" id="modalEditItem" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" style="color: var(--primary);">✏️ Ajuste Individual de Ítem</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
             <div class="modal-body">
-                <h6 class="fw-bold mb-3" style="color: var(--primary);">✏️ Ajuste Individual de Ítem</h6>
                 <input type="hidden" id="edit-item-id">
                 
                 <div class="mb-2">
