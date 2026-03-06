@@ -762,9 +762,9 @@ function embellecerDescripcion(texto) {
         var tl = l.trim();
         if(!tl) return "";
         if(tl.startsWith('-') || tl.startsWith('🔹') || tl.startsWith('•') || tl.startsWith('*')) {
-            return "🔹 " + tl.replace(/^[-•*🔹]\s*/, '');
+            return "• " + tl.replace(/^[-•*🔹]\s*/, '');
         }
-        return "🔹 " + tl;
+        return "• " + tl;
     }).filter(l => l !== "").join('\n');
     return bonitas;
 }
@@ -832,7 +832,7 @@ async function shareQuote() {
         var valorCuota = parent.querySelector('#res-cuota-val').innerText;
         msg += `💳 *Método:* Crédito\n`;
         msg += `💰 *Valor Total (Financiado):* ${COP.format(total)}\n`;
-        msg += `🔹 *Inicial:* ${COP.format(inicial)}\n`;
+        msg += `• *Inicial:* ${COP.format(inicial)}\n`;
         msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}*\n\n`;
     } else {
         msg += `💵 *Método:* Contado\n`;
