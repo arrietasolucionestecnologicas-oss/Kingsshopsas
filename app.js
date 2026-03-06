@@ -756,7 +756,7 @@ function clearCart() {
 }
 
 function embellecerDescripcion(texto) {
-    if (!texto) return "Sin detalles disponibles.";
+    if (!texto) return "";
     var lineas = texto.split('\n');
     var bonitas = lineas.map(l => {
         var tl = l.trim();
@@ -769,7 +769,7 @@ function embellecerDescripcion(texto) {
     return bonitas;
 }
 
-function shareQuote() {
+async function shareQuote() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     var cli = parent.querySelector('#c-cliente').value || "Cliente";
     var concepto = "";
@@ -781,6 +781,10 @@ function shareQuote() {
     var msg = `👑 *KING'S SHOP SAS*\n\n`;
     msg += `Hola *${cli.trim()}*, esta es tu cotización:\n\n`;
     
+    var fileToShare = null;
+    var hasImage = false;
+    var firstImgUrl = "";
+
     if (incDesc && CART.length > 0) {
         CART.forEach(x => {
             var p = D.inv.find(inv => inv.id === x.id); 
@@ -788,18 +792,31 @@ function shareQuote() {
             var foto = p ? p.foto : (x.foto || "");
             var fixedUrl = fixDriveLink(foto);
             
-            if (fixedUrl && fixedUrl.length > 10) {
-                msg += `🖼️ *Imagen:* ${fixedUrl}\n\n`;
+            if (fixedUrl && fixedUrl.length > 10 && !firstImgUrl) {
+                firstImgUrl = fixedUrl;
             }
-            msg += `📱 *Producto:* ${x.cantidad}x ${x.nombre.toUpperCase()}\n`;
             
-            if (desc) {
-                msg += `📋 *Especificaciones:*\n${embellecerDescripcion(desc)}\n\n`;
+            msg += `🛍️ *Producto:* ${x.cantidad}x ${x.nombre.toUpperCase()}\n`;
+            var descBonita = embellecerDescripcion(desc);
+            if (descBonita) {
+                msg += `📋 *Detalles:*\n${descBonita}\n\n`;
             } else {
                 msg += `\n`;
             }
         });
         msg += `────────────────\n\n`;
+
+        if (firstImgUrl) {
+            var loader = document.getElementById('loader');
+            if(loader) loader.style.display = 'flex';
+            try {
+                fileToShare = await getFileFromUrlAsync(firstImgUrl, 'cotizacion_kingshop');
+                if (fileToShare) hasImage = true;
+            } catch(e) {
+                console.error("Error descargando imagen para cotización", e);
+            }
+            if(loader) loader.style.display = 'none';
+        }
     } else {
         if(CART.length > 0) { 
             concepto = CART.map(x=> `${x.cantidad}x ${x.nombre}`).join(', '); 
@@ -824,6 +841,27 @@ function shareQuote() {
     
     msg += `🤝 _Quedamos a su entera disposición para procesar su pedido._`;
     
+    if (hasImage && navigator.canShare) {
+        var shareData = {
+            title: "Cotización King's Shop",
+            text: msg,
+            files: [fileToShare]
+        };
+        if (navigator.canShare(shareData)) {
+            try {
+                await navigator.share(shareData);
+                showToast("¡Cotización compartida con éxito!", "success");
+                return; 
+            } catch (err) {
+                console.error("Error compartiendo cotización nativamente:", err);
+            }
+        }
+    }
+
+    if (firstImgUrl) {
+        msg = msg.replace(`Hola *${cli.trim()}*, esta es tu cotización:\n\n`, `Hola *${cli.trim()}*, esta es tu cotización:\n\n🖼️ *Imagen:* ${firstImgUrl}\n\n`);
+    }
+
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
@@ -838,10 +876,10 @@ function shareProdWhatsApp(id) {
     
     var msg = `👑 *KING'S SHOP SAS*\n\n`;
     if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *Imagen:* ${linkFoto}\n\n`; }
-    msg += `📱 *Producto:* ${nombre}\n`;
+    msg += `🛍️ *Producto:* ${nombre}\n`;
     msg += `💳 *Inversión:* ${precio}\n\n`;
-    msg += `📋 *Especificaciones Técnicas:*\n${descripcionBonita}\n\n`; 
-    msg += `🤝 _Quedamos a su entera disposición para cualquier asesoría._`; 
+    if (descripcionBonita) { msg += `📋 *Detalles:*\n${descripcionBonita}\n\n`; }
+    msg += `🤝 _Quedamos a su entera disposición._`; 
     
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
@@ -885,7 +923,9 @@ async function shareProductNative(id) {
         var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
         var desc = embellecerDescripcion(p.desc);
         
-        var shareText = `👑 *KING'S SHOP SAS*\n\n📱 *Producto:* ${nombre}\n💳 *Inversión:* ${precio}\n\n📋 *Especificaciones Técnicas:*\n${desc}\n\n🤝 _Quedamos a su entera disposición._`;
+        var shareText = `👑 *KING'S SHOP SAS*\n\n🛍️ *Producto:* ${nombre}\n💳 *Inversión:* ${precio}\n\n`;
+        if (desc) { shareText += `📋 *Detalles:*\n${desc}\n\n`; }
+        shareText += `🤝 _Quedamos a su entera disposición._`;
         
         var shareData = {
             title: nombre,
