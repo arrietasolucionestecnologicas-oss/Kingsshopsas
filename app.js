@@ -332,11 +332,11 @@ function renderPos(){
     div.className = `pos-row-lite ${active}`;
     div.onclick = function() { toggleCart(p, div); };
     div.innerHTML = `
-        <div class="info">
-            <div class="name">${p.nombre}</div>
-            <div class="meta">${descCorto}</div>
+        <div class="info" style="min-width: 0; flex: 1; padding-right: 10px;">
+            <div class="name text-truncate">${p.nombre}</div>
+            <div class="meta text-truncate">${descCorto}</div>
         </div>
-        <div class="price">${precioDisplay}</div>
+        <div class="price" style="white-space: nowrap;">${precioDisplay}</div>
     `;
     c.appendChild(div);
   });
@@ -1014,21 +1014,21 @@ function renderCartera() {
 
             c.innerHTML += `
             <div class="card-k card-debt">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="fw-bold mb-1">${d.cliente}</h6>
-                        <small class="text-muted d-block text-truncate" style="max-width:150px;">${d.producto}</small>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div style="min-width: 0; flex: 1; padding-right: 10px;">
+                        <h6 class="fw-bold mb-1 text-truncate">${d.cliente}</h6>
+                        <small class="text-muted d-block text-truncate">${d.producto}</small>
                         ${fechaTxt}
                     </div>
-                    <div class="text-end">
+                    <div class="text-end" style="white-space: nowrap;">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
-                        <div class="mt-1 d-flex gap-1 justify-content-end">
-                            <span class="badge-debt">Pendiente</span>
-                            <button class="btn btn-xs btn-outline-success" onclick="notificarCobroWA('${d.idVenta}')" title="Notificar Cobro"><i class="fab fa-whatsapp"></i></button>
-                            <button class="btn btn-xs btn-outline-primary" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente}', ${d.saldo})" title="Refinanciar Deuda">🔄</button>
-                            <button class="btn btn-xs btn-outline-dark" onclick="castigarDeuda('${d.idVenta}', '${d.cliente}')" title="Castigar Cartera (Lista Negra)">☠️</button>
-                        </div>
+                        <span class="badge-debt d-inline-block mt-1">Pendiente</span>
                     </div>
+                </div>
+                <div class="mt-2 d-flex gap-2 flex-wrap justify-content-end border-top pt-2">
+                    <button class="btn btn-xs btn-outline-success flex-fill" onclick="notificarCobroWA('${d.idVenta}')" title="Notificar Cobro"><i class="fab fa-whatsapp"></i> Cobrar</button>
+                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo})" title="Refinanciar Deuda">🔄 Refinanciar</button>
+                    <button class="btn btn-xs btn-outline-dark flex-fill" onclick="castigarDeuda('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}')" title="Castigar Cartera (Lista Negra)">☠️ Castigar</button>
                 </div>
                 ${planDetalle}
             </div>`;
@@ -1199,7 +1199,7 @@ function renderInv(){
 
         var div = document.createElement('div');
         div.className = 'card-catalog';
-        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNative}</div>`;
+        div.innerHTML = `<div class="cat-img-box">${imgHtml}<div class="btn-edit-float" onclick="prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div></div><div class="cat-body"><div class="cat-title text-truncate" style="white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${p.nombre}</div><div class="cat-price">${precioDisplay}</div><small class="text-muted" style="font-size:0.7rem;">Costo: ${COP.format(p.costo)}</small></div><div class="cat-actions"><div class="btn-copy-mini" onclick="copyingDato('${p.id}')" title="Copiar ID">ID</div><div class="btn-copy-mini" onclick="copyingDato('${p.nombre.replace(/'/g, "\\'")}')" title="Copiar Nombre">Nom</div><div class="btn-copy-mini" onclick="copyingDato('${p.publico}')" title="Copiar Precio">$$</div>${btnShareNative}</div>`;
         c.appendChild(div);
     }); 
 }
@@ -1261,7 +1261,7 @@ function doIngresoExtra() {
     
     var ingresoNum = parseFloat(monto) || 0;
     if(D.metricas) D.metricas.saldo += ingresoNum;
-    D.historial.unshift({ desc: "Ingreso Extra: " + desc, tipo: "ingresos", monto: ingresoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+    D.historial.unshift({ desc: "Ingreso Extra: " + desc, tipo: "ingresos", monto: ingresoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length, saldo: D.metricas.saldo });
     
     document.getElementById('inc-desc').value = '';
     document.getElementById('inc-monto').value = '';
@@ -1296,7 +1296,7 @@ function doGasto() {
 
     var gastoNum = parseFloat(monto) || 0;
     if(D.metricas) D.metricas.saldo -= gastoNum;
-    D.historial.unshift({ desc: "Gasto: " + desc, tipo: "egreso", monto: gastoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+    D.historial.unshift({ desc: "Gasto: " + desc, tipo: "egreso", monto: gastoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length, saldo: D.metricas.saldo });
 
     document.getElementById('g-desc').value = '';
     document.getElementById('g-monto').value = '';
@@ -1382,7 +1382,7 @@ function doAbono(){
         }
     }
     
-    D.historial.unshift({ desc: "Abono: " + cli, tipo: "abono", monto: abonoNum, fecha: fechaVal || new Date().toISOString().split('T')[0], _originalIndex: D.historial.length });
+    D.historial.unshift({ desc: "Abono: " + cli, tipo: "abono", monto: abonoNum, fecha: fechaVal || new Date().toISOString().split('T')[0], _originalIndex: D.historial.length, saldo: D.metricas.saldo });
     
     document.getElementById('ab-monto').value = '';
     renderCartera();
@@ -1393,7 +1393,7 @@ function doAbono(){
     callAPI('registrarAbono', {idVenta:id, monto:monto, cliente:cli, fecha: fechaVal});
 }
 
-function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
+function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod.replace(/'/g, "\\'")}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
 function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
 function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
 function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); }
