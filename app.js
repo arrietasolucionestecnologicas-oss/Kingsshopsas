@@ -795,14 +795,15 @@ function shareProdWhatsApp(id) {
     var p = D.inv.find(x => x.id === id);
     if (!p) return alert("Producto no encontrado");
     var nombre = p.nombre.toUpperCase();
+    var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
     var descripcionBonita = embellecerDescripcion(p.desc);
     var linkFoto = fixDriveLink(p.foto); 
-    var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `📦 *PRODUCTO:* ${nombre}\n`;
-    msg += `📝 *DETALLES:*\n${descripcionBonita}\n\n`; 
-    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *FOTO:* ${linkFoto}\n\n`; }
-    msg += `👉 _¡Pregúntame por el precio!_\n`; 
-    msg += `🤝 _Estamos atentos a cualquier inquietud_ 👑`; 
+    var msg = `*KING'S SHOP SAS*\n`;
+    msg += `*Producto:* ${nombre}\n`;
+    msg += `*Precio:* ${precio}\n\n`;
+    msg += `*Especificaciones Técnicas:*\n${descripcionBonita}\n\n`; 
+    if(linkFoto && linkFoto.length > 10) { msg += `*Enlace de Imagen:* ${linkFoto}\n\n`; }
+    msg += `*Atención al Cliente:* Estamos a su disposición para cualquier consulta adicional.`; 
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
@@ -845,7 +846,7 @@ async function shareProductNative(id) {
         var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
         var desc = embellecerDescripcion(p.desc);
         
-        var shareText = `🔥 ${nombre}\n\n💰 Precio: ${precio}\n\n📦 Descripción:\n${desc}\n\n🤝 Estamos atentos a cualquier inquietud`;
+        var shareText = `*KING'S SHOP SAS*\n*Producto:* ${nombre}\n*Precio:* ${precio}\n\n*Especificaciones Técnicas:*\n${desc}\n\n*Atención al Cliente:* Estamos a su disposición para cualquier consulta adicional.`;
         
         var shareData = {
             title: nombre,
