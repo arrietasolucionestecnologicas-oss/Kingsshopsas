@@ -651,6 +651,7 @@ function calcCart() {
            if(parent.querySelector('#c-cliente') && document.activeElement !== parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = activeParent.querySelector('#c-cliente').value;
            if(parent.querySelector('#c-nit') && document.activeElement !== parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = activeParent.querySelector('#c-nit').value;
            if(parent.querySelector('#c-tel') && document.activeElement !== parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = activeParent.querySelector('#c-tel').value;
+           if(parent.querySelector('#c-incluir-desc') && document.activeElement !== parent.querySelector('#c-incluir-desc')) parent.querySelector('#c-incluir-desc').checked = activeParent.querySelector('#c-incluir-desc').checked;
        }
 
        if (CART.length > 0) {
@@ -754,20 +755,59 @@ function clearCart() {
     updateCartUI(); 
 }
 
+function embellecerDescripcion(texto) {
+    if (!texto) return "Sin detalles disponibles.";
+    var lineas = texto.split('\n');
+    var bonitas = lineas.map(l => {
+        var tl = l.trim();
+        if(!tl) return "";
+        if(tl.startsWith('-') || tl.startsWith('🔹') || tl.startsWith('•') || tl.startsWith('*')) {
+            return "🔹 " + tl.replace(/^[-•*🔹]\s*/, '');
+        }
+        return "🔹 " + tl;
+    }).filter(l => l !== "").join('\n');
+    return bonitas;
+}
+
 function shareQuote() {
     var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     var cli = parent.querySelector('#c-cliente').value || "Cliente";
     var concepto = "";
-    if(CART.length > 0) { 
-        concepto = CART.map(x=> `${x.cantidad}x ${x.nombre}`).join(', '); 
-    } else { 
-        concepto = parent.querySelector('#c-concepto').value || "Varios"; 
-    }
+    var incDesc = parent.querySelector('#c-incluir-desc') ? parent.querySelector('#c-incluir-desc').checked : false;
     
     var total = calculatedValues.total;
     var metodo = parent.querySelector('#c-metodo').value;
-    var msg = `Hola *${cli.trim()}*, esta es tu cotización en King's Shop:\n\n`;
-    msg += `📦 *Producto(s):* ${concepto}\n`;
+    
+    var msg = `👑 *KING'S SHOP SAS*\n\n`;
+    msg += `Hola *${cli.trim()}*, esta es tu cotización:\n\n`;
+    
+    if (incDesc && CART.length > 0) {
+        CART.forEach(x => {
+            var p = D.inv.find(inv => inv.id === x.id); 
+            var desc = p ? p.desc : (x.desc || "");
+            var foto = p ? p.foto : (x.foto || "");
+            var fixedUrl = fixDriveLink(foto);
+            
+            if (fixedUrl && fixedUrl.length > 10) {
+                msg += `🖼️ *Imagen:* ${fixedUrl}\n\n`;
+            }
+            msg += `📱 *Producto:* ${x.cantidad}x ${x.nombre.toUpperCase()}\n`;
+            
+            if (desc) {
+                msg += `📋 *Especificaciones:*\n${embellecerDescripcion(desc)}\n\n`;
+            } else {
+                msg += `\n`;
+            }
+        });
+        msg += `────────────────\n\n`;
+    } else {
+        if(CART.length > 0) { 
+            concepto = CART.map(x=> `${x.cantidad}x ${x.nombre}`).join(', '); 
+        } else { 
+            concepto = parent.querySelector('#c-concepto').value || "Varios"; 
+        }
+        msg += `📦 *Producto(s):* ${concepto}\n\n`;
+    }
     
     if(metodo === "Crédito") {
         var inicial = calculatedValues.inicial;
@@ -776,19 +816,16 @@ function shareQuote() {
         msg += `💳 *Método:* Crédito\n`;
         msg += `💰 *Valor Total (Financiado):* ${COP.format(total)}\n`;
         msg += `🔹 *Inicial:* ${COP.format(inicial)}\n`;
-        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}*`;
+        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}*\n\n`;
     } else {
         msg += `💵 *Método:* Contado\n`;
-        msg += `💰 *Total a Pagar:* ${COP.format(total)}`;
+        msg += `💰 *Total a Pagar:* ${COP.format(total)}\n\n`;
     }
+    
+    msg += `🤝 _Quedamos a su entera disposición para procesar su pedido._`;
     
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
-}
-
-function embellecerDescripcion(texto) {
-    if (!texto) return "Sin detalles disponibles.";
-    return texto;
 }
 
 function shareProdWhatsApp(id) {
@@ -798,12 +835,14 @@ function shareProdWhatsApp(id) {
     var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
     var descripcionBonita = embellecerDescripcion(p.desc);
     var linkFoto = fixDriveLink(p.foto); 
-    var msg = `*KING'S SHOP SAS*\n`;
-    msg += `*Producto:* ${nombre}\n`;
-    msg += `*Precio:* ${precio}\n\n`;
-    msg += `*Especificaciones Técnicas:*\n${descripcionBonita}\n\n`; 
-    if(linkFoto && linkFoto.length > 10) { msg += `*Enlace de Imagen:* ${linkFoto}\n\n`; }
-    msg += `*Atención al Cliente:* Estamos a su disposición para cualquier consulta adicional.`; 
+    
+    var msg = `👑 *KING'S SHOP SAS*\n\n`;
+    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *Imagen:* ${linkFoto}\n\n`; }
+    msg += `📱 *Producto:* ${nombre}\n`;
+    msg += `💳 *Inversión:* ${precio}\n\n`;
+    msg += `📋 *Especificaciones Técnicas:*\n${descripcionBonita}\n\n`; 
+    msg += `🤝 _Quedamos a su entera disposición para cualquier asesoría._`; 
+    
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
@@ -846,7 +885,7 @@ async function shareProductNative(id) {
         var precio = p.publico > 0 ? COP.format(p.publico) : 'Consultar';
         var desc = embellecerDescripcion(p.desc);
         
-        var shareText = `*KING'S SHOP SAS*\n*Producto:* ${nombre}\n*Precio:* ${precio}\n\n*Especificaciones Técnicas:*\n${desc}\n\n*Atención al Cliente:* Estamos a su disposición para cualquier consulta adicional.`;
+        var shareText = `👑 *KING'S SHOP SAS*\n\n📱 *Producto:* ${nombre}\n💳 *Inversión:* ${precio}\n\n📋 *Especificaciones Técnicas:*\n${desc}\n\n🤝 _Quedamos a su entera disposición._`;
         
         var shareData = {
             title: nombre,
