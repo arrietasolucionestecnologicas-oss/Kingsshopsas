@@ -530,16 +530,24 @@
             </div>
             <div class="modal-body">
                 <div class="mb-2"><label class="small fw-bold">Nombre del Producto</label><input id="inp-edit-nombre" class="form-control fw-bold" style="color: var(--primary);"></div>
+                
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small fw-bold">Categoría</label>
                         <input list="list-cats" id="inp-edit-categoria" class="form-control">
                     </div>
-                    <div class="col-6"><label class="small fw-bold">Costo Unitario</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico')"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo Unitario</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')"></div>
                 </div>
-                <div class="mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important;">
-                    <label class="small fw-bold" style="color: var(--primary);">Precio Público Sugerido (+30%)</label>
-                    <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                
+                <div class="row g-2 mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important; margin: 0;">
+                    <div class="col-4">
+                        <label class="small fw-bold" style="color: var(--primary);">Margen (%)</label>
+                        <input type="number" id="inp-edit-margen" class="form-control" value="30" oninput="calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); font-weight: bold;">
+                    </div>
+                    <div class="col-8">
+                        <label class="small fw-bold" style="color: var(--primary);">Precio Público Final</label>
+                        <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" oninput="calcMargen('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                    </div>
                 </div>
 
                 <div class="mb-2"><label class="small fw-bold">Proveedor Asignado</label><input list="list-provs-all" id="inp-edit-proveedor" class="form-control"></div>
@@ -589,13 +597,21 @@
             <div class="modal-body">
                 <form onsubmit="event.preventDefault(); crearProducto();">
                     <div class="mb-2"><label class="small fw-bold">Nombre del Ítem</label><input id="new-nombre" class="form-control" required></div>
+                    
                     <div class="row g-2 mb-2">
                         <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
-                        <div class="col-6"><label class="small fw-bold">Costo Base</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico')"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo Base</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico','new-margen')"></div>
                     </div>
-                    <div class="mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important;">
-                        <label class="small fw-bold" style="color: var(--primary);">Precio Venta (+30% Auto)</label>
-                        <input type="number" id="new-publico" class="form-control" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                    
+                    <div class="row g-2 mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important; margin: 0;">
+                        <div class="col-4">
+                            <label class="small fw-bold" style="color: var(--primary);">Margen (%)</label>
+                            <input type="number" id="new-margen" class="form-control" value="30" oninput="calcGain('new-costo','new-publico','new-margen')" style="border-color: var(--gold); font-weight: bold;">
+                        </div>
+                        <div class="col-8">
+                            <label class="small fw-bold" style="color: var(--primary);">Precio Venta Final</label>
+                            <input type="number" id="new-publico" class="form-control" oninput="calcMargen('new-costo','new-publico','new-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                        </div>
                     </div>
 
                     <div class="mb-2"><label class="small fw-bold">Proveedor</label><input list="list-provs-all" id="new-proveedor" class="form-control"></div>
@@ -849,6 +865,6 @@
       });
     }
   </script>
-  <script src="app.js?v=133"></script>
+  <script src="app.js?v=134"></script>
 </body>
 </html>
