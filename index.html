@@ -240,6 +240,7 @@
     <div id="view-pos" class="view-sec">
       <div class="main-layout">
         <div class="list-column">
+           <button class="btn btn-outline-info w-100 mb-2 fw-bold" onclick="abrirModalCotizaciones()"><i class="fas fa-folder-open"></i> VER COTIZACIONES GUARDADAS</button>
            <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="agregarItemManual()"><i class="fas fa-plus"></i> AGREGAR ÍTEM MANUAL (NO CATALOGADO)</button>
            
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
@@ -476,13 +477,27 @@
            <label class="form-check-label small fw-bold text-muted" for="c-incluir-desc" style="margin-top: 2px;"><i class="fas fa-list text-secondary"></i> Incluir Descripción en Cotización</label>
        </div>
 
-       <div class="d-flex gap-2">
+       <div class="d-flex gap-2 mb-2">
+           <button class="btn btn-outline-info flex-fill fw-bold" onclick="guardarCotizacionActual()" title="Guardar Cotización en la Nube">💾 GUARDAR COTIZ.</button>
            <button class="btn btn-dark flex-fill fw-bold text-white" onclick="generarCotizacionPDF()" title="Generar PDF Formal">📄 PDF</button>
            <button class="btn btn-success flex-fill fw-bold" onclick="shareQuote()"><i class="fab fa-whatsapp"></i> WSP</button>
-           <button class="btn btn-primary flex-fill fw-bold" onclick="finalizarVenta()">✅ VENDER</button>
        </div>
+       <button id="btn-vender-main" class="btn btn-primary w-100 fw-bold fs-6 py-2" onclick="finalizarVenta()">✅ VENDER / FACTURAR</button>
     </div>
   </template>
+
+  <div class="modal fade" id="modalCotizaciones" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold" style="color: var(--primary);"><i class="fas fa-folder-open text-info"></i> Cotizaciones Guardadas</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="cotizaciones-list" style="background-color: #f8f9fa;">
+            </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="modalProv" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -834,6 +849,6 @@
       });
     }
   </script>
-  <script src="app.js?v=132"></script>
+  <script src="app.js?v=133"></script>
 </body>
 </html>
