@@ -3,9 +3,9 @@
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
 
-var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[]};
+var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[], cotizaciones:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem, myModalCotizaciones;
 var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
@@ -72,7 +72,7 @@ async function sincronizarCola() {
     localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
     if (nuevaCola.length === 0) {
         showToast("¡Sincronización completada!", "success");
-        loadData(); 
+        loadData(true); 
     } else {
         showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
     }
@@ -148,6 +148,7 @@ window.onload = function() {
   myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
   myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
   myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
+  myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -168,8 +169,8 @@ window.onload = function() {
   loadData();
 };
 
-function loadData(){
-  document.getElementById('loader').style.display='flex';
+function loadData(silent = false){
+  if(!silent && (D.inv && D.inv.length === 0)) document.getElementById('loader').style.display='flex';
   
   callAPI('obtenerDatosCompletos').then(res => {
     if(res && res.inventario) {
@@ -184,7 +185,7 @@ function loadData(){
       const local = loadLocalData();
       if(local) {
           renderData(local);
-          showToast("Modo Offline: Datos locales cargados", "warning");
+          if(!silent) showToast("Modo Offline: Datos locales cargados", "warning");
       }
       document.getElementById('loader').style.display='none';
   });
@@ -198,6 +199,7 @@ function renderData(res) {
     D.ultimasVentas = res.ultimasVentas || []; 
     D.ped = res.pedidos || [];
     D.deudores = res.deudores || [];
+    D.cotizaciones = res.cotizaciones || [];
 
     if(res.metricas) {
         document.getElementById('user-display').innerText = res.user || "Offline User";
@@ -726,6 +728,119 @@ function calcCart() {
    });
 }
 
+// ==========================================
+// MÓDULO COTIZACIONES PERSISTENTES (ERP)
+// ==========================================
+
+function guardarCotizacionActual() {
+    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    var cli = parent.querySelector('#c-cliente').value;
+    
+    if(!cli) return alert("Falta Cliente para guardar la cotización");
+    if(CART.length === 0 && !parent.querySelector('#c-concepto').value && calculatedValues.total <= 0) return alert("El carrito está vacío");
+
+    var idGenerado = parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now());
+
+    var paquete = {
+        id: idGenerado,
+        fecha: parent.querySelector('#c-fecha').value || new Date().toISOString().split('T')[0],
+        cliente: cli,
+        nit: parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '',
+        tel: parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '',
+        metodo: parent.querySelector('#c-metodo').value,
+        cuotas: parent.querySelector('#c-cuotas').value,
+        iva: parent.querySelector('#c-iva').checked,
+        manual: parent.querySelector('#c-manual').checked,
+        util: parent.querySelector('#c-util').value,
+        desc: parent.querySelector('#c-desc').value,
+        int: parent.querySelector('#c-int').value,
+        target: parent.querySelector('#c-target').value,
+        concepto: parent.querySelector('#c-concepto').value,
+        cart: JSON.parse(JSON.stringify(CART)),
+        total: calculatedValues.total
+    };
+
+    var idx = D.cotizaciones.findIndex(x => x.id === idGenerado);
+    if(idx > -1) { D.cotizaciones[idx] = paquete; } 
+    else { D.cotizaciones.unshift(paquete); }
+
+    showToast("Cotización guardada exitosamente", "success");
+    clearCart();
+    callAPI('guardarCotizacion', paquete);
+}
+
+function abrirModalCotizaciones() {
+    renderCotizaciones();
+    myModalCotizaciones.show();
+}
+
+function renderCotizaciones() {
+    var c = document.getElementById('cotizaciones-list');
+    c.innerHTML = '';
+    var activas = D.cotizaciones.filter(x => x.estado !== 'Facturada');
+    
+    if(activas.length === 0) {
+        c.innerHTML = '<div class="text-center text-muted p-4">No hay cotizaciones pendientes</div>';
+        return;
+    }
+    
+    activas.forEach(cot => {
+        var html = `
+        <div class="card-k mb-2 border-start border-4 border-info bg-white shadow-sm p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div style="flex:1; min-width:0;">
+                    <strong class="text-primary text-truncate d-block">${cot.cliente}</strong>
+                    <small class="text-muted d-block">${cot.fecha} | Total: <strong class="text-dark">${COP.format(cot.total)}</strong></small>
+                    <small class="text-secondary">${cot.cart.length} Item(s) | ${cot.metodo}</small>
+                </div>
+                <div class="d-flex flex-column gap-2 ms-2">
+                    <button class="btn btn-sm btn-primary fw-bold" onclick="cargarCotizacion('${cot.id}')">✏️ Retomar</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="eliminarCotizacion('${cot.id}')">🗑️ Eliminar</button>
+                </div>
+            </div>
+        </div>`;
+        c.innerHTML += html;
+    });
+}
+
+function cargarCotizacion(id) {
+    var cot = D.cotizaciones.find(x => x.id === id);
+    if(!cot) return;
+    
+    CART = JSON.parse(JSON.stringify(cot.cart));
+    
+    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+    panels.forEach(parent => {
+        if(!parent) return;
+        if(parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = cot.cliente || '';
+        if(parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = cot.nit || '';
+        if(parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = cot.tel || '';
+        if(parent.querySelector('#c-fecha')) parent.querySelector('#c-fecha').value = cot.fecha || '';
+        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = cot.metodo || 'Contado';
+        if(parent.querySelector('#c-cuotas')) parent.querySelector('#c-cuotas').value = cot.cuotas || 1;
+        if(parent.querySelector('#c-iva')) parent.querySelector('#c-iva').checked = cot.iva || false;
+        if(parent.querySelector('#c-manual')) parent.querySelector('#c-manual').checked = cot.manual || false;
+        if(parent.querySelector('#c-util')) parent.querySelector('#c-util').value = cot.util || 30;
+        if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = cot.desc || 0;
+        if(parent.querySelector('#c-int')) parent.querySelector('#c-int').value = cot.int || 5;
+        if(parent.querySelector('#c-target')) parent.querySelector('#c-target').value = cot.target || '';
+        if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = cot.concepto || '';
+        
+        parent.setAttribute('data-cotizacion-id', id);
+    });
+    
+    myModalCotizaciones.hide();
+    showToast("Cotización cargada al carrito", "info");
+    updateCartUI(true);
+}
+
+function eliminarCotizacion(id) {
+    if(!confirm("¿Eliminar esta cotización permanentemente?")) return;
+    D.cotizaciones = D.cotizaciones.filter(x => x.id !== id);
+    renderCotizaciones();
+    callAPI('eliminarCotizacion', id);
+}
+
 function toggleMobileCart() { 
     document.getElementById('mobile-cart').classList.toggle('visible'); 
     updateCartUI(true);
@@ -749,6 +864,10 @@ function clearCart() {
         if(inpInicial) inpInicial.value = '';
         var inpDesc = parent.querySelector('#c-desc');
         if(inpDesc) inpDesc.value = '0';
+        var inpConcepto = parent.querySelector('#c-concepto');
+        if(inpConcepto) inpConcepto.value = '';
+        
+        parent.removeAttribute('data-cotizacion-id');
     });
     
     renderPos(); 
@@ -998,12 +1117,27 @@ function finalizarVenta() {
        }
        itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
-
-   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user || "Offline User", fechaPersonalizada: fechaVal, cuotas: cuotasVal };
    
-   document.getElementById('loader').style.display='flex';
+   var idCotiz = parent.getAttribute('data-cotizacion-id');
+   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user || "Offline User", fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
+   
+   var btn = parent.querySelector('#btn-vender-main');
+   if(btn) { btn.innerText = "Procesando..."; btn.disabled = true; }
+   
    callAPI('procesarVentaCarrito', d).then(r => { 
-       if(r.exito) { if(r.offline) { alert("Venta guardada OFFLINE. Se subirá cuando haya internet."); location.reload(); } else { location.reload(); } } else { alert(r.error); document.getElementById('loader').style.display='none'; } 
+       if(btn) { btn.innerText = "✅ VENDER / FACTURAR"; btn.disabled = false; }
+       if(r.exito) { 
+           if(r.offline) { 
+               alert("Venta guardada OFFLINE. Se subirá cuando haya internet."); 
+               clearCart(); 
+           } else { 
+               showToast("¡Venta Registrada con Éxito!", "success");
+               clearCart();
+               loadData(true); 
+           } 
+       } else { 
+           alert(r.error); 
+       } 
    });
 }
 
@@ -1059,8 +1193,8 @@ function renderProvs() {
         c.innerHTML += `<div class="prov-item"><div><strong>${p.nombre}</strong><br><small class="text-muted">${p.tel||'Sin numero'}</small></div><div class="d-flex gap-2">${btn}<button class="btn btn-sm btn-light border" onclick="editarProv('${p.nombre}')">✏️</button></div></div>`;
     });
 }
-function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(); }); }
-function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData()); } }
+function guardarProvManual(){ var n = document.getElementById('new-prov-name').value; var t = document.getElementById('new-prov-tel').value; if(!n) return; callAPI('registrarProveedor', {nombre:n, tel:t}).then(r=>{ document.getElementById('new-prov-name').value=''; document.getElementById('new-prov-tel').value=''; loadData(true); }); }
+function editarProv(nombre){ var t = prompt("Nuevo teléfono para "+nombre+":"); if(t) { callAPI('registrarProveedor', {nombre:nombre, tel:t}).then(()=>loadData(true)); } }
 
 function renderCartera() {
     var c = document.getElementById('cartera-list');
@@ -1202,18 +1336,18 @@ function procesarRefinanciamiento() {
         nuevaFecha: fecha
     };
     
-    document.getElementById('loader').style.display='flex';
-    myModalRefinanciar.hide();
+    var dIdx = D.deudores.findIndex(x => x.idVenta === refEditId);
+    if(dIdx > -1) {
+        D.deudores[dIdx].saldo += cargo;
+        D.deudores[dIdx].valCuota = (D.deudores[dIdx].saldo) / cuotas;
+        D.deudores[dIdx].cuotas = cuotas;
+        D.deudores[dIdx].fechaLimite = fecha;
+    }
     
-    callAPI('refinanciarDeuda', d).then(r => {
-        if(r.exito) {
-            showToast("Cartera refinanciada con éxito", "success");
-            location.reload();
-        } else {
-            alert(r.error);
-            document.getElementById('loader').style.display='none';
-        }
-    });
+    myModalRefinanciar.hide();
+    renderCartera();
+    showToast("Cartera refinanciada (Guardando...)", "success");
+    callAPI('refinanciarDeuda', d).then(r => { if(!r.exito) loadData(true); });
 }
 
 function castigarDeuda(id, nombre) {
@@ -1227,11 +1361,11 @@ function castigarDeuda(id, nombre) {
         confirmButtonText: 'Sí, Castigar'
     }).then((result) => {
         if (result.isConfirmed) {
-            document.getElementById('loader').style.display='flex';
-            callAPI('castigarCartera', {idVenta: id}).then(r => {
-                if(r.exito) { location.reload(); } 
-                else { alert(r.error); document.getElementById('loader').style.display='none'; }
-            });
+            var d = D.deudores.find(x => x.idVenta === id);
+            if(d) d.estado = 'Castigado';
+            renderCartera();
+            showToast("Cartera castigada (Guardando...)", "success");
+            callAPI('castigarCartera', {idVenta: id}).then(r => { if(!r.exito) loadData(true); });
         }
     });
 }
@@ -1437,9 +1571,14 @@ function guardarEdicionMovimiento() {
     var nuevoMonto = document.getElementById('ed-mov-monto').value;
     if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
     var payload = { original: movEditObj, fecha: nuevaFecha, monto: nuevoMonto };
-    document.getElementById('loader').style.display = 'flex';
+    
+    movEditObj.fecha = nuevaFecha;
+    movEditObj.monto = nuevoMonto;
+    
     myModalEditMov.hide();
-    callAPI('editarMovimiento', payload).then(r => { if(r.exito) { showToast("Movimiento corregido", "success"); location.reload(); } else { alert("Error al editar: " + r.error); document.getElementById('loader').style.display = 'none'; } });
+    renderFin();
+    showToast("Movimiento actualizado (Guardando...)", "success");
+    callAPI('editarMovimiento', payload).then(r => { if(!r.exito) { alert("Error al editar: " + r.error); loadData(true); } });
 }
 
 function doAbono(){
@@ -1474,11 +1613,11 @@ function doAbono(){
 }
 
 function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod.replace(/'/g, "\\'")}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
-function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('guardarPedido', d).then(()=>location.reload()); }
+function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; callAPI('guardarPedido', d).then(()=>loadData(true)); showToast("Pedido guardado", "success"); }
 function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
-function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; document.getElementById('loader').style.display='flex'; callAPI('editarPedido', d).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); }
-function delPed(id) { Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display='flex'; callAPI('eliminarPedido', id).then(r => { if(r.exito) location.reload(); else { alert(r.error); document.getElementById('loader').style.display='none'; } }); } }); }
-function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`, input: 'number', inputLabel: 'Costo Real de Compra', inputPlaceholder: 'Ej: 50000', showCancelButton: true, confirmButtonText: 'Sí, Registrar Gasto e Inventario', cancelButtonText: 'Cancelar', inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; } }).then((result) => { if (result.isConfirmed) { document.getElementById('loader').style.display = 'flex'; callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => location.reload()); } else { alert(r.error); document.getElementById('loader').style.display = 'none'; } }); } }); }
+function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; myModalEditPed.hide(); showToast("Editando pedido...", "info"); callAPI('editarPedido', d).then(r => { if(r.exito) loadData(true); else { alert(r.error); } }); }
+function delPed(id) { Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => { if (result.isConfirmed) { showToast("Eliminando...", "info"); callAPI('eliminarPedido', id).then(r => { if(r.exito) loadData(true); else { alert(r.error); } }); } }); }
+function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`, input: 'number', inputLabel: 'Costo Real de Compra', inputPlaceholder: 'Ej: 50000', showCancelButton: true, confirmButtonText: 'Sí, Registrar Gasto e Inventario', cancelButtonText: 'Cancelar', inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; } }).then((result) => { if (result.isConfirmed) { showToast("Procesando compra...", "info"); callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => loadData(true)); } else { alert(r.error); } }); } }); }
 
 function verBancos() {
     const msg = `👑 ¡Hola! Gracias por elegir KINGS SHOP SAS 🛒\n\nPara procesar tu pedido, por favor realiza el pago mediante transferencia. Aquí tienes nuestros datos bancarios:\n\n🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat. Esto nos permite verificar el pago y programar tu envío de inmediato. 📦🚀\n\nQuedamos atentos a tu confirmación. ¡Gracias por tu confianza! 🤝`;
