@@ -328,15 +328,15 @@ function renderPos(){
   res.slice(0,20).forEach(p => {
     var active = CART.some(x=>x.id===p.id) ? 'active' : '';
     var precioDisplay = p.publico > 0 ? COP.format(p.publico) : `<span class="text-muted small">Costo: ${COP.format(p.costo)}</span>`;
-    var descCorto = p.cat + (p.prov ? ` • ${p.prov}` : '');
+    var descCorto = p.cat + (p.prov ? `<br><span style="color: var(--primary); font-weight: bold; font-size: 0.75rem;">Prov: ${p.prov}</span>` : '');
 
     var div = document.createElement('div');
     div.className = `pos-row-lite ${active}`;
     div.onclick = function() { toggleCart(p, div); };
     div.innerHTML = `
         <div class="info" style="min-width: 0; flex: 1; padding-right: 10px;">
-            <div class="name text-truncate">${p.nombre}</div>
-            <div class="meta text-truncate">${descCorto}</div>
+            <div class="name" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal;">${p.nombre}</div>
+            <div class="meta mt-1">${descCorto}</div>
         </div>
         <div class="price" style="white-space: nowrap;">${precioDisplay}</div>
     `;
@@ -362,6 +362,7 @@ function toggleCart(p, el) {
            } else {
                item.margenIndividual = 100;
            }
+           item.modificadoManualmente = true; 
        } else {
            var globalUtil = parseFloat(document.getElementById('c-util') ? document.getElementById('c-util').value : 30) || 30;
            item.margenIndividual = globalUtil; 
@@ -1150,6 +1151,7 @@ function abrirModalNuevo() {
     document.getElementById('new-proveedor').value = '';
     document.getElementById('new-costo').value = '';
     document.getElementById('new-publico').value = '';
+    document.getElementById('new-margen').value = '30';
     document.getElementById('new-desc').value = '';
     document.getElementById('new-web').checked = false;
     document.getElementById('new-cat-web').value = 'tecnologia';
@@ -1158,9 +1160,22 @@ function abrirModalNuevo() {
 function abrirModalWA() { myModalWA.show(); }
 function abrirModalPed() { myModalPed.show(); }
 
-function calcGain(idCosto, idPublico) {
-    var costo = parseFloat(document.getElementById(idCosto).value);
-    if(costo > 0) { var ganancia = costo * 1.30; document.getElementById(idPublico).value = Math.round(ganancia); }
+function calcGain(idCosto, idPublico, idMargen) {
+    var costo = parseFloat(document.getElementById(idCosto).value) || 0;
+    var margen = idMargen ? (parseFloat(document.getElementById(idMargen).value) || 0) : 30;
+    if(costo > 0) { 
+        var ganancia = costo * (1 + (margen/100)); 
+        document.getElementById(idPublico).value = Math.round(ganancia); 
+    }
+}
+
+function calcMargen(idCosto, idPublico, idMargen) {
+    var costo = parseFloat(document.getElementById(idCosto).value) || 0;
+    var publico = parseFloat(document.getElementById(idPublico).value) || 0;
+    if(costo > 0 && publico > 0) { 
+        var margen = ((publico / costo) - 1) * 100; 
+        document.getElementById(idMargen).value = margen.toFixed(1); 
+    }
 }
 
 function prepararEdicion(id) {
@@ -1174,6 +1189,11 @@ function openEdit(p) {
     document.getElementById('inp-edit-categoria').value=p.cat; 
     document.getElementById('inp-edit-costo').value=p.costo; 
     document.getElementById('inp-edit-publico').value=p.publico || 0; 
+    
+    var m = 30;
+    if(p.costo > 0 && p.publico > 0) m = ((p.publico / p.costo) - 1) * 100;
+    if(document.getElementById('inp-edit-margen')) document.getElementById('inp-edit-margen').value = m.toFixed(1);
+
     document.getElementById('inp-edit-proveedor').value=p.prov; 
     document.getElementById('inp-edit-desc').value=p.desc; 
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
