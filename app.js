@@ -1627,7 +1627,9 @@ function guardarEdicionMovimiento() {
     var nuevaFecha = document.getElementById('ed-mov-fecha').value;
     var nuevoMonto = document.getElementById('ed-mov-monto').value;
     if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
-    var payload = { original: movEditObj, fecha: nuevaFecha, monto: nuevoMonto };
+    
+    var originalClone = Object.assign({}, movEditObj);
+    var payload = { original: originalClone, fecha: nuevaFecha, monto: nuevoMonto };
     
     movEditObj.fecha = nuevaFecha;
     movEditObj.monto = nuevoMonto;
