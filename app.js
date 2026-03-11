@@ -1691,7 +1691,7 @@ function doAbono(){
     var id=document.getElementById('ab-cli').value;
     if(!id)return alert("Seleccione un cliente");
     var txt=document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text;
-    var cli=txt.split('(')[0].trim();
+    var cli=txt.split(' - ')[0].trim();
     var monto = document.getElementById('ab-monto').value;
     var fechaVal = document.getElementById('ab-fecha').value;
     
