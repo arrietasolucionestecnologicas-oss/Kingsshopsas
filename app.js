@@ -423,6 +423,9 @@ function abrirEditorItem(id) {
     document.getElementById('edit-item-desc').value = item.descuentoIndividual || 0;
     document.getElementById('edit-item-iva').checked = item.conIva || false;
     
+    // Resetear el nuevo campo de precio pactado
+    document.getElementById('edit-item-precio-pactado').value = '';
+    
     calcEditorItem();
     myModalEditItem.show();
 }
@@ -441,6 +444,41 @@ function calcEditorItem() {
     if (iva) precioNeto *= 1.19;
     
     document.getElementById('edit-item-total').innerText = COP.format(Math.round(precioNeto));
+}
+
+// NUEVA FUNCIÓN: Cálculo inverso desde el Precio Pactado
+function aplicarPrecioPactado() {
+    var costo = parseFloat(document.getElementById('edit-item-costo').value) || 0;
+    var margen = parseFloat(document.getElementById('edit-item-margen').value) || 0;
+    var precioPactado = parseFloat(document.getElementById('edit-item-precio-pactado').value) || 0;
+    var iva = document.getElementById('edit-item-iva').checked;
+
+    if (precioPactado <= 0) {
+        document.getElementById('edit-item-desc').value = 0;
+        calcEditorItem();
+        return;
+    }
+
+    // Si tiene IVA marcado, el precio pactado incluye IVA, así que sacamos la base primero
+    var precioObjetivoBase = iva ? (precioPactado / 1.19) : precioPactado;
+    
+    var precioLista = costo * (1 + margen/100);
+    
+    if (precioLista > 0) {
+        var descuentoRequeridoMonto = precioLista - precioObjetivoBase;
+        var descuentoRequeridoPrc = (descuentoRequeridoMonto / precioLista) * 100;
+        
+        // Evitar descuentos negativos (si pactó un precio MAYOR al de lista)
+        if (descuentoRequeridoPrc < 0) {
+             descuentoRequeridoPrc = 0;
+             // Ajustar el margen para que alcance el precio pactado sin descuento
+             var nuevoMargen = ((precioObjetivoBase / costo) - 1) * 100;
+             document.getElementById('edit-item-margen').value = nuevoMargen.toFixed(1);
+        }
+        
+        document.getElementById('edit-item-desc').value = descuentoRequeridoPrc.toFixed(2);
+    }
+    calcEditorItem();
 }
 
 function guardarEditorItem() {
@@ -769,10 +807,17 @@ function calcCart() {
 // ==========================================
 
 function guardarCotizacionActual() {
-    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    var cli = parent.querySelector('#c-cliente').value;
+    // FIX DE BÚSQUEDA GLOBAL DEL CLIENTE
+    var desktopCart = document.getElementById('desktop-cart-container');
+    var mobileCart = document.getElementById('mobile-cart');
+    
+    var cliDesktop = desktopCart ? desktopCart.querySelector('#c-cliente').value : "";
+    var cliMobile = mobileCart ? mobileCart.querySelector('#c-cliente').value : "";
+    var cli = cliDesktop || cliMobile;
     
     if(!cli) return alert("Falta Cliente para guardar la cotización");
+    
+    var parent = (window.innerWidth < 992 && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
     if(CART.length === 0 && !parent.querySelector('#c-concepto').value && calculatedValues.total <= 0) return alert("El carrito está vacío");
 
     var idGenerado = parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now());
@@ -1716,7 +1761,13 @@ function generarCotizacionPDF() {
    var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
    if(!parent) parent = document.getElementById('desktop-cart-container');
 
-   var cli = parent.querySelector('#c-cliente').value;
+   // FIX DE BÚSQUEDA GLOBAL DEL CLIENTE AL GENERAR PDF
+   var desktopCart = document.getElementById('desktop-cart-container');
+   var mobileCart = document.getElementById('mobile-cart');
+   var cliDesktop = desktopCart ? desktopCart.querySelector('#c-cliente').value : "";
+   var cliMobile = mobileCart ? mobileCart.querySelector('#c-cliente').value : "";
+   var cli = cliDesktop || cliMobile;
+
    if(!cli) return alert("Falta el Nombre del Cliente para la cotización");
    
    var nit = parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '';
