@@ -423,8 +423,11 @@ function abrirEditorItem(id) {
     document.getElementById('edit-item-desc').value = item.descuentoIndividual || 0;
     document.getElementById('edit-item-iva').checked = item.conIva || false;
     
-    // Resetear el nuevo campo de precio pactado
-    document.getElementById('edit-item-precio-pactado').value = '';
+    // SAFE GUARD: Limpiar el campo de precio pactado solo si existe
+    var pactadoEl = document.getElementById('edit-item-precio-pactado');
+    if (pactadoEl) {
+        pactadoEl.value = '';
+    }
     
     calcEditorItem();
     myModalEditItem.show();
@@ -807,7 +810,6 @@ function calcCart() {
 // ==========================================
 
 function guardarCotizacionActual() {
-    // FIX DE BÚSQUEDA GLOBAL DEL CLIENTE
     var desktopCart = document.getElementById('desktop-cart-container');
     var mobileCart = document.getElementById('mobile-cart');
     
@@ -1757,13 +1759,12 @@ function toggleDatosFormales() {
 }
 
 function generarCotizacionPDF() {
-   var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-   var parent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-   if(!parent) parent = document.getElementById('desktop-cart-container');
-
-   // FIX DE BÚSQUEDA GLOBAL DEL CLIENTE AL GENERAR PDF
    var desktopCart = document.getElementById('desktop-cart-container');
    var mobileCart = document.getElementById('mobile-cart');
+   var isMobile = window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible');
+   var parent = isMobile ? mobileCart : desktopCart;
+   if(!parent) parent = desktopCart;
+
    var cliDesktop = desktopCart ? desktopCart.querySelector('#c-cliente').value : "";
    var cliMobile = mobileCart ? mobileCart.querySelector('#c-cliente').value : "";
    var cli = cliDesktop || cliMobile;
