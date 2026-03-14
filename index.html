@@ -294,6 +294,17 @@
 
     <div id="view-fin" class="view-sec" style="display:none; padding:15px;">
       
+      <div class="card-balance mb-3" style="background: linear-gradient(135deg, #8b0000, #5c0000); border-color: #ff4d4d; box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);">
+          <small class="opacity-75" style="color: white;">Obligaciones por Pagar (Mis Deudas)</small>
+          <h1 class="fw-bold display-4 my-1" id="bal-pasivos" style="color: white;">...</h1>
+          <button class="btn btn-light btn-sm mt-2 fw-bold" onclick="abrirModalPasivos()" style="color: #8b0000;">PAGAR OBLIGACIONES</button>
+      </div>
+
+      <div class="card-balance">
+          <small class="opacity-75">Flujo de Caja Disponible (Sistema)</small>
+          <h1 class="fw-bold display-4 my-1" id="bal-caja">...</h1>
+      </div>
+      
       <div class="card-k mb-3" style="border: 2px dashed var(--gold);">
           <div class="d-flex justify-content-between align-items-center mb-2">
               <h6 class="fw-bold m-0"><i class="fas fa-check-double"></i> Conciliación de Caja (Auditoría)</h6>
@@ -306,10 +317,6 @@
           </div>
       </div>
 
-      <div class="card-balance">
-          <small class="opacity-75">Flujo de Caja Disponible (Sistema)</small>
-          <h1 class="fw-bold display-4 my-1" id="bal-caja">...</h1>
-      </div>
       <div class="row g-2 mb-3">
          <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Ventas Brutas Mes</small><h6 class="fw-bold mb-0" id="bal-ventas" style="color: var(--primary);">...</h6></div></div>
          <div class="col-6"><div class="card-k p-2 text-center h-100"><small class="text-muted">Utilidad Neta Mes</small><h6 class="fw-bold text-success mb-0" id="bal-ganancia">...</h6></div></div>
@@ -336,13 +343,21 @@
          <div class="tab-pane fade" id="f-ingreso">
             <div class="card-k">
                <h6 class="fw-bold" style="color: var(--primary);">Entrada de Dinero Extraordinaria</h6>
-               <input type="text" id="inc-desc" class="form-control mb-2" placeholder="Concepto (Ej: Préstamo Bancario, Inversión)">
+               <input type="text" id="inc-desc" class="form-control mb-2" placeholder="Concepto (Ej: Inversión, Préstamo)">
                <select id="inc-cat" class="form-select mb-2">
                    <option value="Venta Externa">Venta Externa</option>
                    <option value="Prestamo">Préstamo / Financiación</option>
                    <option value="Inyeccion Capital">Aporte de Capital</option>
                    <option value="Otros">Otros Ingresos</option>
                </select>
+               
+               <div id="box-prestamo" style="display:none; background:#fffcf5; padding:10px; border-radius:8px; border:1px solid var(--gold); margin-bottom:10px;">
+                   <label class="small fw-bold text-danger">¿A quién le debes este dinero? (Acreedor) *</label>
+                   <input type="text" id="inc-acreedor" class="form-control mb-2" placeholder="Ej: Banco, Gabriel, Inversionista">
+                   <label class="small fw-bold text-danger">Fecha Límite para pagar *</label>
+                   <input type="date" id="inc-fecha-limite" class="form-control">
+               </div>
+
                <input type="number" id="inc-monto" class="form-control mb-2" placeholder="Monto Ingresado">
                <button class="btn btn-primary w-100" onclick="doIngresoExtra()">REGISTRAR ENTRADA</button>
             </div>
@@ -485,6 +500,26 @@
        <button id="btn-vender-main" class="btn btn-primary w-100 fw-bold fs-6 py-2" onclick="finalizarVenta()">✅ VENDER / FACTURAR</button>
     </div>
   </template>
+
+  <div class="modal fade" id="modalAbonarPasivo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold text-danger"><i class="fas fa-hand-holding-usd"></i> Pagar Mis Obligaciones</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="small fw-bold">Seleccionar Deuda / Acreedor</label>
+                <select id="pas-select" class="form-select mb-3" onchange="seleccionarPasivo()"></select>
+                
+                <label class="small fw-bold">Monto a Pagar (Salida de Caja)</label>
+                <input type="number" id="pas-monto" class="form-control mb-4" placeholder="Valor del abono o cuota">
+                
+                <button class="btn btn-danger w-100 fw-bold py-2" onclick="doAbonoPasivo()">REGISTRAR PAGO A TERCERO</button>
+            </div>
+        </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="modalCotizaciones" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -888,6 +923,6 @@
       });
     }
   </script>
-  <script src="app.js?v=136"></script>
+  <script src="app.js?v=137"></script>
 </body>
 </html>
