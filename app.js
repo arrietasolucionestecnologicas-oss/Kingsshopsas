@@ -3,9 +3,9 @@
 // ============================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
 
-var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[], cotizaciones:[]};
+var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[], cotizaciones:[], pasivos:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem, myModalCotizaciones, myModalLogin;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem, myModalCotizaciones, myModalLogin, myModalAbonarPasivo;
 var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
@@ -35,6 +35,7 @@ function guardarIdentidad() {
     currentUserAlias = alias;
     myModalLogin.hide();
     showToast("Bienvenido, " + alias, "success");
+    document.getElementById('user-display').innerText = currentUserAlias;
 }
 
 // --- GESTIÓN DE ESTADO OFFLINE/ONLINE ---
@@ -172,6 +173,7 @@ window.onload = function() {
   myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
   myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
   myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
+  myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -183,6 +185,15 @@ window.onload = function() {
       el.oninput = calcCart;        
   });
   
+  document.getElementById('inc-cat').addEventListener('change', function(e) {
+      var box = document.getElementById('box-prestamo');
+      if (e.target.value === 'Prestamo') {
+          box.style.display = 'block';
+      } else {
+          box.style.display = 'none';
+      }
+  });
+
   var lastView = localStorage.getItem('lastView') || 'pos';
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
   if(btn) nav(lastView, btn);
@@ -224,6 +235,7 @@ function renderData(res) {
     D.ped = res.pedidos || [];
     D.deudores = res.deudores || [];
     D.cotizaciones = res.cotizaciones || [];
+    D.pasivos = res.pasivos || [];
 
     if(res.metricas) {
         document.getElementById('user-display').innerText = currentUserAlias;
@@ -266,6 +278,7 @@ function renderData(res) {
     renderPed();
     renderProvs();
     renderCartera();
+    renderPasivos();
     
     var allCats = res.categorias || [];
     if(!allCats.includes("Gadget y Novedades")) {
@@ -291,6 +304,59 @@ function renderData(res) {
         allCats.forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
     }
     updateGastosSelect();
+}
+
+function renderPasivos() {
+    var totalPasivos = D.pasivos.reduce((sum, p) => sum + (Number(p.saldo)||0), 0);
+    var el = document.getElementById('bal-pasivos');
+    if(el) el.innerText = COP.format(totalPasivos);
+}
+
+function abrirModalPasivos() {
+    var sel = document.getElementById('pas-select');
+    sel.innerHTML = '<option value="">Seleccione...</option>';
+    if (D.pasivos.length === 0) {
+        sel.innerHTML += `<option value="" disabled>No tienes obligaciones pendientes</option>`;
+    } else {
+        D.pasivos.forEach(p => {
+            sel.innerHTML += `<option value="${p.id}">${p.acreedor} (Debes: ${COP.format(p.saldo)})</option>`;
+        });
+    }
+    document.getElementById('pas-monto').value = '';
+    myModalAbonarPasivo.show();
+}
+
+function seleccionarPasivo() {
+    var id = document.getElementById('pas-select').value;
+    var p = D.pasivos.find(x => x.id === id);
+    if(p) document.getElementById('pas-monto').value = p.saldo;
+}
+
+function doAbonoPasivo() {
+    var id = document.getElementById('pas-select').value;
+    var monto = parseFloat(document.getElementById('pas-monto').value) || 0;
+    if(!id || monto <= 0) return alert("Verifica el monto a pagar.");
+    
+    var pIdx = D.pasivos.findIndex(x => x.id === id);
+    var acreedorName = "Desconocido";
+    if(pIdx > -1) {
+        acreedorName = D.pasivos[pIdx].acreedor;
+        D.pasivos[pIdx].saldo -= monto;
+        if(D.pasivos[pIdx].saldo <= 0) {
+            D.pasivos.splice(pIdx, 1);
+        }
+    }
+    
+    if(D.metricas) D.metricas.saldo -= monto;
+    D.historial.unshift({ desc: "Pago a Deuda: " + acreedorName, tipo: "egreso", monto: monto, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length, saldo: D.metricas.saldo });
+    
+    myModalAbonarPasivo.hide();
+    renderPasivos();
+    renderFin();
+    if(D.metricas) document.getElementById('bal-caja').innerText = COP.format(D.metricas.saldo||0);
+    showToast("Pago de obligación registrado", "success");
+    
+    callAPI('abonarPasivo', {idPasivo: id, monto: monto, acreedor: acreedorName});
 }
 
 function updateGastosSelect() {
@@ -1553,7 +1619,7 @@ function guardarCambiosAvanzado(){
    });
 }
 
-function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', prodEdit.id).then(r=>{if(r.exito)location.reload()}); } }
+function eliminarProductoActual(){ if(confirm("Eliminar?")){ callAPI('eliminarProductoBackend', {id: prodEdit.id}).then(r=>{if(r.exito)location.reload()}); } }
 function generarIDAuto(){ var c=document.getElementById('new-categoria').value; if(c)document.getElementById('new-id').value=c.substring(0,3).toUpperCase()+'-'+Math.floor(Math.random()*9999); }
 
 function crearProducto(){ 
@@ -1585,17 +1651,41 @@ function doIngresoExtra() {
     var monto = document.getElementById('inc-monto').value;
     if(!desc || !monto) return alert("Falta descripción o monto");
     
+    var acreedor = "";
+    var fechaLimite = "";
+    if (cat === 'Prestamo') {
+        acreedor = document.getElementById('inc-acreedor').value;
+        fechaLimite = document.getElementById('inc-fecha-limite').value;
+        if(!acreedor || !fechaLimite) return alert("Los datos del préstamo (Acreedor y Fecha) son obligatorios");
+    }
+    
     var ingresoNum = parseFloat(monto) || 0;
     if(D.metricas) D.metricas.saldo += ingresoNum;
     D.historial.unshift({ desc: "Ingreso Extra: " + desc, tipo: "ingresos", monto: ingresoNum, fecha: new Date().toISOString().split('T')[0], _originalIndex: D.historial.length, saldo: D.metricas.saldo });
     
+    if (cat === 'Prestamo') {
+         D.pasivos.push({
+             id: "PAS-" + Date.now(), acreedor: acreedor, monto: ingresoNum, saldo: ingresoNum, fechaLimite: fechaLimite
+         });
+         renderPasivos();
+    }
+    
     document.getElementById('inc-desc').value = '';
     document.getElementById('inc-monto').value = '';
+    
+    var elAcreedor = document.getElementById('inc-acreedor');
+    var elFechaLim = document.getElementById('inc-fecha-limite');
+    var elBox = document.getElementById('box-prestamo');
+    if(elAcreedor) elAcreedor.value = '';
+    if(elFechaLim) elFechaLim.value = '';
+    if(elBox) elBox.style.display = 'none';
+    document.getElementById('inc-cat').value = 'Venta Externa';
+    
     renderFin();
     if(D.metricas) document.getElementById('bal-caja').innerText = COP.format(D.metricas.saldo||0);
     showToast("Ingreso registrado", "success");
     
-    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto });
+    callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto, acreedor: acreedor, fechaLimite: fechaLimite });
 }
 
 function doGasto() {
@@ -1670,7 +1760,7 @@ function abrirEditMov(index) {
     movEditObj = D.historial[index]; 
     document.getElementById('ed-mov-desc').value = movEditObj.desc;
     document.getElementById('ed-mov-monto').value = movEditObj.monto;
-    document.getElementById('ed-mov-justificacion').value = ""; // Limpiar justificación
+    document.getElementById('ed-mov-justificacion').value = ""; 
     var fechaRaw = movEditObj.fecha;
     var fechaIso = "";
     if(fechaRaw.includes('/')) { var parts = fechaRaw.split('/'); if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`; } else { fechaIso = fechaRaw.split(' ')[0]; }
