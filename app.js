@@ -5,17 +5,37 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJ
 
 var D = {inv:[], provs:[], deud:[], ped:[], hist:[], cats:[], proveedores:[], ultimasVentas:[], cotizaciones:[]};
 var CART = [];
-var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem, myModalCotizaciones;
+var myModalEdit, myModalNuevo, myModalWA, myModalProv, myModalPed, myModalEditPed, myModalEditMov, myModalRefinanciar, myModalEditItem, myModalCotizaciones, myModalLogin;
 var prodEdit = null;
 var pedEditId = null; 
 var movEditObj = null; 
 var refEditId = null;
 var refSaldoActual = 0;
 var calculatedValues = { total: 0, inicial: 0, base: 0, descuento: 0 };
+var currentUserAlias = "Anonimo";
 
 var usuarioForzoInicial = false;
 
 const COP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+// --- GESTIÓN DE IDENTIDAD (BITÁCORA) ---
+function verificarIdentidad() {
+    var alias = localStorage.getItem('kingshop_alias');
+    if (!alias) {
+        myModalLogin.show();
+    } else {
+        currentUserAlias = alias;
+    }
+}
+
+function guardarIdentidad() {
+    var alias = document.getElementById('login-alias').value.trim();
+    if (alias.length < 3) return alert("Por favor ingresa un nombre válido (Mínimo 3 letras).");
+    localStorage.setItem('kingshop_alias', alias);
+    currentUserAlias = alias;
+    myModalLogin.hide();
+    showToast("Bienvenido, " + alias, "success");
+}
 
 // --- GESTIÓN DE ESTADO OFFLINE/ONLINE ---
 function updateOnlineStatus() {
@@ -78,7 +98,6 @@ async function sincronizarCola() {
     }
 }
 
-// --- TOAST NOTIFICATION SYSTEM ---
 function showToast(msg, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
@@ -90,7 +109,6 @@ function showToast(msg, type = 'success') {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// --- COMPRESOR DE IMÁGENES ---
 function compressImage(file, maxWidth = 800, quality = 0.7) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -113,8 +131,12 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
-// --- CALL API INTELIGENTE (OFFLINE AWARE) ---
+// --- CALL API INTELIGENTE (Inyecta la firma del Usuario en todas las peticiones) ---
 async function callAPI(action, data = null) {
+  if (data && typeof data === 'object') {
+      data.aliasOperador = currentUserAlias; 
+  }
+
   if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
       guardarEnCola(action, data);
       return { exito: true, offline: true }; 
@@ -149,6 +171,7 @@ window.onload = function() {
   myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
   myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
   myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
+  myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
   
   var tpl = document.getElementById('tpl-cart').innerHTML;
   document.getElementById('desktop-cart-container').innerHTML = tpl;
@@ -165,6 +188,7 @@ window.onload = function() {
   if(btn) nav(lastView, btn);
   else nav('pos', document.querySelector('.nav-btn'));
 
+  verificarIdentidad();
   updateOnlineStatus();
   loadData();
 };
@@ -202,7 +226,7 @@ function renderData(res) {
     D.cotizaciones = res.cotizaciones || [];
 
     if(res.metricas) {
-        document.getElementById('user-display').innerText = res.user || "Offline User";
+        document.getElementById('user-display').innerText = currentUserAlias;
         document.getElementById('bal-caja').innerText = COP.format(res.metricas.saldo||0);
         document.getElementById('bal-ventas').innerText = COP.format(res.metricas.ventaMes||0);
         document.getElementById('bal-ganancia').innerText = COP.format(res.metricas.gananciaMes||0);
@@ -423,7 +447,6 @@ function abrirEditorItem(id) {
     document.getElementById('edit-item-desc').value = item.descuentoIndividual || 0;
     document.getElementById('edit-item-iva').checked = item.conIva || false;
     
-    // SAFE GUARD: Limpiar el campo de precio pactado solo si existe
     var pactadoEl = document.getElementById('edit-item-precio-pactado');
     if (pactadoEl) {
         pactadoEl.value = '';
@@ -449,7 +472,6 @@ function calcEditorItem() {
     document.getElementById('edit-item-total').innerText = COP.format(Math.round(precioNeto));
 }
 
-// NUEVA FUNCIÓN: Cálculo inverso desde el Precio Pactado
 function aplicarPrecioPactado() {
     var costo = parseFloat(document.getElementById('edit-item-costo').value) || 0;
     var margen = parseFloat(document.getElementById('edit-item-margen').value) || 0;
@@ -462,19 +484,15 @@ function aplicarPrecioPactado() {
         return;
     }
 
-    // Si tiene IVA marcado, el precio pactado incluye IVA, así que sacamos la base primero
     var precioObjetivoBase = iva ? (precioPactado / 1.19) : precioPactado;
-    
     var precioLista = costo * (1 + margen/100);
     
     if (precioLista > 0) {
         var descuentoRequeridoMonto = precioLista - precioObjetivoBase;
         var descuentoRequeridoPrc = (descuentoRequeridoMonto / precioLista) * 100;
         
-        // Evitar descuentos negativos (si pactó un precio MAYOR al de lista)
         if (descuentoRequeridoPrc < 0) {
              descuentoRequeridoPrc = 0;
-             // Ajustar el margen para que alcance el precio pactado sin descuento
              var nuevoMargen = ((precioObjetivoBase / costo) - 1) * 100;
              document.getElementById('edit-item-margen').value = nuevoMargen.toFixed(1);
         }
@@ -633,19 +651,14 @@ function calcCart() {
                baseParaCalculo += (item.precioUnitarioFinal * q);
            } else {
                let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
-               
                let precioLista = c * (1 + m/100);
-               
                let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
-               
                let descuentoDinero = precioLista * (dPrc / 100);
                descuentoDineroTotal += (descuentoDinero * q);
                
                let px = precioLista - descuentoDinero;
                if (px < 0) px = 0;
-               
                if (item.conIva || conIvaGlobal) px *= 1.19;
-               
                item.precioUnitarioFinal = px;
                
                baseParaCalculo += (c * q);
@@ -658,7 +671,6 @@ function calcCart() {
        let precioListaBruto = baseParaCalculo * (1 + utilGlobal/100);
        descuentoDineroTotal = precioListaBruto * (descuentoGlobalPrc / 100);
        totalFinal = precioListaBruto - descuentoDineroTotal;
-       
        if (totalFinal < 0) totalFinal = 0;
        if (conIvaGlobal) totalFinal *= 1.19; 
    }
@@ -804,10 +816,6 @@ function calcCart() {
        }
    });
 }
-
-// ==========================================
-// MÓDULO COTIZACIONES PERSISTENTES (ERP)
-// ==========================================
 
 function guardarCotizacionActual() {
     var desktopCart = document.getElementById('desktop-cart-container');
@@ -1202,7 +1210,7 @@ function finalizarVenta() {
    }
    
    var idCotiz = parent.getAttribute('data-cotizacion-id');
-   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: D.user || "Offline User", fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
+   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: currentUserAlias, fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
    
    var btn = parent.querySelector('#btn-vender-main');
    if(btn) { btn.innerText = "Procesando..."; btn.disabled = true; }
@@ -1662,6 +1670,7 @@ function abrirEditMov(index) {
     movEditObj = D.historial[index]; 
     document.getElementById('ed-mov-desc').value = movEditObj.desc;
     document.getElementById('ed-mov-monto').value = movEditObj.monto;
+    document.getElementById('ed-mov-justificacion').value = ""; // Limpiar justificación
     var fechaRaw = movEditObj.fecha;
     var fechaIso = "";
     if(fechaRaw.includes('/')) { var parts = fechaRaw.split('/'); if(parts.length === 3) fechaIso = `${parts[2]}-${parts[1]}-${parts[0]}`; } else { fechaIso = fechaRaw.split(' ')[0]; }
@@ -1673,10 +1682,13 @@ function guardarEdicionMovimiento() {
     if(!movEditObj) return;
     var nuevaFecha = document.getElementById('ed-mov-fecha').value;
     var nuevoMonto = document.getElementById('ed-mov-monto').value;
+    var justificacion = document.getElementById('ed-mov-justificacion').value.trim();
+    
     if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
+    if(justificacion.length < 5) return alert("⚠️ Debe escribir una justificación válida para alterar la caja.");
     
     var originalClone = Object.assign({}, movEditObj);
-    var payload = { original: originalClone, fecha: nuevaFecha, monto: nuevoMonto };
+    var payload = { original: originalClone, fecha: nuevaFecha, monto: nuevoMonto, justificacion: justificacion };
     
     movEditObj.fecha = nuevaFecha;
     movEditObj.monto = nuevoMonto;
@@ -1719,10 +1731,31 @@ function doAbono(){
 }
 
 function renderPed(){ var c=document.getElementById('ped-list'); c.innerHTML=''; (D.ped || []).forEach(p=>{ var isPend = p.estado === 'Pendiente'; var badge = isPend ? `<span class="badge bg-warning text-dark">${p.estado}</span>` : `<span class="badge bg-success">${p.estado}</span>`; var controls = `<div class="d-flex gap-2 mt-2"><button class="btn btn-sm btn-outline-secondary flex-fill" onclick='openEditPed(${JSON.stringify(p)})'>✏️</button><button class="btn btn-sm btn-outline-danger flex-fill" onclick="delPed('${p.id}')">🗑️</button>${isPend ? `<button class="btn btn-sm btn-outline-success flex-fill" onclick="comprarPedido('${p.id}', '${p.prod.replace(/'/g, "\\'")}')">✅</button>` : ''}</div>`; c.innerHTML+=`<div class="card-k border-start border-4 ${isPend?'border-warning':'border-success'}"><div class="d-flex justify-content-between"><div><strong>${p.prod}</strong><br><small class="text-muted">${p.prov || 'Sin Prov.'}</small></div><div class="text-end"><small>${p.fecha}</small><br>${badge}</div></div>${p.notas ? `<div class="small text-muted mt-1 fst-italic">"${p.notas}"</div>` : ''}${controls}</div>`; }); }
-function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: D.user, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; callAPI('guardarPedido', d).then(()=>loadData(true)); showToast("Pedido guardado", "success"); }
+function savePed(){ var p=document.getElementById('pe-prod').value; if(!p) return alert("Escribe un producto"); var d = { user: currentUserAlias, prod: p, prov: document.getElementById('pe-prov').value, costoEst: document.getElementById('pe-costo').value, notas: document.getElementById('pe-nota').value }; callAPI('guardarPedido', d).then(()=>loadData(true)); showToast("Pedido guardado", "success"); }
 function openEditPed(p) { pedEditId = p.id; document.getElementById('ed-ped-prod').value = p.prod; document.getElementById('ed-ped-prov').value = p.prov; document.getElementById('ed-ped-costo').value = p.costo; document.getElementById('ed-ped-nota').value = p.notas; myModalEditPed.show(); }
 function guardarEdicionPed() { if(!pedEditId) return; var d = { id: pedEditId, prod: document.getElementById('ed-ped-prod').value, prov: document.getElementById('ed-ped-prov').value, costoEst: document.getElementById('ed-ped-costo').value, notas: document.getElementById('ed-ped-nota').value }; myModalEditPed.hide(); showToast("Editando pedido...", "info"); callAPI('editarPedido', d).then(r => { if(r.exito) loadData(true); else { alert(r.error); } }); }
-function delPed(id) { Swal.fire({ title: '¿Eliminar Pedido?', text: "No podrás deshacer esta acción.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then((result) => { if (result.isConfirmed) { showToast("Eliminando...", "info"); callAPI('eliminarPedido', id).then(r => { if(r.exito) loadData(true); else { alert(r.error); } }); } }); }
+function delPed(id) { 
+    Swal.fire({ 
+        title: '¿Eliminar Pedido?', 
+        text: "Justifica por qué lo vas a eliminar (Ej: Ya no se necesita):", 
+        input: 'text',
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonColor: '#d33', 
+        confirmButtonText: 'Sí, eliminar',
+        preConfirm: (justificacion) => {
+            if (!justificacion || justificacion.length < 4) {
+                Swal.showValidationMessage('⚠️ Escribe una justificación válida');
+            }
+            return justificacion;
+        }
+    }).then((result) => { 
+        if (result.isConfirmed) { 
+            showToast("Eliminando...", "info"); 
+            callAPI('eliminarPedido', {id: id, justificacion: result.value}).then(r => { if(r.exito) loadData(true); else { alert(r.error); } }); 
+        } 
+    }); 
+}
 function comprarPedido(id, nombreProd) { Swal.fire({ title: 'Confirmar Compra', text: `¿Ya compraste "${nombreProd}"? Ingresa el costo REAL final.`, input: 'number', inputLabel: 'Costo Real de Compra', inputPlaceholder: 'Ej: 50000', showCancelButton: true, confirmButtonText: 'Sí, Registrar Gasto e Inventario', cancelButtonText: 'Cancelar', inputValidator: (value) => { if (!value || value <= 0) return 'Debes ingresar un costo válido.'; } }).then((result) => { if (result.isConfirmed) { showToast("Procesando compra...", "info"); callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { if(r.exito) { Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => loadData(true)); } else { alert(r.error); } }); } }); }
 
 function verBancos() {
@@ -1744,9 +1777,6 @@ function verBancos() {
     });
 }
 
-// =======================================================
-// MÓDULO: COTIZADOR PDF CON DESCUENTOS Y MATEMÁTICA EXACTA
-// =======================================================
 function toggleDatosFormales() {
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
     panels.forEach(parent => {
