@@ -738,6 +738,9 @@
                 <label class="small fw-bold">Monto Corregido</label>
                 <input type="number" id="ed-mov-monto" class="form-control mb-3" style="font-weight: bold; color: var(--primary);">
                 
+                <label class="small fw-bold text-danger">Justificación del Cambio (Obligatoria) *</label>
+                <input type="text" id="ed-mov-justificacion" class="form-control mb-3 border-danger" placeholder="Ej: Me equivoqué de cliente, Error de digitación...">
+
                 <div class="d-flex gap-2 mt-3">
                    <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
                    <button class="btn btn-warning w-50 fw-bold" onclick="guardarEdicionMovimiento()">Aplicar Corrección</button>
@@ -855,6 +858,20 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modalLoginApp" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center p-5">
+            <div style="font-size: 3rem; color: var(--gold);"><i class="fas fa-shield-alt"></i></div>
+            <h4 class="fw-bold mt-3" style="color: var(--primary);">Seguridad King's Shop</h4>
+            <p class="text-muted small mb-4">Para utilizar el sistema en este dispositivo, por favor registra tu identidad operativa.</p>
+            <input type="text" id="login-alias" class="form-control form-control-lg text-center fw-bold mb-3 border-dark" placeholder="Tu Nombre o Alias">
+            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="guardarIdentidad()">ACCEDER AL SISTEMA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <datalist id="list-cats"></datalist>
   <datalist id="list-provs-all"></datalist>
   <datalist id="list-prods-all"></datalist>
@@ -871,6 +888,6 @@
       });
     }
   </script>
-  <script src="app.js?v=135"></script>
+  <script src="app.js?v=136"></script>
 </body>
 </html>
