@@ -1572,10 +1572,25 @@ function notificarCobroWA(idVenta) {
         
         if (valCuotaReal > 0 && numCuotas > 1) {
             msg += `💳 *Valor de la Cuota:* ${COP.format(valCuotaReal)}\n`;
+            msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
+            
+            var deudaOriginal = valCuotaReal * numCuotas;
+            if (deudaOriginal < d.saldo) deudaOriginal = d.saldo; 
+            var totalAbonado = deudaOriginal - d.saldo;
+            if (totalAbonado < 0) totalAbonado = 0;
+            var progreso = Math.round((totalAbonado / deudaOriginal) * 100);
+            var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
+            if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
+
+            msg += `📊 *Estado de tu Plan:*\n`;
+            msg += `💰 *Financiado Original:* ${COP.format(deudaOriginal)} (${numCuotas} Cuotas)\n`;
+            msg += `✅ *Total Abonado:* ${COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
+            msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n`;
+            msg += `📈 *Progreso de pago:* ${progreso}%\n\n`;
+        } else {
+            msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
+            msg += `📊 *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
         }
-        
-        msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
-        msg += `📊 *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
     }
     
     msg += `🏦 *Medios de Pago:*\n`;
@@ -1585,7 +1600,6 @@ function notificarCobroWA(idVenta) {
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
-
 function abrirModalRefinanciar(id, cliente, saldo) {
     refEditId = id;
     refSaldoActual = parseFloat(saldo) || 0;
