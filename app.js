@@ -1347,7 +1347,7 @@ function finalizarVenta() {
                itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: unitPrice });
            }
        });
-  } else {
+   } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
        var costoManual = calculatedValues.base;
        if(costoManual === 0 && calculatedValues.total > 0) {
@@ -1519,14 +1519,15 @@ function renderCartera() {
                     </div>
                     <div class="text-end" style="white-space: nowrap;">
                         <h5 class="fw-bold text-danger m-0">${COP.format(d.saldo)}</h5>
-                        <span class="badge-debt d-inline-block mt-1">Pendiente</span><br>
-                        ${badgeAdelanto}
+                        <span class="badge-debt d-inline-block mt-1">Pendiente</span>
+                        <button class="btn btn-sm text-muted p-0 ms-1" onclick="castigarDeuda('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}')" title="Castigar Cartera"><i class="fas fa-skull-crossbones"></i></button>
+                        <br>${badgeAdelanto}
                     </div>
                 </div>
                 <div class="mt-2 d-flex gap-2 flex-wrap justify-content-end border-top pt-2">
-                    <button class="btn btn-xs btn-outline-success flex-fill" onclick="notificarCobroWA('${d.idVenta}')" title="Notificar Cobro"><i class="fab fa-whatsapp"></i> Cobrar</button>
-                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo})" title="Refinanciar Deuda">🔄 Refinanciar</button>
-                    <button class="btn btn-xs btn-outline-dark flex-fill" onclick="castigarDeuda('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}')" title="Castigar Cartera (Lista Negra)">☠️ Castigar</button>
+                    <button class="btn btn-xs btn-outline-success flex-fill" onclick="notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
+                    <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
+                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo})" title="Refinanciar Deuda">🔄 Refinanc.</button>
                 </div>
                 ${planDetalle}
             </div>`;
@@ -1554,26 +1555,50 @@ function notificarCobroWA(idVenta) {
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
     
     var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola *${d.cliente.trim()}*, esperamos que estés teniendo un excelente día. 👋\n\n`;
+    msg += `Hola *${d.cliente.trim()}* espero que estés muy bien! 🌟\n\n`;
     
     if ((d.deudaInicial || 0) > 0) {
-        msg += `Te escribimos para recordarte el saldo pendiente de la *Cuota Inicial* de tu compra:\n\n`;
+        msg += `Pasamos por aquí para recordarte el saldo pendiente de la *Cuota Inicial* de tu compra:\n\n`;
         msg += `📦 *Producto:* ${d.producto}\n`;
-        msg += `⚠️ *Faltante Inicial:* ${COP.format(d.deudaInicial)}\n`;
-        msg += `📊 *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
-        msg += `Por favor, ayúdanos a completar este monto para formalizar tu plan de pagos.\n\n`;
+        msg += `⚠️ *Faltante Inicial:* ${COP.format(d.deudaInicial)}\n\n`;
+        msg += `Quedamos muy atentos a tu comprobante de pago para formalizar tu plan. ¡Gracias por tu confianza! 🤝`;
+    } else {
+        var valCuotaReal = parseFloat(d.valCuota) || 0;
+        var fechaTxt = d.fechaLimite || "Pago Inmediato";
+        
+        msg += `Pasamos por aquí para recordarte el pago de tu *${d.producto}* 📦.\n\n`;
+        
+        if (valCuotaReal > 0) {
+            msg += `💳 *Cuota:* ${COP.format(valCuotaReal)}\n`;
+        } else {
+            msg += `💳 *Saldo Total:* ${COP.format(d.saldo)}\n`;
+        }
+        
+        msg += `📅 *Fecha:* ${fechaTxt}\n\n`;
+        msg += `Quedamos muy atentos a tus comprobantes. ¡Gracias por tu confianza! 🤝`;
+    }
+    
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
+function compartirBalanceWA(idVenta) {
+    var d = D.deudores.find(x => x.idVenta === idVenta);
+    if (!d) return alert("Error: Deuda no encontrada en memoria.");
+    
+    var msg = `👑 *KING'S SHOP* 👑\n\n`;
+    msg += `Hola *${d.cliente.trim()}* 👋.\n\n`;
+    msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
+    
+    if ((d.deudaInicial || 0) > 0) {
+        msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
+        msg += `⏳ *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
+        msg += `Una vez cubiertas las iniciales, te enviaremos el progreso de tus cuotas. 🤝`;
     } else {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var numCuotas = parseInt(d.cuotas) || 1;
-        var fechaTxt = d.fechaLimite || "Pago Inmediato";
-        
-        msg += `Te escribimos desde el área de cartera para enviarte el recordatorio de tu pago programado:\n\n`;
-        msg += `📦 *Producto:* ${d.producto}\n`;
         
         if (valCuotaReal > 0 && numCuotas > 1) {
-            msg += `💳 *Valor de la Cuota:* ${COP.format(valCuotaReal)}\n`;
-            msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
-            
             var deudaOriginal = valCuotaReal * numCuotas;
             if (deudaOriginal < d.saldo) deudaOriginal = d.saldo; 
             var totalAbonado = deudaOriginal - d.saldo;
@@ -1582,24 +1607,20 @@ function notificarCobroWA(idVenta) {
             var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
             if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
 
-            msg += `📊 *Estado de tu Plan:*\n`;
-            msg += `💰 *Financiado Original:* ${COP.format(deudaOriginal)} (${numCuotas} Cuotas)\n`;
+            msg += `💰 *Financiado:* ${COP.format(deudaOriginal)} (${numCuotas} Cuotas)\n`;
             msg += `✅ *Total Abonado:* ${COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
             msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n`;
-            msg += `📈 *Progreso de pago:* ${progreso}%\n\n`;
+            msg += `📈 *Progreso:* ${progreso}%\n\n`;
         } else {
-            msg += `📅 *Fecha de Pago:* ${fechaTxt}\n\n`;
-            msg += `📊 *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
+            msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n\n`;
         }
+        msg += `Cualquier duda estamos a tu disposición. 🤝`;
     }
     
-    msg += `🏦 *Medios de Pago:*\n`;
-    msg += `Puedes realizar tu transferencia a Bancolombia o Nequi.\n\n`;
-    msg += `Quedamos atentos a tu comprobante. ¡Gracias por tu puntualidad y preferencia! 🤝`;
-
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
+
 function abrirModalRefinanciar(id, cliente, saldo) {
     refEditId = id;
     refSaldoActual = parseFloat(saldo) || 0;
