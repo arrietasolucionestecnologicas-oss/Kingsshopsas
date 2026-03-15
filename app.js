@@ -1,3 +1,10 @@
+/*
+================================================================================
+MODO 2 — MODIFICACIÓN ESTRUCTURAL (ARCHIVO COMPLETO)
+ARCHIVO: app.js
+================================================================================
+*/
+
 // ============================================
 // ⚠️ PEGA AQUÍ LA URL DE TU IMPLEMENTACIÓN WEB
 // ============================================
@@ -658,6 +665,11 @@ function updateCartUI(keepOpen = false) {
        btnFloat.innerText = "🛒 " + count;
    }
    
+   var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible');
+   var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+   if(!activeParent) activeParent = document.getElementById('desktop-cart-container'); 
+   var isEximir = activeParent && activeParent.querySelector('#c-eximir') ? activeParent.querySelector('#c-eximir').checked : false;
+
    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
    panels.forEach(parent => {
@@ -724,6 +736,7 @@ function calcCart() {
    var tasaMensual = parseFloat(activeParent.querySelector('#c-int')?activeParent.querySelector('#c-int').value:5)||0; 
    var targetVal = parseFloat(activeParent.querySelector('#c-target')?activeParent.querySelector('#c-target').value:0);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
+   var isEximir = activeParent.querySelector('#c-eximir') ? activeParent.querySelector('#c-eximir').checked : false;
    
    var baseParaCalculo = 0;
    var totalFinal = 0;
@@ -779,7 +792,7 @@ function calcCart() {
        }
    } else {
        if (metodo === "Crédito") {
-           var iniTemp = totalFinal * 0.30;
+           var iniTemp = isEximir ? 0 : (totalFinal * 0.30);
            var saldoTemp = totalFinal - iniTemp;
            var interesTotal = saldoTemp * (tasaMensual/100) * cuotas;
            totalFinal = totalFinal + interesTotal;
@@ -803,7 +816,7 @@ function calcCart() {
        inicial = parseFloat(inpInicial.value);
        if(isNaN(inicial)) inicial = 0;
    } else {
-       inicial = Math.round(totalFinal * 0.30);
+       inicial = isEximir ? 0 : Math.round(totalFinal * 0.30);
    }
    
    calculatedValues.inicial = inicial;
@@ -832,6 +845,7 @@ function calcCart() {
            if(parent.querySelector('#c-nit') && document.activeElement !== parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = activeParent.querySelector('#c-nit') ? activeParent.querySelector('#c-nit').value : "";
            if(parent.querySelector('#c-tel') && document.activeElement !== parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = activeParent.querySelector('#c-tel') ? activeParent.querySelector('#c-tel').value : "";
            if(parent.querySelector('#c-incluir-desc') && document.activeElement !== parent.querySelector('#c-incluir-desc')) parent.querySelector('#c-incluir-desc').checked = activeParent.querySelector('#c-incluir-desc') ? activeParent.querySelector('#c-incluir-desc').checked : false;
+           if(parent.querySelector('#c-eximir') && document.activeElement !== parent.querySelector('#c-eximir')) parent.querySelector('#c-eximir').checked = isEximir;
        }
 
        if (CART.length > 0) {
@@ -921,6 +935,7 @@ function guardarCotizacionActual() {
     if(CART.length === 0 && !parent.querySelector('#c-concepto').value && calculatedValues.total <= 0) return alert("El carrito está vacío");
 
     var idGenerado = parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now());
+    var isEximir = parent.querySelector('#c-eximir') ? parent.querySelector('#c-eximir').checked : false;
 
     var paquete = {
         id: idGenerado,
@@ -937,6 +952,7 @@ function guardarCotizacionActual() {
         int: parent.querySelector('#c-int').value,
         target: parent.querySelector('#c-target').value,
         concepto: parent.querySelector('#c-concepto').value,
+        eximir: isEximir,
         cart: JSON.parse(JSON.stringify(CART)),
         total: calculatedValues.total
     };
@@ -1007,6 +1023,7 @@ function cargarCotizacion(id) {
         if(parent.querySelector('#c-int')) parent.querySelector('#c-int').value = cot.int || 5;
         if(parent.querySelector('#c-target')) parent.querySelector('#c-target').value = cot.target || '';
         if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = cot.concepto || '';
+        if(parent.querySelector('#c-eximir')) parent.querySelector('#c-eximir').checked = cot.eximir || false;
         
         parent.setAttribute('data-cotizacion-id', id);
     });
@@ -1052,6 +1069,8 @@ function clearCart() {
         if(inpDesc) inpDesc.value = '0';
         var inpConcepto = parent.querySelector('#c-concepto');
         if(inpConcepto) inpConcepto.value = '';
+        var inpEximir = parent.querySelector('#c-eximir');
+        if(inpEximir) inpEximir.checked = false;
         
         parent.removeAttribute('data-cotizacion-id');
     });
@@ -1293,6 +1312,7 @@ function finalizarVenta() {
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
    var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
+   var isEximir = parent.querySelector('#c-eximir') ? parent.querySelector('#c-eximir').checked : false;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
@@ -1316,7 +1336,7 @@ function finalizarVenta() {
    }
    
    var idCotiz = parent.getAttribute('data-cotizacion-id');
-   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: currentUserAlias, fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
+   var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, vendedor: currentUserAlias, fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz, eximirInicial: isEximir };
    
    var btn = parent.querySelector('#btn-vender-main');
    if(btn) { btn.innerText = "Procesando..."; btn.disabled = true; }
@@ -1979,6 +1999,7 @@ function generarCotizacionPDF() {
    var metodo = parent.querySelector('#c-metodo').value;
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value)||0;
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value)||1;
+   var isEximir = parent.querySelector('#c-eximir') ? parent.querySelector('#c-eximir').checked : false;
    
    if(calculatedValues.total <= 0 && calculatedValues.base <= 0) return alert("El precio total no puede ser 0");
    
@@ -2091,7 +2112,7 @@ function generarCotizacionPDF() {
    var interesAplicado = 0;
    if (metodo === "Crédito" && !tieneTarget) {
        var preTotal = subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion;
-       var iniTemp = preTotal * 0.30;
+       var iniTemp = isEximir ? 0 : (preTotal * 0.30);
        var saldoTemp = preTotal - iniTemp;
        interesAplicado = saldoTemp * (tasaMensual/100) * cuotas;
        
