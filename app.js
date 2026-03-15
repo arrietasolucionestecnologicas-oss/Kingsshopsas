@@ -891,8 +891,10 @@ function calcCart() {
        }
 
        var pInpInicial = parent.querySelector('#c-inicial');
-       if(!isTypingInicial || parent === activeParent) {
-           if(pInpInicial) pInpInicial.value = inicial; 
+       if (parent !== activeParent || !isTypingInicial) {
+           if(pInpInicial && pInpInicial.value !== String(inicial)) {
+               pInpInicial.value = inicial; 
+           }
        }
 
        var rowCred = parent.querySelectorAll('#row-cred'); 
@@ -1345,7 +1347,7 @@ function finalizarVenta() {
                itemsData.push({ nombre: p.nombre, cat: p.cat, costo: p.costo, precioVenta: unitPrice });
            }
        });
-   } else {
+  } else {
        var nombreManual = parent.querySelector('#c-concepto').value || "Venta Manual";
        var costoManual = calculatedValues.base;
        if(costoManual === 0 && calculatedValues.total > 0) {
@@ -1353,6 +1355,16 @@ function finalizarVenta() {
        }
        itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
+
+   // --- INYECCIÓN DE INTERÉS AL BACKEND ---
+   if (metodo === "Crédito" && calculatedValues.total > 0) {
+       var sumaItemsBase = itemsData.reduce((a, b) => a + b.precioVenta, 0);
+       var difInteres = calculatedValues.total - sumaItemsBase;
+       if (difInteres > 0.01) {
+           itemsData.push({ nombre: "Intereses de Financiación", cat: "Financiero", costo: 0, precioVenta: difInteres });
+       }
+   }
+   // ---------------------------------------
    
    var idCotiz = parent.getAttribute('data-cotizacion-id');
    var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, inicialPersonalizada: usuarioForzoInicial, eximirInicial: isEximir, vendedor: currentUserAlias, fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
