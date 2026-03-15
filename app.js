@@ -1549,13 +1549,12 @@ function renderCartera() {
     
     if(bal) bal.innerText = COP.format(totalDeuda);
 }
-
 function notificarCobroWA(idVenta) {
     var d = D.deudores.find(x => x.idVenta === idVenta);
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
     
     var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola *${d.cliente.trim()}* espero que estés muy bien! 🌟\n\n`;
+    msg += `Hola 👋 espero que estés muy bien! 🌟\n\n`;
     
     if ((d.deudaInicial || 0) > 0) {
         msg += `Pasamos por aquí para recordarte el saldo pendiente de la *Cuota Inicial* de tu compra:\n\n`;
@@ -1587,13 +1586,13 @@ function compartirBalanceWA(idVenta) {
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
     
     var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola *${d.cliente.trim()}* 👋.\n\n`;
+    msg += `Hola 👋.\n\n`;
     msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
     
     if ((d.deudaInicial || 0) > 0) {
         msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
         msg += `⏳ *Saldo Total Pendiente:* ${COP.format(d.saldo)}\n\n`;
-        msg += `Una vez cubiertas las iniciales, te enviaremos el progreso de tus cuotas. 🤝`;
+        msg += `Una vez cubiertas las iniciales, te enviaremos el extracto de tus cuotas. 🤝`;
     } else {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var numCuotas = parseInt(d.cuotas) || 1;
@@ -1603,14 +1602,12 @@ function compartirBalanceWA(idVenta) {
             if (deudaOriginal < d.saldo) deudaOriginal = d.saldo; 
             var totalAbonado = deudaOriginal - d.saldo;
             if (totalAbonado < 0) totalAbonado = 0;
-            var progreso = Math.round((totalAbonado / deudaOriginal) * 100);
             var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
             if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
 
             msg += `💰 *Financiado:* ${COP.format(deudaOriginal)} (${numCuotas} Cuotas)\n`;
             msg += `✅ *Total Abonado:* ${COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
-            msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n`;
-            msg += `📈 *Progreso:* ${progreso}%\n\n`;
+            msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n\n`;
         } else {
             msg += `⏳ *Saldo Pendiente:* ${COP.format(d.saldo)}\n\n`;
         }
