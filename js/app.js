@@ -59,55 +59,55 @@ window.showToast = function(msg, type = 'success') {
     toastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
-
 window.onload = function() {
-  if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
-  if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
-  if(document.getElementById('modalWA')) window.myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
-  if(document.getElementById('modalProv')) window.myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
-  if(document.getElementById('modalPed')) window.myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
-  if(document.getElementById('modalEditPed')) window.myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
-  if(document.getElementById('modalEditMov')) window.myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
-  if(document.getElementById('modalRefinanciar')) window.myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
-  if(document.getElementById('modalEditItem')) window.myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
-  if(document.getElementById('modalCotizaciones')) window.myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
-  if(document.getElementById('modalLoginApp')) window.myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
-  if(document.getElementById('modalAbonarPasivo')) window.myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
-  
-  var tplElement = document.getElementById('tpl-cart');
-  if(tplElement) {
-      var tpl = tplElement.innerHTML;
-      var dCart = document.getElementById('desktop-cart-container');
-      var mCart = document.getElementById('mobile-cart');
-      if(dCart) dCart.innerHTML = tpl;
-      if(mCart) mCart.innerHTML = tpl;
-  }
+    if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
+    if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
+    if(document.getElementById('modalWA')) window.myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
+    if(document.getElementById('modalProv')) window.myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
+    if(document.getElementById('modalPed')) window.myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
+    if(document.getElementById('modalEditPed')) window.myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
+    if(document.getElementById('modalEditMov')) window.myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
+    if(document.getElementById('modalRefinanciar')) window.myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
+    if(document.getElementById('modalEditItem')) window.myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
+    if(document.getElementById('modalCotizaciones')) window.myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
+    if(document.getElementById('modalLoginApp')) window.myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
+    if(document.getElementById('modalAbonarPasivo')) window.myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
+    if(document.getElementById('modalRadiografia')) window.myModalRadiografia = new bootstrap.Modal(document.getElementById('modalRadiografia'));
+    
+    var tplElement = document.getElementById('tpl-cart');
+    if(tplElement) {
+        var tpl = tplElement.innerHTML;
+        var dCart = document.getElementById('desktop-cart-container');
+        var mCart = document.getElementById('mobile-cart');
+        if(dCart) dCart.innerHTML = tpl;
+        if(mCart) mCart.innerHTML = tpl;
+    }
 
-  document.querySelectorAll('#c-inicial').forEach(el => {
-      el.removeAttribute('disabled');
-      el.style.background = '#fff'; 
-      if(window.calcCart) el.oninput = window.calcCart;        
-  });
-  
-  var elCat = document.getElementById('inc-cat');
-  if(elCat) {
-      elCat.addEventListener('change', function(e) {
-          var box = document.getElementById('box-prestamo');
-          if (box) {
-              if (e.target.value === 'Prestamo') box.style.display = 'block';
-              else box.style.display = 'none';
-          }
-      });
-  }
+    document.querySelectorAll('#c-inicial').forEach(el => {
+        el.removeAttribute('disabled');
+        el.style.background = '#fff'; 
+        if(window.calcCart) el.oninput = window.calcCart;        
+    });
+    
+    var elCat = document.getElementById('inc-cat');
+    if(elCat) {
+        elCat.addEventListener('change', function(e) {
+            var box = document.getElementById('box-prestamo');
+            if (box) {
+                if (e.target.value === 'Prestamo') box.style.display = 'block';
+                else box.style.display = 'none';
+            }
+        });
+    }
 
-  var lastView = localStorage.getItem('lastView') || 'pos';
-  var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
-  if(btn && window.nav) window.nav(lastView, btn);
-  else if(window.nav && document.querySelector('.nav-btn')) window.nav('pos', document.querySelector('.nav-btn'));
+    var lastView = localStorage.getItem('lastView') || 'pos';
+    var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
+    if(btn && window.nav) window.nav(lastView, btn);
+    else if(window.nav && document.querySelector('.nav-btn')) window.nav('pos', document.querySelector('.nav-btn'));
 
-  window.verificarIdentidad();
-  window.updateOnlineStatus();
-  if(window.loadData) window.loadData();
+    window.verificarIdentidad();
+    window.updateOnlineStatus();
+    if(window.loadData) window.loadData();
 };
 
 window.loadData = function(silent = false){
