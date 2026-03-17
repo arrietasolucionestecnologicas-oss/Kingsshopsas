@@ -311,6 +311,7 @@ function renderCartera() {
                     </div>
                 </div>
                 <div class="mt-2 d-flex gap-2 flex-wrap justify-content-end border-top pt-2">
+                    <button class="btn btn-xs btn-outline-dark flex-fill fw-bold" onclick="window.abrirRadiografia('${d.idVenta}')" title="Ver Radiografía Financiera"><i class="fas fa-microscope"></i> Detalles</button>
                     <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
                     <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
                     <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo})" title="Refinanciar Deuda">🔄 Refinanc.</button>
@@ -761,6 +762,44 @@ function comprarPedido(id, nombreProd) {
     }); 
 }
 
+function abrirRadiografia(idVenta) {
+    var v = window.D.deudores.find(x => x.idVenta === idVenta);
+    if(!v) return;
+    
+    document.getElementById('rad-id').innerText = v.idVenta;
+    document.getElementById('rad-fecha').innerText = v.fechaStr || "Sin fecha";
+    document.getElementById('rad-cliente').innerText = v.cliente;
+    document.getElementById('rad-prod').innerText = v.producto;
+    document.getElementById('rad-total').innerText = window.COP.format(v.total || 0);
+    document.getElementById('rad-metodo').innerText = (v.metodo || "Crédito").toUpperCase();
+    document.getElementById('rad-costo').innerText = window.COP.format(v.costo || 0);
+    document.getElementById('rad-ganancia').innerText = window.COP.format(v.ganancia || 0);
+    
+    document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
+    document.getElementById('rad-vendedor').innerText = v.vendedor || "Sistema";
+    
+    var boxDeuda = document.getElementById('box-deuda');
+    if (v.estado === 'Pagado') {
+        boxDeuda.style.borderColor = '#2ecc71';
+        document.getElementById('rad-saldo').innerText = 'PAZ Y SALVO';
+        document.getElementById('rad-saldo').className = 'rad-val text-success';
+        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(v.inicial || 0)}`;
+    } else {
+        boxDeuda.style.borderColor = '#e74c3c';
+        document.getElementById('rad-saldo').innerText = window.COP.format(v.saldo);
+        document.getElementById('rad-saldo').className = 'rad-val text-danger';
+        var cuotas = parseInt(v.cuotas) || 1;
+        var cuotaTxt = cuotas > 1 ? `${cuotas} cuotas de ${window.COP.format(v.valCuota || 0)}` : `Pago único pendiente`;
+        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(v.inicial || 0)} | ${cuotaTxt}`;
+    }
+    
+    if(window.myModalRadiografia) window.myModalRadiografia.show();
+}
+
+function revelarSecretos() {
+    document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
+}
+
 // Exportaciones Globales
 window.renderFin = renderFin;
 window.abrirEditMov = abrirEditMov;
@@ -788,3 +827,5 @@ window.openEditPed = openEditPed;
 window.guardarEdicionPed = guardarEdicionPed;
 window.delPed = delPed;
 window.comprarPedido = comprarPedido;
+window.abrirRadiografia = abrirRadiografia;
+window.revelarSecretos = revelarSecretos;
