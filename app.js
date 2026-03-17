@@ -1333,7 +1333,7 @@ function finalizarVenta() {
    var metodo = parent.querySelector('#c-metodo').value;
    var fechaVal = parent.querySelector('#c-fecha').value;
    var cuotasVal = parseInt(parent.querySelector('#c-cuotas').value)||1;
-   var isEximir = parent.querySelector('#c-eximir') ? parent.querySelector('#c-eximir').checked : false;
+   var isEximir = parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false;
    
    if(calculatedValues.total <= 0) return alert("Precio 0 no permitido");
    
@@ -1356,15 +1356,18 @@ function finalizarVenta() {
        itemsData.push({ nombre: nombreManual, cat: "General", costo: costoManual, precioVenta: calculatedValues.total });
    }
 
-   // --- INYECCIÓN DE INTERÉS AL BACKEND ---
+   // --- INYECCIÓN DE INTERÉS (MODIFICADO: DISTRIBUCIÓN AL PRECIO BASE) ---
    if (metodo === "Crédito" && calculatedValues.total > 0) {
        var sumaItemsBase = itemsData.reduce((a, b) => a + b.precioVenta, 0);
        var difInteres = calculatedValues.total - sumaItemsBase;
-       if (difInteres > 0.01) {
-           itemsData.push({ nombre: "Intereses de Financiación", cat: "Financiero", costo: 0, precioVenta: difInteres });
+       if (difInteres > 0.01 && itemsData.length > 0) {
+           itemsData.forEach(item => {
+               var peso = sumaItemsBase > 0 ? (item.precioVenta / sumaItemsBase) : (1 / itemsData.length);
+               item.precioVenta = Math.round(item.precioVenta + (difInteres * peso));
+           });
        }
    }
-   // ---------------------------------------
+   // -----------------------------------------------------------------------
    
    var idCotiz = parent.getAttribute('data-cotizacion-id');
    var d = { items: itemsData, cliente: cli, metodo: metodo, inicial: (metodo === 'Crédito') ? calculatedValues.inicial : 0, inicialPersonalizada: usuarioForzoInicial, eximirInicial: isEximir, vendedor: currentUserAlias, fechaPersonalizada: fechaVal, cuotas: cuotasVal, idCotizacion: idCotiz };
