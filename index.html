@@ -54,7 +54,7 @@
         padding: 5px;
         font-size: 0.8rem;
         font-weight: bold;
-        display: none; /* Se activa con JS */
+        display: none;
     }
 
     /* LAYOUT VENTAS */
@@ -107,7 +107,6 @@
     }
     .cat-img-box img { width: 100%; height: 100%; object-fit: cover; }
     
-    /* Botón Editar Flotante */
     .btn-edit-float {
         position: absolute; top: 5px; right: 5px;
         background: rgba(255,255,255,0.95); border-radius: 50%;
@@ -218,11 +217,18 @@
     .nav-pills .nav-link { color: var(--primary) !important; }
 
     #modalEditItem { z-index: 6000 !important; }
+
+    /* MODAL RADIOGRAFÍA FINANCIERA (INYECCIÓN) */
+    .rad-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed var(--gold); }
+    .rad-label { color: #888; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px; display: block; font-weight:bold; }
+    .rad-val { font-size: 1.1rem; font-weight: bold; color: var(--primary); }
+    .rad-secret { filter: blur(4px); cursor: pointer; transition: 0.2s; }
+    .rad-secret.revealed { filter: blur(0); }
   </style>
 </head>
 <body>
 
-  <div id="loader"><div class="spinner-border text-dark" role="status"></div><h6 class="mt-3 text-muted fw-bold">Conectando al Servidor Central...</h6></div>
+  <div id="loader"><div class="spinner-border text-warning" role="status" style="color: #d4af37 !important;"></div><div class="mt-3 text-muted fw-bold">Conectando al Servidor Central...</div></div>
   
   <div id="toast-container"></div>
 
@@ -230,7 +236,7 @@
     <div><h4 class="m-0 fw-bold" style="color: var(--gold); letter-spacing: 1px;">👑 KING'S SHOP POS</h4><small class="opacity-75" id="user-display">Verificando Credenciales...</small></div>
     <div class="d-flex gap-2">
         <a class="btn-bi" href="dashboard.html"><i class="bi bi-graph-up-arrow"></i> Reportes</a>
-        <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="verBancos()" title="Ver Cuentas Bancarias"><i class="bi bi-bank2 fs-5"></i></button>
+        <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="window.verBancos()" title="Ver Cuentas Bancarias"><i class="bi bi-bank2 fs-5"></i></button>
     </div>
   </div>
   
@@ -240,12 +246,12 @@
     <div id="view-pos" class="view-sec">
       <div class="main-layout">
         <div class="list-column">
-           <button class="btn btn-outline-info w-100 mb-2 fw-bold" onclick="abrirModalCotizaciones()"><i class="fas fa-folder-open"></i> VER COTIZACIONES GUARDADAS</button>
-           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="agregarItemManual()"><i class="fas fa-plus"></i> AGREGAR ÍTEM MANUAL (NO CATALOGADO)</button>
+           <button class="btn btn-outline-info w-100 mb-2 fw-bold" onclick="window.abrirModalCotizaciones()"><i class="fas fa-folder-open"></i> VER COTIZACIONES GUARDADAS</button>
+           <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="window.agregarItemManual()"><i class="fas fa-plus"></i> AGREGAR ÍTEM MANUAL (NO CATALOGADO)</button>
            
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
                <i class="fas fa-search text-muted ms-2 me-2"></i>
-               <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Buscar producto en inventario..." onkeyup="renderPos()" style="font-weight:bold;">
+               <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Buscar producto en inventario..." onkeyup="window.renderPos()" style="font-weight:bold;">
            </div>
            
            <div id="pos-placeholder" class="text-center text-muted py-5">
@@ -261,25 +267,25 @@
 
     <div id="view-inv" class="view-sec" style="display:none; padding:15px;">
       <div class="scroll-menu">
-        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar Referencia..." onkeyup="renderInv()" style="width: 150px;">
-        <select id="filter-prov" class="form-select" style="width: 150px; border-color: var(--gold);" onchange="renderInv()">
+        <input type="text" id="inv-search" class="form-control" placeholder="🔍 Buscar Referencia..." onkeyup="window.renderInv()" style="width: 150px;">
+        <select id="filter-prov" class="form-select" style="width: 150px; border-color: var(--gold);" onchange="window.renderInv()">
             <option value="">Todos los Proveedores</option>
         </select>
-        <button class="btn btn-primary" onclick="abrirModalNuevo()" style="white-space: nowrap;">+ CREAR PRODUCTO</button>
-        <button class="btn btn-info" onclick="abrirModalProv()" title="Gestionar Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Proveedores</button>
-        <button class="btn btn-success" onclick="abrirModalWA()" title="Importar desde Chat" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar Chat</button>
+        <button class="btn btn-primary" onclick="window.abrirModalNuevo()" style="white-space: nowrap;">+ CREAR PRODUCTO</button>
+        <button class="btn btn-info" onclick="window.abrirModalProv()" title="Gestionar Proveedores" style="white-space: nowrap;"><i class="fas fa-users"></i> Proveedores</button>
+        <button class="btn btn-success" onclick="window.abrirModalWA()" title="Importar desde Chat" style="white-space: nowrap;"><i class="fab fa-whatsapp"></i> Importar Chat</button>
       </div>
       <div id="inv-list" class="catalog-grid"></div>
     </div>
 
     <div id="view-web" class="view-sec" style="display:none; padding:15px;">
         <h5 class="fw-bold mb-3 text-primary"><i class="fas fa-globe" style="color: var(--gold);"></i> Administración Tienda Web</h5>
-        <input type="text" id="web-search" class="form-control mb-3" placeholder="🔍 Filtrar productos publicados..." onkeyup="renderWeb()">
+        <input type="text" id="web-search" class="form-control mb-3" placeholder="🔍 Filtrar productos publicados..." onkeyup="window.renderWeb()">
         <div id="web-list"></div>
     </div>
 
     <div id="view-ped" class="view-sec" style="display:none; padding:15px;">
-      <button class="btn btn-primary w-100 mb-3" onclick="abrirModalPed()">+ Registrar Nuevo Pedido a Proveedor</button>
+      <button class="btn btn-primary w-100 mb-3" onclick="window.abrirModalPed()">+ Registrar Nuevo Pedido a Proveedor</button>
       <div id="ped-list"></div>
     </div>
 
@@ -293,11 +299,10 @@
     </div>
 
     <div id="view-fin" class="view-sec" style="display:none; padding:15px;">
-      
       <div class="card-balance mb-3" style="background: linear-gradient(135deg, #8b0000, #5c0000); border-color: #ff4d4d; box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);">
           <small class="opacity-75" style="color: white;">Obligaciones por Pagar (Mis Deudas)</small>
           <h1 class="fw-bold display-4 my-1" id="bal-pasivos" style="color: white;">...</h1>
-          <button class="btn btn-light btn-sm mt-2 fw-bold" onclick="abrirModalPasivos()" style="color: #8b0000;">PAGAR OBLIGACIONES</button>
+          <button class="btn btn-light btn-sm mt-2 fw-bold" onclick="window.abrirModalPasivos()" style="color: #8b0000;">PAGAR OBLIGACIONES</button>
       </div>
 
       <div class="card-balance">
@@ -313,7 +318,7 @@
           <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" id="audit-banco" class="form-control" placeholder="Ingrese Saldo Real (Bancos + Efectivo)">
-              <button class="btn btn-dark" onclick="verificarBanco()">Auditar</button>
+              <button class="btn btn-dark" onclick="window.verificarBanco()">Auditar</button>
           </div>
       </div>
 
@@ -335,8 +340,7 @@
                <input type="number" id="ab-monto" class="form-control mb-2" placeholder="Monto Recibido">
                <label class="small text-muted fw-bold">Fecha del Pago:</label>
                <input type="date" id="ab-fecha" class="form-control mb-2" style="border-color: var(--gold);">
-               
-               <button class="btn btn-success w-100" onclick="doAbono()">CONFIRMAR RECAUDO</button>
+               <button class="btn btn-success w-100" onclick="window.doAbono()">CONFIRMAR RECAUDO</button>
             </div>
          </div>
          
@@ -359,7 +363,7 @@
                </div>
 
                <input type="number" id="inc-monto" class="form-control mb-2" placeholder="Monto Ingresado">
-               <button class="btn btn-primary w-100" onclick="doIngresoExtra()">REGISTRAR ENTRADA</button>
+               <button class="btn btn-primary w-100" onclick="window.doIngresoExtra()">REGISTRAR ENTRADA</button>
             </div>
          </div>
 
@@ -378,13 +382,13 @@
                    * Si vinculas a un <b>Producto</b>, se actualizará su costo base en inventario.
                </small>
                
-               <button class="btn btn-danger w-100" onclick="doGasto()">REGISTRAR EGRESO</button>
+               <button class="btn btn-danger w-100" onclick="window.doGasto()">REGISTRAR EGRESO</button>
             </div>
          </div>
          
          <div class="tab-pane fade" id="f-hist">
              <div class="card-k">
-                 <input type="text" id="hist-search" class="form-control mb-3" placeholder="🔍 Buscar movimiento por nombre..." onkeyup="renderFin()">
+                 <input type="text" id="hist-search" class="form-control mb-3" placeholder="🔍 Buscar movimiento por nombre..." onkeyup="window.renderFin()">
                  <div id="hist-list"></div>
              </div>
          </div>
@@ -393,33 +397,15 @@
   </div>
 
   <div id="mobile-cart" class="mobile-panel cotizador-panel-container"></div>
-  <button id="btn-float-cart" class="btn shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="toggleMobileCart()" title="Ver Carrito">🛒</button>
+  <button id="btn-float-cart" class="btn shadow" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; z-index:4000; display:none; font-size:1.5rem;" onclick="window.toggleMobileCart()" title="Ver Carrito">🛒</button>
 
   <div class="nav-btm">
-    <button class="nav-btn active" onclick="nav('pos',this)">
-        <i class="fas fa-cash-register"></i>
-        <span>Punto Venta</span>
-    </button>
-    <button class="nav-btn" onclick="nav('inv',this)">
-        <i class="fas fa-box-open"></i>
-        <span>Inventario</span>
-    </button>
-    <button class="nav-btn" onclick="nav('cartera',this)">
-        <i class="fas fa-hand-holding-usd text-danger"></i>
-        <span class="text-danger">Cobranza</span>
-    </button>
-    <button class="nav-btn" onclick="nav('ped',this)">
-        <i class="fas fa-shipping-fast"></i>
-        <span>Compras</span>
-    </button>
-    <button class="nav-btn" onclick="nav('fin',this)">
-        <i class="fas fa-chart-pie"></i>
-        <span>Finanzas</span>
-    </button>
-    <button class="nav-btn" onclick="nav('web',this)">
-        <i class="fas fa-cloud" style="color: var(--primary);"></i>
-        <span style="color: var(--primary);">E-Comm</span>
-    </button>
+    <button class="nav-btn active" onclick="window.nav('pos',this)"><i class="fas fa-cash-register"></i><span>Punto Venta</span></button>
+    <button class="nav-btn" onclick="window.nav('inv',this)"><i class="fas fa-box-open"></i><span>Inventario</span></button>
+    <button class="nav-btn" onclick="window.nav('cartera',this)"><i class="fas fa-hand-holding-usd text-danger"></i><span class="text-danger">Cobranza</span></button>
+    <button class="nav-btn" onclick="window.nav('ped',this)"><i class="fas fa-shipping-fast"></i><span>Compras</span></button>
+    <button class="nav-btn" onclick="window.nav('fin',this)"><i class="fas fa-chart-pie"></i><span>Finanzas</span></button>
+    <button class="nav-btn" onclick="window.nav('web',this)"><i class="fas fa-cloud" style="color: var(--primary);"></i><span style="color: var(--primary);">E-Comm</span></button>
   </div>
 
   <template id="tpl-cart">
@@ -427,25 +413,25 @@
        <div class="d-flex justify-content-between mb-2 align-items-center">
          <h5 class="fw-bold m-0" style="color: var(--primary);">Resumen de Operación</h5>
          <div>
-            <button class="btn btn-sm btn-light border fw-bold text-secondary me-1" onclick="toggleMobileCart()">🔽 Ocultar</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">🗑️ Vaciar</button>
+            <button class="btn btn-sm btn-light border fw-bold text-secondary me-1" onclick="window.toggleMobileCart()">🔽 Ocultar</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="window.clearCart()">🗑️ Vaciar</button>
          </div>
        </div>
        
        <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Descripción del ítem no catalogado..." style="display:none; border-left:4px solid var(--gold);">
 
        <div class="d-flex justify-content-between gap-2 mb-2" style="display:none !important;"> 
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
-         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Base Manual</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="window.calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
+         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="window.toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Base Manual</label></div>
        </div>
        
        <div id="cart-items-list" class="mb-3 mt-2" style="max-height:150px; overflow-y:auto;">No hay ítems seleccionados...</div>
        
        <div class="row g-2 mb-3">
-         <div class="col-3 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="calcCart()"></div>
-         <div class="col-3 text-center"><small>Desc. %</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="calcCart()"></div>
-         <div class="col-3 text-center"><small>Tasa Int.%</small><input id="c-int" type="number" class="input-line" value="5" oninput="calcCart()"></div>
-         <div class="col-3 text-center"><small>Plazo (M)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="calcCart()"></div>
+         <div class="col-3 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="window.calcCart()"></div>
+         <div class="col-3 text-center"><small>Desc. %</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="window.calcCart()"></div>
+         <div class="col-3 text-center"><small>Tasa Int.%</small><input id="c-int" type="number" class="input-line" value="5" oninput="window.calcCart()"></div>
+         <div class="col-3 text-center"><small>Plazo (M)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="window.calcCart()"></div>
        </div>
        
        <label class="small fw-bold text-muted mt-2">Fecha de Registro:</label>
@@ -460,7 +446,7 @@
              <span>Valor Total Venta:</span>
              <div class="text-end">
                 <strong id="res-cont" class="fs-5" style="color: var(--primary);">$0</strong>
-                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Monto Base ($)" oninput="calcCart()">
+                <input id="res-cont-input" type="number" class="form-control form-control-sm fw-bold text-end" style="display:none; color: var(--primary); border-color: var(--gold);" placeholder="Monto Base ($)" oninput="window.calcCart()">
              </div>
           </div>
           <div id="row-cred" style="display:none; border-top:1px dashed var(--gold); margin-top:5px; padding-top:5px;">
@@ -470,25 +456,25 @@
           
           <div class="mt-2 text-end" style="border-top: 1px dotted #ccc; padding-top:5px;">
              <small class="text-muted" style="font-size:0.7rem;">Anular intereses (Precio Fijo Manual)</small>
-             <input id="c-target" type="number" class="form-control form-control-sm fw-bold text-end" style="border-color: var(--gold); background: #fffffa;" placeholder="💲 Precio Final Pactado" oninput="calcCart()">
+             <input id="c-target" type="number" class="form-control form-control-sm fw-bold text-end" style="border-color: var(--gold); background: #fffffa;" placeholder="💲 Precio Final Pactado" oninput="window.calcCart()">
           </div>
        </div>
        
        <input id="c-cliente" class="form-control mb-2" placeholder="Nombre del Cliente / Razón Social">
        
        <div class="text-end mb-2">
-          <a href="#" onclick="toggleDatosFormales(); return false;" class="small text-muted" style="text-decoration: none;">⚙️ Añadir datos formales (NIT, Tel)</a>
+          <a href="#" onclick="window.toggleDatosFormales(); return false;" class="small text-muted" style="text-decoration: none;">⚙️ Añadir datos formales (NIT, Tel)</a>
        </div>
        <div id="box-datos-formales" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #ddd;">
           <input id="c-nit" class="form-control form-control-sm mb-2" placeholder="NIT / Cédula">
           <input id="c-tel" class="form-control form-control-sm" placeholder="Teléfono / WhatsApp">
        </div>
 
-       <select id="c-metodo" class="form-select mb-2" onchange="toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
+       <select id="c-metodo" class="form-select mb-2" onchange="window.toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
        <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Monto Inicial Personalizado" disabled style="display:none; background:#e9ecef;">
        
        <div id="box-vip" class="form-check form-switch mb-3 border p-2 rounded" style="background-color: #fffcf5; border-color: var(--gold) !important; display: none;">
-           <input class="form-check-input" type="checkbox" id="c-vip" onchange="calcCart()">
+           <input class="form-check-input" type="checkbox" id="c-vip" onchange="window.calcCart()">
            <label class="form-check-label small fw-bold" for="c-vip" style="color: var(--gold-hover);">⭐ Eximir Cuota Inicial (Cliente VIP / Familia)</label>
        </div>
        
@@ -498,13 +484,74 @@
        </div>
 
        <div class="d-flex gap-2 mb-2">
-           <button class="btn btn-outline-info flex-fill fw-bold" onclick="guardarCotizacionActual()" title="Guardar Cotización en la Nube">💾 GUARDAR COTIZ.</button>
-           <button class="btn btn-dark flex-fill fw-bold text-white" onclick="generarCotizacionPDF()" title="Generar PDF Formal">📄 PDF</button>
-           <button class="btn btn-success flex-fill fw-bold" onclick="shareQuote()"><i class="fab fa-whatsapp"></i> WSP</button>
+           <button class="btn btn-outline-info flex-fill fw-bold" onclick="window.guardarCotizacionActual()" title="Guardar Cotización en la Nube">💾 GUARDAR COTIZ.</button>
+           <button class="btn btn-dark flex-fill fw-bold text-white" onclick="window.generarCotizacionPDF()" title="Generar PDF Formal">📄 PDF</button>
+           <button class="btn btn-success flex-fill fw-bold" onclick="window.shareQuote()"><i class="fab fa-whatsapp"></i> WSP</button>
        </div>
-       <button id="btn-vender-main" class="btn btn-primary w-100 fw-bold fs-6 py-2" onclick="finalizarVenta()">✅ VENDER / FACTURAR</button>
+       <button id="btn-vender-main" class="btn btn-primary w-100 fw-bold fs-6 py-2" onclick="window.finalizarVenta()">✅ VENDER / FACTURAR</button>
     </div>
   </template>
+
+  <div class="modal fade" id="modalRadiografia" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" style="color: var(--primary);"><i class="fas fa-microscope"></i> Radiografía Financiera</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+            <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                <span class="small fw-bold text-muted" id="rad-id">VEN-0000</span>
+                <span class="small fw-bold text-muted" id="rad-fecha">00/00/0000</span>
+            </div>
+
+            <div class="rad-box">
+                <span class="rad-label">Cliente / Beneficiario</span>
+                <div class="rad-val" id="rad-cliente" style="color: var(--gold-hover) !important;">...</div>
+                <div class="small mt-1 fw-bold text-muted" id="rad-prod">...</div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="rad-box mb-0 h-100" style="border-color: #2ecc71;">
+                        <span class="rad-label">Total Pactado</span>
+                        <div class="rad-val" id="rad-total" style="color: #2ecc71;">...</div>
+                        <span class="badge bg-dark mt-1" id="rad-metodo">...</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="rad-box mb-0 h-100" id="box-deuda">
+                        <span class="rad-label">Saldo Actual</span>
+                        <div class="rad-val" id="rad-saldo">...</div>
+                        <div class="small mt-1 fw-bold text-muted" id="rad-plan">...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rad-box" style="background: rgba(255, 77, 77, 0.05); border-color: #ff4d4d;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="rad-label text-danger mb-0"><i class="fas fa-lock"></i> Datos Confidenciales</span>
+                    <button class="btn btn-sm btn-outline-danger py-0" onclick="window.revelarSecretos()" style="font-size:0.7rem;">👁️ Revelar</button>
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <small class="fw-bold text-muted">Costo Base:</small><br>
+                        <strong class="rad-secret" id="rad-costo">...</strong>
+                    </div>
+                    <div class="col-6">
+                        <small class="fw-bold text-muted">Utilidad Neta:</small><br>
+                        <strong class="rad-secret text-success" id="rad-ganancia">...</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <small class="fw-bold text-muted">Vendedor: <strong class="text-dark" id="rad-vendedor">...</strong></small>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal fade" id="modalAbonarPasivo" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -515,12 +562,10 @@
             </div>
             <div class="modal-body">
                 <label class="small fw-bold">Seleccionar Deuda / Acreedor</label>
-                <select id="pas-select" class="form-select mb-3" onchange="seleccionarPasivo()"></select>
-                
+                <select id="pas-select" class="form-select mb-3" onchange="window.seleccionarPasivo()"></select>
                 <label class="small fw-bold">Monto a Pagar (Salida de Caja)</label>
                 <input type="number" id="pas-monto" class="form-control mb-4" placeholder="Valor del abono o cuota">
-                
-                <button class="btn btn-danger w-100 fw-bold py-2" onclick="doAbonoPasivo()">REGISTRAR PAGO A TERCERO</button>
+                <button class="btn btn-danger w-100 fw-bold py-2" onclick="window.doAbonoPasivo()">REGISTRAR PAGO A TERCERO</button>
             </div>
         </div>
     </div>
@@ -533,8 +578,7 @@
           <h6 class="modal-title fw-bold" style="color: var(--primary);"><i class="fas fa-folder-open text-info"></i> Cotizaciones Guardadas</h6>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="cotizaciones-list" style="background-color: #f8f9fa;">
-            </div>
+        <div class="modal-body" id="cotizaciones-list" style="background-color: #f8f9fa;"></div>
       </div>
     </div>
   </div>
@@ -550,7 +594,7 @@
           <div class="input-group mb-3">
             <input id="new-prov-name" class="form-control" placeholder="Nombre Empresa/Prov">
             <input id="new-prov-tel" class="form-control" placeholder="Teléfono/WhatsApp">
-            <button class="btn btn-primary" onclick="guardarProvManual()">💾 Guardar</button>
+            <button class="btn btn-primary" onclick="window.guardarProvManual()">💾 Guardar</button>
           </div>
           <div id="list-provs" style="max-height:300px; overflow-y:auto;"></div>
           <div class="d-flex gap-2 mt-3">
@@ -570,29 +614,22 @@
             </div>
             <div class="modal-body">
                 <div class="mb-2"><label class="small fw-bold">Nombre del Producto</label><input id="inp-edit-nombre" class="form-control fw-bold" style="color: var(--primary);"></div>
-                
                 <div class="row g-2 mb-2">
-                    <div class="col-6">
-                        <label class="small fw-bold">Categoría</label>
-                        <input list="list-cats" id="inp-edit-categoria" class="form-control">
-                    </div>
-                    <div class="col-6"><label class="small fw-bold">Costo Unitario</label><input type="number" id="inp-edit-costo" class="form-control" oninput="calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')"></div>
+                    <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="inp-edit-categoria" class="form-control"></div>
+                    <div class="col-6"><label class="small fw-bold">Costo Unitario</label><input type="number" id="inp-edit-costo" class="form-control" oninput="window.calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')"></div>
                 </div>
-                
                 <div class="row g-2 mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important; margin: 0;">
                     <div class="col-4">
                         <label class="small fw-bold" style="color: var(--primary);">Margen (%)</label>
-                        <input type="number" id="inp-edit-margen" class="form-control" value="30" oninput="calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); font-weight: bold;">
+                        <input type="number" id="inp-edit-margen" class="form-control" value="30" oninput="window.calcGain('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); font-weight: bold;">
                     </div>
                     <div class="col-8">
                         <label class="small fw-bold" style="color: var(--primary);">Precio Público Final</label>
-                        <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" oninput="calcMargen('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                        <input type="number" id="inp-edit-publico" class="form-control" placeholder="0 = Auto-cálculo" oninput="window.calcMargen('inp-edit-costo','inp-edit-publico','inp-edit-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                     </div>
                 </div>
-
                 <div class="mb-2"><label class="small fw-bold">Proveedor Asignado</label><input list="list-provs-all" id="inp-edit-proveedor" class="form-control"></div>
                 <div class="mb-2"><label class="small fw-bold">Ficha Técnica / Descripción</label><textarea id="inp-edit-desc" class="form-control"></textarea></div>
-                
                 <div class="p-3 bg-light rounded border my-3">
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="inp-edit-web" style="cursor:pointer;">
@@ -600,28 +637,19 @@
                     </div>
                     <label class="small fw-bold" style="color: var(--primary);">Sección E-Commerce:</label>
                     <select id="inp-edit-cat-web" class="form-select form-select-sm" style="border-color: var(--primary);">
-                        <option value="tecnologia">Tecnología</option>
-                        <option value="electro">Hogar y Electrodomésticos</option>
-                        <option value="Gadget y Novedades">Gadgets y Novedades</option>
-                        <option value="juguetes">Juguetes</option>
-                        <option value="perfumes">Perfumes</option>
+                        <option value="tecnologia">Tecnología</option><option value="electro">Hogar y Electrodomésticos</option><option value="Gadget y Novedades">Gadgets y Novedades</option><option value="juguetes">Juguetes</option><option value="perfumes">Perfumes</option>
                     </select>
                 </div>
-
                 <div class="mb-3 file-upload-wrapper">
-                    <input type="file" id="inp-file-foto" accept="image/*" onchange="previewFile()" class="file-input-overlay">
+                    <input type="file" id="inp-file-foto" accept="image/*" onchange="window.previewFile()" class="file-input-overlay">
                     <img id="img-preview-box" class="preview-img">
-                    <div class="placeholder-text text-center text-muted">
-                        <div style="font-size:2rem; color: var(--gold);">📷</div>
-                        <div>Tocar para actualizar imagen</div>
-                    </div>
+                    <div class="placeholder-text text-center text-muted"><div style="font-size:2rem; color: var(--gold);">📷</div><div>Tocar para actualizar imagen</div></div>
                 </div>
-
                 <div class="d-flex gap-2 mt-3">
                     <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                    <button class="btn btn-primary w-50" onclick="guardarCambiosAvanzado()">Guardar Cambios</button>
+                    <button class="btn btn-primary w-50" onclick="window.guardarCambiosAvanzado()">Guardar Cambios</button>
                 </div>
-                <button class="btn btn-outline-danger w-100 mt-2" onclick="eliminarProductoActual()">Eliminar del Sistema</button>
+                <button class="btn btn-outline-danger w-100 mt-2" onclick="window.eliminarProductoActual()">Eliminar del Sistema</button>
             </div>
         </div>
     </div>
@@ -635,29 +663,25 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form onsubmit="event.preventDefault(); crearProducto();">
+                <form onsubmit="event.preventDefault(); window.crearProducto();">
                     <div class="mb-2"><label class="small fw-bold">Nombre del Ítem</label><input id="new-nombre" class="form-control" required></div>
-                    
                     <div class="row g-2 mb-2">
-                        <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="generarIDAuto()"></div>
-                        <div class="col-6"><label class="small fw-bold">Costo Base</label><input type="number" id="new-costo" class="form-control" oninput="calcGain('new-costo','new-publico','new-margen')"></div>
+                        <div class="col-6"><label class="small fw-bold">Categoría</label><input list="list-cats" id="new-categoria" class="form-control" onchange="window.generarIDAuto()"></div>
+                        <div class="col-6"><label class="small fw-bold">Costo Base</label><input type="number" id="new-costo" class="form-control" oninput="window.calcGain('new-costo','new-publico','new-margen')"></div>
                     </div>
-                    
                     <div class="row g-2 mb-2 p-2 bg-light border rounded" style="border-color: var(--gold) !important; margin: 0;">
                         <div class="col-4">
                             <label class="small fw-bold" style="color: var(--primary);">Margen (%)</label>
-                            <input type="number" id="new-margen" class="form-control" value="30" oninput="calcGain('new-costo','new-publico','new-margen')" style="border-color: var(--gold); font-weight: bold;">
+                            <input type="number" id="new-margen" class="form-control" value="30" oninput="window.calcGain('new-costo','new-publico','new-margen')" style="border-color: var(--gold); font-weight: bold;">
                         </div>
                         <div class="col-8">
                             <label class="small fw-bold" style="color: var(--primary);">Precio Venta Final</label>
-                            <input type="number" id="new-publico" class="form-control" oninput="calcMargen('new-costo','new-publico','new-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
+                            <input type="number" id="new-publico" class="form-control" oninput="window.calcMargen('new-costo','new-publico','new-margen')" style="border-color: var(--gold); color: var(--primary); font-weight: bold;">
                         </div>
                     </div>
-
                     <div class="mb-2"><label class="small fw-bold">Proveedor</label><input list="list-provs-all" id="new-proveedor" class="form-control"></div>
                     <div class="mb-2"><label class="small fw-bold">Detalles / Specs</label><textarea id="new-desc" class="form-control"></textarea></div>
                     <div class="mb-3"><label class="small fw-bold">Código SKU (Generado)</label><input id="new-id" class="form-control bg-light" readonly></div>
-
                     <div class="p-3 bg-light rounded border my-3">
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="new-web" style="cursor:pointer;">
@@ -665,19 +689,13 @@
                         </div>
                         <label class="small fw-bold" style="color: var(--primary);">Categoría Online:</label>
                         <select id="new-cat-web" class="form-select form-select-sm" style="border-color: var(--primary);">
-                            <option value="tecnologia">Tecnología</option>
-                            <option value="electro">Hogar y Electrodomésticos</option>
-                            <option value="Gadget y Novedades">Gadgets y Novedades</option>
-                            <option value="juguetes">Juguetes</option>
-                            <option value="perfumes">Perfumes</option>
+                            <option value="tecnologia">Tecnología</option><option value="electro">Hogar y Electrodomésticos</option><option value="Gadget y Novedades">Gadgets y Novedades</option><option value="juguetes">Juguetes</option><option value="perfumes">Perfumes</option>
                         </select>
                     </div>
-
                     <div class="mb-3">
                         <label class="small fw-bold">Imagen del Producto:</label>
                         <input type="file" id="new-file-foto" accept="image/*" class="form-control">
                     </div>
-
                     <div class="d-flex gap-2 mt-3">
                         <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary w-50 fw-bold" style="color: var(--gold);">Confirmar</button>
@@ -702,7 +720,7 @@
           <textarea id="wa-text" class="form-control mb-3" rows="5" placeholder="Pegar texto aquí..."></textarea>
           <div class="d-flex gap-2">
              <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-             <button class="btn btn-success w-50" onclick="procesarWA()">Procesar Texto</button>
+             <button class="btn btn-success w-50" onclick="window.procesarWA()">Procesar Texto</button>
           </div>
         </div>
       </div>
@@ -727,7 +745,7 @@
                 <input id="pe-nota" class="form-control mb-2" placeholder="Especificaciones, colores, etc...">
                 <div class="d-flex gap-2 mt-3">
                    <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                   <button class="btn btn-primary w-50" onclick="savePed()">Crear Orden</button>
+                   <button class="btn btn-primary w-50" onclick="window.savePed()">Crear Orden</button>
                 </div>
             </div>
         </div>
@@ -752,7 +770,7 @@
                 <input id="ed-ped-nota" class="form-control mb-2">
                 <div class="d-flex gap-2 mt-3">
                    <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                   <button class="btn btn-primary w-50" onclick="guardarEdicionPed()">Actualizar Orden</button>
+                   <button class="btn btn-primary w-50" onclick="window.guardarEdicionPed()">Actualizar Orden</button>
                 </div>
             </div>
         </div>
@@ -768,22 +786,17 @@
             </div>
             <div class="modal-body">
                 <p class="small text-muted">⚠️ Advertencia: Modificar transacciones pasadas afectará el balance general y los estados de cuenta.</p>
-                
                 <label class="small fw-bold">Concepto Original</label>
                 <input id="ed-mov-desc" class="form-control mb-2" disabled style="background-color: #e9ecef;">
-                
                 <label class="small fw-bold">Fecha Contable Real</label>
                 <input type="date" id="ed-mov-fecha" class="form-control mb-2" style="border-color: var(--gold);">
-                
                 <label class="small fw-bold">Monto Corregido</label>
                 <input type="number" id="ed-mov-monto" class="form-control mb-3" style="font-weight: bold; color: var(--primary);">
-                
                 <label class="small fw-bold text-danger">Justificación del Cambio (Obligatoria) *</label>
                 <input type="text" id="ed-mov-justificacion" class="form-control mb-3 border-danger" placeholder="Ej: Me equivoqué de cliente, Error de digitación...">
-
                 <div class="d-flex gap-2 mt-3">
                    <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                   <button class="btn btn-warning w-50 fw-bold" onclick="guardarEdicionMovimiento()">Aplicar Corrección</button>
+                   <button class="btn btn-warning w-50 fw-bold" onclick="window.guardarEdicionMovimiento()">Aplicar Corrección</button>
                 </div>
             </div>
         </div>
@@ -800,39 +813,32 @@
             <div class="modal-body">
                 <label class="small fw-bold text-muted">Cliente</label>
                 <input id="ref-cliente" class="form-control mb-2 bg-light" readonly>
-                
                 <label class="small fw-bold text-muted">Saldo Actual</label>
                 <input id="ref-saldo-actual" class="form-control mb-3 bg-light text-danger fw-bold" readonly>
-                
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small fw-bold">Cargo Adicional / Mora ($)</label>
-                        <input type="number" id="ref-cargo" class="form-control border-warning" value="0" oninput="calcRefinanciamiento()">
+                        <input type="number" id="ref-cargo" class="form-control border-warning" value="0" oninput="window.calcRefinanciamiento()">
                     </div>
                     <div class="col-6">
                         <label class="small fw-bold">Nuevas Cuotas</label>
-                        <input type="number" id="ref-cuotas" class="form-control" value="1" min="1" oninput="calcRefinanciamiento()">
+                        <input type="number" id="ref-cuotas" class="form-control" value="1" min="1" oninput="window.calcRefinanciamiento()">
                     </div>
                 </div>
-                
                 <label class="small fw-bold">Nueva Fecha de Pago</label>
                 <input type="date" id="ref-fecha" class="form-control mb-3 border-primary">
-                
                 <div class="alert alert-light border border-primary text-center">
                     <small class="d-block text-muted">Proyección Nuevo Acuerdo:</small>
                     <div class="d-flex justify-content-between mt-2">
-                        <span>Nuevo Saldo:</span>
-                        <strong id="ref-nuevo-saldo" class="text-danger">$0</strong>
+                        <span>Nuevo Saldo:</span><strong id="ref-nuevo-saldo" class="text-danger">$0</strong>
                     </div>
                     <div class="d-flex justify-content-between mt-1">
-                        <span>Nueva Cuota:</span>
-                        <strong id="ref-nueva-cuota" class="text-primary">$0 / mes</strong>
+                        <span>Nueva Cuota:</span><strong id="ref-nueva-cuota" class="text-primary">$0 / mes</strong>
                     </div>
                 </div>
-                
                 <div class="d-flex gap-2 mt-3">
                     <button class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                    <button class="btn btn-primary w-50 fw-bold" onclick="procesarRefinanciamiento()">Guardar Acuerdo</button>
+                    <button class="btn btn-primary w-50 fw-bold" onclick="window.procesarRefinanciamiento()">Guardar Acuerdo</button>
                 </div>
             </div>
         </div>
@@ -848,12 +854,10 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="edit-item-id">
-                
                 <div class="mb-2">
                     <label class="small fw-bold">Nombre del Producto/Servicio</label>
                     <input id="edit-item-nombre" class="form-control">
                 </div>
-                
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small fw-bold text-muted">Costo Base</label>
@@ -861,37 +865,33 @@
                     </div>
                     <div class="col-6">
                         <label class="small fw-bold">Margen (%)</label>
-                        <input type="number" id="edit-item-margen" class="form-control border-primary" oninput="calcEditorItem()">
+                        <input type="number" id="edit-item-margen" class="form-control border-primary" oninput="window.calcEditorItem()">
                     </div>
                 </div>
-                
                 <div class="row g-2 mb-3">
                     <div class="col-6">
                         <label class="small fw-bold text-danger">Descuento Unitario (%)</label>
-                        <input type="number" id="edit-item-desc" class="form-control border-danger" oninput="calcEditorItem()">
+                        <input type="number" id="edit-item-desc" class="form-control border-danger" oninput="window.calcEditorItem()">
                     </div>
                     <div class="col-6 d-flex align-items-end">
                         <div class="form-check form-switch w-100 p-2 bg-light rounded border">
-                            <input class="form-check-input ms-1 mt-1" type="checkbox" id="edit-item-iva" onchange="calcEditorItem()">
+                            <input class="form-check-input ms-1 mt-1" type="checkbox" id="edit-item-iva" onchange="window.calcEditorItem()">
                             <label class="form-check-label small fw-bold ms-2" for="edit-item-iva">Aplicar IVA</label>
                         </div>
                     </div>
                 </div>
-                
                 <div class="alert alert-light border text-center mb-3">
                     <small class="text-muted">Precio Unitario Final (Calculado):</small><br>
                     <strong id="edit-item-total" class="fs-4" style="color: var(--gold-hover);">$0</strong>
                 </div>
-
                 <div class="mb-3 border-top pt-3">
                     <label class="form-label text-success fw-bold">Precio Final Pactado ($):</label>
-                    <input type="number" class="form-control border-success" id="edit-item-precio-pactado" placeholder="Ej: 1500000" oninput="aplicarPrecioPactado()" style="font-weight: bold;">
+                    <input type="number" class="form-control border-success" id="edit-item-precio-pactado" placeholder="Ej: 1500000" oninput="window.aplicarPrecioPactado()" style="font-weight: bold;">
                     <small class="text-muted">Calcula el descuento (%) en reversa automáticamente.</small>
                 </div>
-                
                 <div class="d-flex gap-2">
                     <button class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-                    <button class="btn btn-primary w-50 fw-bold" onclick="guardarEditorItem()">✔️ Aplicar al Carrito</button>
+                    <button class="btn btn-primary w-50 fw-bold" onclick="window.guardarEditorItem()">✔️ Aplicar al Carrito</button>
                 </div>
             </div>
         </div>
@@ -906,7 +906,7 @@
             <h4 class="fw-bold mt-3" style="color: var(--primary);">Seguridad KING'S SHOP</h4>
             <p class="text-muted small mb-4">Para utilizar el sistema en este dispositivo, por favor registra tu identidad operativa.</p>
             <input type="text" id="login-alias" class="form-control form-control-lg text-center fw-bold mb-3 border-dark" placeholder="Tu Nombre o Alias">
-            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="guardarIdentidad()">ACCEDER AL SISTEMA</button>
+            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="window.guardarIdentidad()">ACCEDER AL SISTEMA</button>
         </div>
       </div>
     </div>
