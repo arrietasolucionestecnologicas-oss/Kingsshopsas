@@ -766,9 +766,8 @@ function abrirRadiografia(idVenta) {
     var v = window.D.deudores.find(x => x.idVenta === idVenta);
     if(!v) return;
     
-    // Filtro de Saneamiento Extremo: Previene "NaN" si el servidor no envía el dato
     var safeNum = function(val) {
-        if (val === undefined || val === null) return 0;
+        if (val === undefined || val === null || val === '') return 0;
         var parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ''));
         return isNaN(parsed) ? 0 : parsed;
     };
@@ -778,7 +777,6 @@ function abrirRadiografia(idVenta) {
     document.getElementById('rad-cliente').innerText = v.cliente;
     document.getElementById('rad-prod').innerText = v.producto;
     
-    // Datos formateados de manera ultra-segura
     document.getElementById('rad-total').innerText = window.COP.format(safeNum(v.total));
     document.getElementById('rad-metodo').innerText = (v.metodo || "Crédito").toUpperCase();
     document.getElementById('rad-costo').innerText = window.COP.format(safeNum(v.costo));
@@ -804,6 +802,11 @@ function abrirRadiografia(idVenta) {
     
     if(window.myModalRadiografia) window.myModalRadiografia.show();
 }
+
+function revelarSecretos() {
+    document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
+}
+
 // Exportaciones Globales
 window.renderFin = renderFin;
 window.abrirEditMov = abrirEditMov;
