@@ -1,10 +1,4 @@
-/*
-================================================================================
-MODO 2 — MODIFICACIÓN ESTRUCTURAL 
-ARCHIVO: js/api.js (Capa de Red, Fetch y Modo Offline)
-================================================================================
-*/
-
+/* ARCHIVO: js/api.js - Capa de Red y Sincronización */
 import { API_URL } from './state.js';
 
 export function guardarEnCola(accion, datos) {
