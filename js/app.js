@@ -1,14 +1,8 @@
-/*
-================================================================================
-MODO 2 — MODIFICACIÓN ESTRUCTURAL 
-ARCHIVO: js/app.js (Orquestador Central y Control de Vista)
-================================================================================
-*/
-
+/* ARCHIVO: js/app.js - Orquestador Central KING'S SHOP */
 import { API_URL, COP } from './state.js';
 import { callAPI, sincronizarCola } from './api.js';
 
-// Importación de módulos UI (asegura que se carguen en memoria)
+// Importación de módulos UI (Rutas corregidas)
 import './ui/inventory.js';
 import './ui/pos.js';
 import './ui/finance.js';
@@ -28,17 +22,18 @@ window.guardarIdentidad = function() {
     localStorage.setItem('kingshop_alias', alias);
     window.currentUserAlias = alias;
     if(window.myModalLogin) window.myModalLogin.hide();
-    window.showToast("Bienvenido, " + alias, "success");
-    document.getElementById('user-display').innerText = window.currentUserAlias;
+    if(window.showToast) window.showToast("Bienvenido, " + alias, "success");
+    var dDisp = document.getElementById('user-display');
+    if(dDisp) dDisp.innerText = window.currentUserAlias;
 }
 
 window.updateOnlineStatus = function() {
     const status = document.getElementById('offline-indicator');
     if(navigator.onLine) {
-        status.style.display = 'none';
+        if(status) status.style.display = 'none';
         window.sincronizarCola(); 
     } else {
-        status.style.display = 'block';
+        if(status) status.style.display = 'block';
     }
 }
 window.addEventListener('online', window.updateOnlineStatus);
@@ -66,22 +61,27 @@ window.showToast = function(msg, type = 'success') {
 }
 
 window.onload = function() {
-  window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
-  window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
-  window.myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
-  window.myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
-  window.myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
-  window.myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
-  window.myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
-  window.myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
-  window.myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
-  window.myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
-  window.myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
-  window.myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
+  if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
+  if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
+  if(document.getElementById('modalWA')) window.myModalWA = new bootstrap.Modal(document.getElementById('modalWA'));
+  if(document.getElementById('modalProv')) window.myModalProv = new bootstrap.Modal(document.getElementById('modalProv'));
+  if(document.getElementById('modalPed')) window.myModalPed = new bootstrap.Modal(document.getElementById('modalPed'));
+  if(document.getElementById('modalEditPed')) window.myModalEditPed = new bootstrap.Modal(document.getElementById('modalEditPed'));
+  if(document.getElementById('modalEditMov')) window.myModalEditMov = new bootstrap.Modal(document.getElementById('modalEditMov')); 
+  if(document.getElementById('modalRefinanciar')) window.myModalRefinanciar = new bootstrap.Modal(document.getElementById('modalRefinanciar'));
+  if(document.getElementById('modalEditItem')) window.myModalEditItem = new bootstrap.Modal(document.getElementById('modalEditItem'));
+  if(document.getElementById('modalCotizaciones')) window.myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
+  if(document.getElementById('modalLoginApp')) window.myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
+  if(document.getElementById('modalAbonarPasivo')) window.myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
   
-  var tpl = document.getElementById('tpl-cart').innerHTML;
-  document.getElementById('desktop-cart-container').innerHTML = tpl;
-  document.getElementById('mobile-cart').innerHTML = tpl;
+  var tplElement = document.getElementById('tpl-cart');
+  if(tplElement) {
+      var tpl = tplElement.innerHTML;
+      var dCart = document.getElementById('desktop-cart-container');
+      var mCart = document.getElementById('mobile-cart');
+      if(dCart) dCart.innerHTML = tpl;
+      if(mCart) mCart.innerHTML = tpl;
+  }
 
   document.querySelectorAll('#c-inicial').forEach(el => {
       el.removeAttribute('disabled');
@@ -102,16 +102,17 @@ window.onload = function() {
 
   var lastView = localStorage.getItem('lastView') || 'pos';
   var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
-  if(btn) window.nav(lastView, btn);
-  else window.nav('pos', document.querySelector('.nav-btn'));
+  if(btn && window.nav) window.nav(lastView, btn);
+  else if(window.nav && document.querySelector('.nav-btn')) window.nav('pos', document.querySelector('.nav-btn'));
 
   window.verificarIdentidad();
   window.updateOnlineStatus();
-  window.loadData();
+  if(window.loadData) window.loadData();
 };
 
 window.loadData = function(silent = false){
-  if(!silent && (window.D.inv && window.D.inv.length === 0)) document.getElementById('loader').style.display='flex';
+  var loader = document.getElementById('loader');
+  if(!silent && (window.D.inv && window.D.inv.length === 0) && loader) loader.style.display='flex';
   
   window.callAPI('obtenerDatosCompletos').then(res => {
     if(res && res.inventario) {
@@ -121,14 +122,14 @@ window.loadData = function(silent = false){
         const local = window.loadLocalData();
         if(local) window.renderData(local);
     }
-    document.getElementById('loader').style.display='none';
+    if(loader) loader.style.display='none';
   }).catch(() => {
       const local = window.loadLocalData();
       if(local) {
           window.renderData(local);
           if(!silent) window.showToast("Modo Offline: Datos locales cargados", "warning");
       }
-      document.getElementById('loader').style.display='none';
+      if(loader) loader.style.display='none';
   });
 }
 
