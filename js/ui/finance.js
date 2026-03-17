@@ -766,14 +766,23 @@ function abrirRadiografia(idVenta) {
     var v = window.D.deudores.find(x => x.idVenta === idVenta);
     if(!v) return;
     
+    // Filtro de Saneamiento Extremo: Previene "NaN" si el servidor no envía el dato
+    var safeNum = function(val) {
+        if (val === undefined || val === null) return 0;
+        var parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ''));
+        return isNaN(parsed) ? 0 : parsed;
+    };
+    
     document.getElementById('rad-id').innerText = v.idVenta;
     document.getElementById('rad-fecha').innerText = v.fechaStr || "Sin fecha";
     document.getElementById('rad-cliente').innerText = v.cliente;
     document.getElementById('rad-prod').innerText = v.producto;
-    document.getElementById('rad-total').innerText = window.COP.format(v.total || 0);
+    
+    // Datos formateados de manera ultra-segura
+    document.getElementById('rad-total').innerText = window.COP.format(safeNum(v.total));
     document.getElementById('rad-metodo').innerText = (v.metodo || "Crédito").toUpperCase();
-    document.getElementById('rad-costo').innerText = window.COP.format(v.costo || 0);
-    document.getElementById('rad-ganancia').innerText = window.COP.format(v.ganancia || 0);
+    document.getElementById('rad-costo').innerText = window.COP.format(safeNum(v.costo));
+    document.getElementById('rad-ganancia').innerText = window.COP.format(safeNum(v.ganancia));
     
     document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
     document.getElementById('rad-vendedor').innerText = v.vendedor || "Sistema";
@@ -783,23 +792,18 @@ function abrirRadiografia(idVenta) {
         boxDeuda.style.borderColor = '#2ecc71';
         document.getElementById('rad-saldo').innerText = 'PAZ Y SALVO';
         document.getElementById('rad-saldo').className = 'rad-val text-success';
-        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(v.inicial || 0)}`;
+        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(safeNum(v.inicial))}`;
     } else {
         boxDeuda.style.borderColor = '#e74c3c';
-        document.getElementById('rad-saldo').innerText = window.COP.format(v.saldo);
+        document.getElementById('rad-saldo').innerText = window.COP.format(safeNum(v.saldo));
         document.getElementById('rad-saldo').className = 'rad-val text-danger';
         var cuotas = parseInt(v.cuotas) || 1;
-        var cuotaTxt = cuotas > 1 ? `${cuotas} cuotas de ${window.COP.format(v.valCuota || 0)}` : `Pago único pendiente`;
-        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(v.inicial || 0)} | ${cuotaTxt}`;
+        var cuotaTxt = cuotas > 1 ? `${cuotas} cuotas de ${window.COP.format(safeNum(v.valCuota))}` : `Pago único pendiente`;
+        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(safeNum(v.inicial))} | ${cuotaTxt}`;
     }
     
     if(window.myModalRadiografia) window.myModalRadiografia.show();
 }
-
-function revelarSecretos() {
-    document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
-}
-
 // Exportaciones Globales
 window.renderFin = renderFin;
 window.abrirEditMov = abrirEditMov;
