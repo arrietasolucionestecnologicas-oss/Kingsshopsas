@@ -356,7 +356,8 @@ function notificarCobroWA(idVenta) {
         msg += `Pasamos por aquí para recordarte el pago de tu *${d.producto}* 📦.\n\n`;
         
         if (valCuotaReal > 0) {
-            msg += `💳 *Cuota:* ${window.COP.format(valCuotaReal)}\n`;
+            var montoCobrar = Math.min(valCuotaReal, d.saldo);
+            msg += `💳 *${montoCobrar < d.saldo ? "Cuota" : "Saldo Total"}:* ${window.COP.format(montoCobrar)}\n`;
         } else {
             msg += `💳 *Saldo Total:* ${window.COP.format(d.saldo)}\n`;
         }
