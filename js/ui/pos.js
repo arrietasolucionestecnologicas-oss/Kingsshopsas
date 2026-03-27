@@ -126,7 +126,8 @@ function calcEditorItem() {
     var descPrc = parseFloat(document.getElementById('edit-item-desc').value) || 0; 
     var iva = document.getElementById('edit-item-iva').checked;
     
-    var precioLista = costo * (1 + margen / 100);
+    var precioLista = costo > 0 ? (costo * (1 + margen / 100)) : (parseFloat(document.getElementById('edit-item-precio-pactado').value) || parseFloat(document.getElementById('edit-item-total').innerText.replace(/\D/g,'')) || 0);
+    
     var descuentoMonto = precioLista * (descPrc / 100);
     var precioNeto = Math.max(0, precioLista - descuentoMonto);
     
@@ -148,15 +149,17 @@ function aplicarPrecioPactado() {
     }
 
     var precioObjetivoBase = iva ? (precioPactado / 1.19) : precioPactado;
-    var precioLista = costo * (1 + margen / 100);
+    var precioLista = costo > 0 ? (costo * (1 + margen / 100)) : precioObjetivoBase;
     
     if (precioLista > 0) {
         var descuentoRequeridoMonto = precioLista - precioObjetivoBase;
         var descuentoRequeridoPrc = (descuentoRequeridoMonto / precioLista) * 100;
         if (descuentoRequeridoPrc < 0) {
              descuentoRequeridoPrc = 0;
-             var nuevoMargen = ((precioObjetivoBase / costo) - 1) * 100;
-             document.getElementById('edit-item-margen').value = nuevoMargen.toFixed(1);
+             if (costo > 0) {
+                 var nuevoMargen = ((precioObjetivoBase / costo) - 1) * 100;
+                 document.getElementById('edit-item-margen').value = nuevoMargen.toFixed(1);
+             }
         }
         document.getElementById('edit-item-desc').value = descuentoRequeridoPrc.toFixed(2);
     }
@@ -221,7 +224,7 @@ function agregarItemManual() {
         conIva: false,
         manual: true,
         modificadoManualmente: true,
-        margenIndividual: costo > 0 ? ((precio / costo) - 1) * 100 : 100,
+        margenIndividual: costo > 0 ? ((precio / costo) - 1) * 100 : 0,
         descuentoIndividual: 0,
         precioUnitarioFinal: precio
     });
@@ -324,25 +327,29 @@ function calcCart() {
         window.CART.forEach(item => {
             let c = item.costo || 0; 
             let q = item.cantidad || 1;
+            let precioLista = 0;
             
-            if (item.manual) {
-                totalFinal += (item.precioUnitarioFinal * q);
-                baseParaCalculo += (item.precioUnitarioFinal * q);
-            } else {
+            // Integración Total: El ítem manual ahora procesa su costo o su base de forma uniforme
+            if (c > 0) {
                 let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
-                let precioLista = c * (1 + m / 100);
-                let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
-                let descuentoDinero = precioLista * (dPrc / 100);
-                
-                descuentoDineroTotal += (descuentoDinero * q);
-                
-                let px = Math.max(0, precioLista - descuentoDinero);
-                if (item.conIva || conIvaGlobal) px *= 1.19;
-                
-                item.precioUnitarioFinal = px;
-                baseParaCalculo += (c * q);
-                totalFinal += (px * q);
+                precioLista = c * (1 + m / 100);
+            } else {
+                precioLista = item.publico || item.precioUnitarioFinal || 0;
             }
+
+            let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
+            let descuentoDinero = precioLista * (dPrc / 100);
+            
+            descuentoDineroTotal += (descuentoDinero * q);
+            
+            let px = Math.max(0, precioLista - descuentoDinero);
+            if (item.conIva || conIvaGlobal) px *= 1.19;
+            
+            item.precioUnitarioFinal = px;
+            
+            let baseCostoEstimado = c > 0 ? c : (precioLista / 1.3);
+            baseParaCalculo += (baseCostoEstimado * q);
+            totalFinal += (px * q);
         });
     } else {
         var resContInput = activeParent.querySelector('#res-cont-input');
@@ -890,7 +897,7 @@ function generarCotizacionPDF() {
        window.CART.forEach(p => {
            var qty = p.cantidad || 1;
            
-           if (tieneTarget || p.manual) {
+           if (tieneTarget) {
                var unitPrice = p.precioUnitarioFinal || 0;
                var totalItem = unitPrice * qty;
                subtotalBaseCotizacion += totalItem;
@@ -908,19 +915,23 @@ function generarCotizacionPDF() {
                });
            } else {
                var c = p.costo || 0;
-               var m = p.modificadoManualmente ? p.margenIndividual : utilGlobal;
+               var unitBase = 0;
                
-               var unitBase = c * (1 + m / 100);
-               var totalBase = unitBase * qty;
+               if (c > 0) {
+                   var m = p.modificadoManualmente ? p.margenIndividual : utilGlobal;
+                   unitBase = c * (1 + m / 100);
+               } else {
+                   unitBase = p.publico || p.precioUnitarioFinal || 0;
+               }
                
                var dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (p.descuentoIndividual || 0);
                var descUnitario = unitBase * (dPrc / 100);
                var totalDescItem = descUnitario * qty;
                
-               subtotalBaseCotizacion += totalBase;
+               subtotalBaseCotizacion += (unitBase * qty);
                descuentoTotalCotizacion += totalDescItem;
                
-               var postDesc = Math.max(0, totalBase - totalDescItem);
+               var postDesc = Math.max(0, (unitBase * qty) - totalDescItem);
                
                var itemIva = 0;
                if (p.conIva || conIvaGlobal) {
@@ -930,7 +941,7 @@ function generarCotizacionPDF() {
                
                itemsData.push({ 
                    nombre: p.nombre, 
-                   descripcion: p.desc || p.cat,
+                   descripcion: p.manual ? "Servicio / Ítem Manual" : (p.desc || p.cat),
                    cantidad: qty, 
                    valorUnitarioBase: unitBase, 
                    descuentoPrc: dPrc,
