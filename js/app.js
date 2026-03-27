@@ -59,6 +59,71 @@ window.showToast = function(msg, type = 'success') {
     toastContainer.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
+
+// RESTAURACIÓN DE FUNCIONES VITALES BORRADAS
+
+window.nav = function(view, btn) {
+    document.querySelectorAll('.view-sec').forEach(e => e.style.display = 'none');
+    document.getElementById('view-' + view).style.display = 'block';
+    document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    localStorage.setItem('lastView', view);
+    
+    if(view === 'pos' && window.renderPos) window.renderPos();
+    if(view === 'inv' && window.renderInv) window.renderInv();
+    if(view === 'web' && window.renderWeb) window.renderWeb();
+    if(view === 'cartera' && window.renderCartera) window.renderCartera();
+    if(view === 'fin' && window.renderFin) window.renderFin();
+    if(view === 'ped' && window.renderPed) window.renderPed();
+}
+
+window.loadData = function(silent = false) {
+    if(!silent) document.getElementById('loader').style.display = 'flex';
+    
+    window.callAPI('obtenerDatosCompletos', {}).then(res => {
+        if(res.inventario) {
+            window.D = res;
+            window.saveLocalData(res);
+            window.renderData();
+            if(!silent) document.getElementById('loader').style.display = 'none';
+        } else {
+            if(!silent) alert("Error cargando datos: " + res.error);
+            let local = window.loadLocalData();
+            if(local) { window.D = local; window.renderData(); }
+            if(!silent) document.getElementById('loader').style.display = 'none';
+        }
+    }).catch(err => {
+        console.error(err);
+        let local = window.loadLocalData();
+        if(local) { window.D = local; window.renderData(); }
+        if(!silent) document.getElementById('loader').style.display = 'none';
+    });
+}
+
+window.renderData = function() {
+    if(window.renderInv) window.renderInv();
+    if(window.renderWeb) window.renderWeb();
+    if(window.renderCartera) window.renderCartera();
+    if(window.renderFin) window.renderFin();
+    if(window.renderPed) window.renderPed();
+    if(window.renderPos) window.renderPos();
+    if(window.updateGastosSelect) window.updateGastosSelect();
+    if(window.renderPasivos) window.renderPasivos();
+    
+    if (window.D.metricas) {
+        var bVentas = document.getElementById('bal-ventas');
+        var bGanancia = document.getElementById('bal-ganancia');
+        var bCaja = document.getElementById('bal-caja');
+        
+        if(bVentas) bVentas.innerText = window.COP.format(window.D.metricas.ventaMes || 0);
+        if(bGanancia) bGanancia.innerText = window.COP.format(window.D.metricas.gananciaMes || 0);
+        if(bCaja) bCaja.innerText = window.COP.format(window.D.metricas.saldo || 0);
+    }
+    
+    var u = document.getElementById('user-display');
+    if(u && window.currentUserAlias) u.innerText = window.currentUserAlias;
+}
+
 window.onload = function() {
     if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
     if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));
@@ -108,5 +173,7 @@ window.onload = function() {
 
     window.verificarIdentidad();
     window.updateOnlineStatus();
+    
+    // Arranque vital restaurado
     if(window.loadData) window.loadData();
 };
