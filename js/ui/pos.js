@@ -202,16 +202,21 @@ function changeQty(id, delta) {
 }
 
 function agregarItemManual() {
-    var nombre = prompt("Nombre del ítem / servicio:"); 
-    if (!nombre) return;
+    document.getElementById('manual-item-nombre').value = '';
+    document.getElementById('manual-item-costo').value = '';
+    document.getElementById('manual-item-precio').value = '';
+    if(window.myModalItemManual) window.myModalItemManual.show();
+}
+
+function confirmarItemManual() {
+    var nombre = document.getElementById('manual-item-nombre').value.trim();
+    if (!nombre) return alert("El nombre del ítem es obligatorio");
     
-    var precioStr = prompt("Precio de venta ($):"); 
-    if (!precioStr) return;
+    var precioStr = document.getElementById('manual-item-precio').value;
+    var precio = parseFloat(precioStr);
+    if (isNaN(precio) || precio < 0) return alert("Precio de venta inválido");
     
-    var precio = parseFloat(precioStr); 
-    if (isNaN(precio)) return alert("Precio inválido");
-    
-    var costoStr = prompt("Costo interno ($) (Deja vacío o 0 si no aplica):");
+    var costoStr = document.getElementById('manual-item-costo').value;
     var costo = parseFloat(costoStr) || 0;
 
     window.CART.push({
@@ -228,7 +233,10 @@ function agregarItemManual() {
         descuentoIndividual: 0,
         precioUnitarioFinal: precio
     });
+    
+    if(window.myModalItemManual) window.myModalItemManual.hide();
     updateCartUI(true);
+    if(window.showToast) window.showToast("Ítem libre agregado", "success");
 }
 
 function updateCartUI(keepOpen = false) {
@@ -329,7 +337,6 @@ function calcCart() {
             let q = item.cantidad || 1;
             let precioLista = 0;
             
-            // Integración Total: El ítem manual ahora procesa su costo o su base de forma uniforme
             if (c > 0) {
                 let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
                 precioLista = c * (1 + m / 100);
@@ -378,7 +385,6 @@ function calcCart() {
         }
     }
 
-    // --- LÓGICA DE CUOTA INICIAL BLINDADA Y FALTANTE VISUAL ---
     var metaInicial = isEximir ? 0 : Math.round(totalFinal * 0.30);
     var inpInicial = activeParent.querySelector('#c-inicial');
     var typedValue = inpInicial ? inpInicial.value.trim() : "";
@@ -488,7 +494,6 @@ function calcCart() {
                 if(inputTotal) inputTotal.style.display = 'none'; 
             }
            
-            // ALERTA VISUAL DE FALTANTE
             var alertaFaltante = faltanteInicial > 0 ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>` : "";
 
             rowCred.forEach(e => { 
@@ -1036,6 +1041,7 @@ window.guardarEditorItem = guardarEditorItem;
 window.toggleItemIva = toggleItemIva;
 window.changeQty = changeQty;
 window.agregarItemManual = agregarItemManual;
+window.confirmarItemManual = confirmarItemManual;
 window.updateCartUI = updateCartUI;
 window.toggleManual = toggleManual;
 window.calcCart = calcCart;
