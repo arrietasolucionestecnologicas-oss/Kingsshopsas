@@ -553,6 +553,37 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modalItemManual" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold" style="color: var(--primary);">➕ Agregar Ítem / Servicio Libre</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="small fw-bold text-muted">Nombre del Ítem / Descripción *</label>
+            <input type="text" id="manual-item-nombre" class="form-control fw-bold" placeholder="Ej: Instalación, Envío, Software...">
+          </div>
+          <div class="row g-2 mb-4">
+            <div class="col-6">
+              <label class="small fw-bold text-muted">Costo Base ($)</label>
+              <input type="number" id="manual-item-costo" class="form-control" placeholder="Opcional (0)">
+            </div>
+            <div class="col-6">
+              <label class="small fw-bold text-danger">Precio Venta ($) *</label>
+              <input type="number" id="manual-item-precio" class="form-control border-danger fw-bold text-danger" placeholder="Ej: 150000">
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary w-50 fw-bold" onclick="window.confirmarItemManual()">Añadir al Carrito</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalAbonarPasivo" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
