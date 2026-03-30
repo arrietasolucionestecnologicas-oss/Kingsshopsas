@@ -82,6 +82,10 @@ window.loadData = function(silent = false) {
     
     window.callAPI('obtenerDatosCompletos', {}).then(res => {
         if(res.inventario) {
+            // 🛠️ MAPEOS CRÍTICOS: El backend envía nombres completos, el frontend usa alias.
+            res.inv = res.inventario; 
+            res.ped = res.pedidos;
+            
             window.D = res;
             window.saveLocalData(res);
             window.renderData();
@@ -89,13 +93,23 @@ window.loadData = function(silent = false) {
         } else {
             if(!silent) alert("Error cargando datos: " + res.error);
             let local = window.loadLocalData();
-            if(local) { window.D = local; window.renderData(); }
+            if(local) { 
+                local.inv = local.inventario || local.inv;
+                local.ped = local.pedidos || local.ped;
+                window.D = local; 
+                window.renderData(); 
+            }
             if(!silent) document.getElementById('loader').style.display = 'none';
         }
     }).catch(err => {
         console.error(err);
         let local = window.loadLocalData();
-        if(local) { window.D = local; window.renderData(); }
+        if(local) { 
+            local.inv = local.inventario || local.inv;
+            local.ped = local.pedidos || local.ped;
+            window.D = local; 
+            window.renderData(); 
+        }
         if(!silent) document.getElementById('loader').style.display = 'none';
     });
 }
