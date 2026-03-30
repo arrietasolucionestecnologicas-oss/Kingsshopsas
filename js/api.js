@@ -18,7 +18,7 @@ export async function sincronizarCola() {
     let nuevaCola = [];
     for (let item of cola) {
         try {
-            const response = await fetch(window.API_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: item.action, data: item.data })
             });
@@ -51,7 +51,7 @@ export async function callAPI(action, data = null) {
   }
 
   try {
-    const response = await fetch(window.API_URL, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify({ action: action, data: data })
     });
