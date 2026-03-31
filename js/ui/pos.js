@@ -6,6 +6,36 @@ function renderPos() {
     var c = document.getElementById('pos-list'); 
     if(!searchEl || !placeholder || !c) return;
     
+    // --- INYECCIÓN AUTCOMPLETADO DE CLIENTES ---
+    var dl = document.getElementById('list-clientes');
+    if(dl && window.D) {
+        dl.innerHTML = '';
+        var clientesUnicos = {};
+        
+        if(window.D.deudores) {
+            window.D.deudores.forEach(d => {
+                if(d.cliente && !clientesUnicos[d.cliente]) {
+                    clientesUnicos[d.cliente] = { nit: d.nit || '', tel: d.tel || d.telefono || '' };
+                }
+            });
+        }
+        if(window.D.cotizaciones) {
+            window.D.cotizaciones.forEach(cot => {
+                if(cot.cliente && !clientesUnicos[cot.cliente]) {
+                    clientesUnicos[cot.cliente] = { nit: cot.nit || '', tel: cot.tel || '' };
+                }
+            });
+        }
+        
+        window.CLIENTES_DICT = clientesUnicos;
+        Object.keys(clientesUnicos).sort().forEach(cli => {
+            var o = document.createElement('option');
+            o.value = cli;
+            dl.appendChild(o);
+        });
+    }
+    // --- FIN INYECCIÓN ---
+
     var q = searchEl.value.toLowerCase().trim();
     c.innerHTML = '';
     
@@ -40,6 +70,28 @@ function renderPos() {
         `;
         c.appendChild(div);
     });
+}
+
+function autocompletarCliente(nombre) {
+    if(!nombre || !window.CLIENTES_DICT) return;
+    var data = window.CLIENTES_DICT[nombre];
+    if(data) {
+        [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
+            if(!parent) return;
+            var nitInp = parent.querySelector('#c-nit');
+            var telInp = parent.querySelector('#c-tel');
+            var updated = false;
+            
+            if(nitInp && data.nit && !nitInp.value) { nitInp.value = data.nit; updated = true; }
+            if(telInp && data.tel && !telInp.value) { telInp.value = data.tel; updated = true; }
+            
+            if (updated || (nitInp && nitInp.value) || (telInp && telInp.value)) {
+                var box = parent.querySelector('#box-datos-formales');
+                if(box) box.style.display = 'block';
+            }
+        });
+        updateCartUI(true);
+    }
 }
 
 function toggleCart(p, el) {
@@ -1032,6 +1084,7 @@ function generarCotizacionPDF() {
 
 // Exportaciones Globales
 window.renderPos = renderPos;
+window.autocompletarCliente = autocompletarCliente;
 window.toggleCart = toggleCart;
 window.agregarAlCarritoDesdeInv = agregarAlCarritoDesdeInv;
 window.abrirEditorItem = abrirEditorItem;
