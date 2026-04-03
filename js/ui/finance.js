@@ -79,15 +79,20 @@ function abrirEditMov(index) {
 }
 
 function guardarEdicionMovimiento() {
-    if(!window.movEditObj) return;
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
+    if(!window.movEditObj) { unlock(); return; }
     
     var nuevaFecha = document.getElementById('ed-mov-fecha').value;
     var nuevoMonto = document.getElementById('ed-mov-monto').value;
     var elJust = document.getElementById('ed-mov-justificacion');
     var justificacion = elJust ? elJust.value.trim() : "Corrección";
     
-    if(!nuevaFecha || !nuevoMonto) return alert("Fecha y monto requeridos");
-    if(elJust && justificacion.length < 5) return alert("⚠️ Debe escribir una justificación válida para alterar la caja.");
+    if(!nuevaFecha || !nuevoMonto) { unlock(); return alert("Fecha y monto requeridos"); }
+    if(elJust && justificacion.length < 5) { unlock(); return alert("⚠️ Debe escribir una justificación válida para alterar la caja."); }
     
     var originalClone = Object.assign({}, window.movEditObj);
     var payload = { original: originalClone, fecha: nuevaFecha, monto: nuevoMonto, justificacion: justificacion };
@@ -101,19 +106,25 @@ function guardarEdicionMovimiento() {
     if(window.showToast) window.showToast("Movimiento actualizado (Guardando...)", "success");
     
     window.callAPI('editarMovimiento', payload).then(r => { 
+        unlock();
         if(!r.exito) { 
             alert("Error al editar: " + r.error); 
             if(window.loadData) window.loadData(true); 
         } 
-    });
+    }).catch(e => unlock());
 }
 
 function doIngresoExtra() {
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
     var desc = document.getElementById('inc-desc').value;
     var cat = document.getElementById('inc-cat').value;
     var monto = document.getElementById('inc-monto').value;
     
-    if(!desc || !monto) return alert("Falta descripción o monto");
+    if(!desc || !monto) { unlock(); return alert("Falta descripción o monto"); }
     
     var acreedor = "";
     var fechaLimite = "";
@@ -121,7 +132,7 @@ function doIngresoExtra() {
     if (cat === 'Prestamo') {
         acreedor = document.getElementById('inc-acreedor').value;
         fechaLimite = document.getElementById('inc-fecha-limite').value;
-        if(!acreedor || !fechaLimite) return alert("Los datos del préstamo (Acreedor y Fecha) son obligatorios");
+        if(!acreedor || !fechaLimite) { unlock(); return alert("Los datos del préstamo (Acreedor y Fecha) son obligatorios"); }
     }
     
     var ingresoNum = parseFloat(monto) || 0;
@@ -165,15 +176,21 @@ function doIngresoExtra() {
     if(bCaja && window.D.metricas) bCaja.innerText = window.COP.format(window.D.metricas.saldo||0);
     if(window.showToast) window.showToast("Ingreso registrado", "success");
     
-    window.callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto, acreedor: acreedor, fechaLimite: fechaLimite });
+    window.callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto, acreedor: acreedor, fechaLimite: fechaLimite })
+        .then(r => unlock()).catch(e => unlock());
 }
 
 function doGasto() {
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
     var desc = document.getElementById('g-desc').value;
     var monto = document.getElementById('g-monto').value;
     var vinculoRaw = document.getElementById('g-vinculo').value; 
     
-    if(!desc || !monto) return alert("Falta descripción o monto");
+    if(!desc || !monto) { unlock(); return alert("Falta descripción o monto"); }
 
     var vinculoClean = "";
     var match = vinculoRaw.match(/\[(.*?)\]$/); 
@@ -212,7 +229,7 @@ function doGasto() {
     if(bCaja && window.D.metricas) bCaja.innerText = window.COP.format(window.D.metricas.saldo||0);
     if(window.showToast) window.showToast("Gasto registrado", "success");
 
-    window.callAPI('registrarGasto', d);
+    window.callAPI('registrarGasto', d).then(r => unlock()).catch(e => unlock());
 }
 
 function updateGastosSelect() {
@@ -440,13 +457,18 @@ function calcRefinanciamiento() {
 }
 
 function procesarRefinanciamiento() {
-    if(!window.refEditId) return;
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
+    if(!window.refEditId) { unlock(); return; }
     
     var cargo = parseFloat(document.getElementById('ref-cargo').value) || 0;
     var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
     var fecha = document.getElementById('ref-fecha').value;
     
-    if(!fecha || cuotas < 1) return alert("Verifica las cuotas y la fecha");
+    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
     
     var d = {
         idVenta: window.refEditId,
@@ -469,10 +491,11 @@ function procesarRefinanciamiento() {
     if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
     
     window.callAPI('refinanciarDeuda', d).then(r => { 
+        unlock();
         if(!r.exito) { 
             if(window.loadData) window.loadData(true); 
         } 
-    });
+    }).catch(e => unlock());
 }
 
 function castigarDeuda(id, nombre) {
@@ -486,6 +509,7 @@ function castigarDeuda(id, nombre) {
         confirmButtonText: 'Sí, Castigar'
     }).then((result) => {
         if (result.isConfirmed) {
+            Swal.showLoading();
             var d = window.D.deudores.find(x => x.idVenta === id);
             if(d) d.estado = 'Castigado';
             
@@ -493,6 +517,7 @@ function castigarDeuda(id, nombre) {
             if(window.showToast) window.showToast("Cartera castigada (Guardando...)", "success");
             
             window.callAPI('castigarCartera', {idVenta: id}).then(r => { 
+                Swal.close();
                 if(!r.exito) { 
                     if(window.loadData) window.loadData(true); 
                 } 
@@ -502,8 +527,13 @@ function castigarDeuda(id, nombre) {
 }
 
 function doAbono() {
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
     var id = document.getElementById('ab-cli').value;
-    if(!id) return alert("Seleccione un cliente");
+    if(!id) { unlock(); return alert("Seleccione un cliente"); }
     
     var txt = document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text;
     var cli = txt.split(' - ')[0].trim();
@@ -511,6 +541,8 @@ function doAbono() {
     var fechaVal = document.getElementById('ab-fecha').value;
     
     var abonoNum = parseFloat(monto) || 0;
+    if(abonoNum <= 0) { unlock(); return alert("Verifique el monto ingresado"); }
+
     if(window.D.metricas) window.D.metricas.saldo += abonoNum;
     
     var dIndex = window.D.deudores.findIndex(x => x.idVenta === id);
@@ -540,7 +572,8 @@ function doAbono() {
     
     if(window.showToast) window.showToast("Abono registrado", "success");
     
-    window.callAPI('registrarAbono', {idVenta: id, monto: monto, cliente: cli, fecha: fechaVal});
+    window.callAPI('registrarAbono', {idVenta: id, monto: monto, cliente: cli, fecha: fechaVal})
+        .then(r => unlock()).catch(e => unlock());
 }
 
 function renderPasivos() {
@@ -575,13 +608,18 @@ function seleccionarPasivo() {
 }
 
 function doAbonoPasivo() {
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
     var sel = document.getElementById('pas-select');
     var m = document.getElementById('pas-monto');
-    if(!sel || !m) return;
+    if(!sel || !m) { unlock(); return; }
     
     var id = sel.value;
     var monto = parseFloat(m.value) || 0;
-    if(!id || monto <= 0) return alert("Verifica el monto a pagar.");
+    if(!id || monto <= 0) { unlock(); return alert("Verifica el monto a pagar."); }
     
     var pIdx = window.D.pasivos.findIndex(x => x.id === id);
     var acreedorName = "Desconocido";
@@ -614,7 +652,8 @@ function doAbonoPasivo() {
     
     if(window.showToast) window.showToast("Pago de obligación registrado", "success");
     
-    window.callAPI('abonarPasivo', {idPasivo: id, monto: monto, acreedor: acreedorName});
+    window.callAPI('abonarPasivo', {idPasivo: id, monto: monto, acreedor: acreedorName})
+        .then(r => unlock()).catch(e => unlock());
 }
 
 function renderPed() { 
@@ -654,8 +693,13 @@ function abrirModalPed() {
 }
 
 function savePed() { 
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
     var p = document.getElementById('pe-prod').value; 
-    if(!p) return alert("Escribe un producto"); 
+    if(!p) { unlock(); return alert("Escribe un producto"); }
     
     var d = { 
         user: window.currentUserAlias, 
@@ -666,10 +710,17 @@ function savePed() {
     }; 
     
     window.callAPI('guardarPedido', d).then(() => { 
+        unlock();
         if(window.loadData) window.loadData(true); 
-    }); 
+        if(window.myModalPed) window.myModalPed.hide();
+    }).catch(e => unlock()); 
     
     if(window.showToast) window.showToast("Pedido guardado", "success"); 
+    
+    document.getElementById('pe-prod').value = '';
+    document.getElementById('pe-prov').value = '';
+    document.getElementById('pe-costo').value = '';
+    document.getElementById('pe-nota').value = '';
 }
 
 function openEditPed(p) { 
@@ -683,7 +734,12 @@ function openEditPed(p) {
 }
 
 function guardarEdicionPed() { 
-    if(!window.pedEditId) return; 
+    var btn = document.activeElement;
+    var prevHtml = "";
+    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
+    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+
+    if(!window.pedEditId) { unlock(); return; }
     
     var d = { 
         id: window.pedEditId, 
@@ -697,12 +753,13 @@ function guardarEdicionPed() {
     if(window.showToast) window.showToast("Editando pedido...", "info"); 
     
     window.callAPI('editarPedido', d).then(r => { 
+        unlock();
         if(r.exito) {
             if(window.loadData) window.loadData(true); 
         } else { 
             alert(r.error); 
         } 
-    }); 
+    }).catch(e => unlock()); 
 }
 
 function delPed(id) { 
@@ -722,8 +779,10 @@ function delPed(id) {
         }
     }).then((result) => { 
         if (result.isConfirmed) { 
+            Swal.showLoading();
             if(window.showToast) window.showToast("Eliminando...", "info"); 
             window.callAPI('eliminarPedido', {id: id, justificacion: result.value}).then(r => { 
+                Swal.close();
                 if(r.exito) {
                     if(window.loadData) window.loadData(true); 
                 } else { 
@@ -749,8 +808,10 @@ function comprarPedido(id, nombreProd) {
         } 
     }).then((result) => { 
         if (result.isConfirmed) { 
+            Swal.showLoading();
             if(window.showToast) window.showToast("Procesando compra...", "info"); 
             window.callAPI('procesarCompraPedido', { idPedido: id, costoReal: result.value }).then(r => { 
+                Swal.close();
                 if(r.exito) { 
                     Swal.fire('¡Éxito!', 'Gasto registrado e inventario actualizado.', 'success').then(() => { 
                         if(window.loadData) window.loadData(true); 
