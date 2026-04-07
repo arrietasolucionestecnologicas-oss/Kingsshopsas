@@ -289,17 +289,25 @@ function confirmarItemManual() {
     if(window.showToast) window.showToast("Ítem libre agregado", "success");
 }
 
+// FIX APP B: Cálculo de fecha segura contra crash de "Invalid Date"
 function updatePrimerPago() {
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
         var fInput = parent.querySelector('#c-fecha'); 
         var ppInput = parent.querySelector('#c-primer-pago'); 
         var frec = parent.querySelector('#c-frecuencia');
-        if(fInput && ppInput && frec) {
-            var d = fInput.value ? new Date(fInput.value + "T12:00:00") : new Date();
-            if(frec.value === 'Quincenal') d.setDate(d.getDate() + 15); 
-            else d.setMonth(d.getMonth() + 1);
-            ppInput.value = d.toISOString().split('T')[0];
+        
+        if(ppInput && frec) {
+            var baseDate = new Date();
+            if (fInput && fInput.value) {
+                baseDate = new Date(fInput.value + "T12:00:00");
+            }
+            if(frec.value === 'Quincenal') {
+                baseDate.setDate(baseDate.getDate() + 15); 
+            } else {
+                baseDate.setMonth(baseDate.getMonth() + 1);
+            }
+            ppInput.value = baseDate.toISOString().split('T')[0];
         }
     });
 }
@@ -316,6 +324,10 @@ function updateCartUI(keepOpen = false) {
     var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible');
     var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     if(!activeParent) activeParent = document.getElementById('desktop-cart-container'); 
+
+    // Extraemos el método maestro que dominará toda la interfaz
+    var metodo = activeParent.querySelector('#c-metodo') ? activeParent.querySelector('#c-metodo').value : 'Contado';
+    var isEximir = activeParent.querySelector('#c-vip') ? activeParent.querySelector('#c-vip').checked : false;
 
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
@@ -338,6 +350,18 @@ function updateCartUI(keepOpen = false) {
                 inputConcepto.value = ''; 
             }
             parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
+        }
+
+        // FIX APP B: Sincronización Estructural de Bloques de Crédito. Obliga a mostrarse sí o sí.
+        var boxVip = parent.querySelector('#box-vip');
+        var boxCred = parent.querySelector('#box-credito-detalles');
+        
+        if (metodo === "Crédito") {
+            if(boxVip) boxVip.style.display = 'block';
+            if(boxCred) boxCred.style.display = 'block';
+        } else {
+            if(boxVip) boxVip.style.display = 'none';
+            if(boxCred) boxCred.style.display = 'none';
         }
     });
 
@@ -590,24 +614,36 @@ function calcCart() {
    });
 }
 
-function toggleIni() { 
-    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(!parent) return;
+// FIX APP B: Reescritura del sincronizador de eventos para eliminar Ghost Carts
+function toggleIni(element) { 
+    var masterMethod = "Contado";
+    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible');
+    var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     
-    if(parent.querySelector('#c-metodo').value !== "Crédito") { 
-        window.usuarioForzoInicial = false; 
-        if(parent.querySelector('#box-vip')) parent.querySelector('#box-vip').style.display = 'none';
-        if(parent.querySelector('#box-credito-detalles')) parent.querySelector('#box-credito-detalles').style.display = 'none';
-        if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = false;
-        if(parent.querySelector('#c-inicial')) parent.querySelector('#c-inicial').value = "";
-    } else {
-        if(parent.querySelector('#box-vip')) parent.querySelector('#box-vip').style.display = 'block';
-        if(parent.querySelector('#box-credito-detalles')) { 
-            parent.querySelector('#box-credito-detalles').style.display = 'block'; 
-            if(window.updatePrimerPago) window.updatePrimerPago(); 
-        }
+    if (activeParent && activeParent.querySelector('#c-metodo')) {
+        masterMethod = activeParent.querySelector('#c-metodo').value;
     }
-    calcCart(); 
+
+    [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
+        if(!parent) return;
+        var mSelector = parent.querySelector('#c-metodo'); 
+        if(mSelector) mSelector.value = masterMethod;
+        
+        if(masterMethod !== "Crédito") { 
+            window.usuarioForzoInicial = false; 
+            var elEx = parent.querySelector('#c-vip'); 
+            if(elEx) elEx.checked = false; 
+            var inpInicial = parent.querySelector('#c-inicial');
+            if(inpInicial) inpInicial.value = "";
+        }
+    });
+    
+    if(masterMethod === "Crédito" && window.updatePrimerPago) {
+        window.updatePrimerPago();
+    }
+    
+    // updateCartUI ahora tiene el poder maestro de mostrar/ocultar los box
+    updateCartUI(); 
 }
 
 function clearCart() { 
@@ -616,6 +652,7 @@ function clearCart() {
     
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
+        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = 'Contado'; // Fuerza Reset a Contado
         if(parent.querySelector('#c-inicial')) { 
             parent.querySelector('#c-inicial').value = ''; 
             parent.querySelector('#c-inicial').style.background = '#fff'; 
@@ -628,6 +665,7 @@ function clearCart() {
         if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = '';
         parent.removeAttribute('data-cotizacion-id');
     });
+    
     renderPos(); 
     updateCartUI(); 
 }
@@ -753,6 +791,8 @@ function cargarCotizacion(id) {
     
     if(window.myModalCotizaciones) window.myModalCotizaciones.hide();
     if(window.showToast) window.showToast("Cotización cargada", "info");
+    
+    // Al retomar cotización, forzamos updateCartUI para que sincronice la vista del Crédito
     updateCartUI(true);
 }
 
