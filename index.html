@@ -435,7 +435,7 @@
        </div>
        
        <label class="small fw-bold text-muted mt-2">Fecha de Registro:</label>
-       <input type="date" id="c-fecha" class="form-control mb-3" style="border-color: var(--gold);">
+       <input type="date" id="c-fecha" class="form-control mb-3" style="border-color: var(--gold);" onchange="window.updatePrimerPago(); window.calcCart();">
 
        <div class="alert alert-light border text-center py-2 mb-3" style="background-color: #fffcf5; border-color: var(--gold) !important;">
           <div id="row-descuento" style="display:none; color: #e74c3c; font-size: 0.85rem; margin-bottom: 5px;">
@@ -473,6 +473,16 @@
        <select id="c-metodo" class="form-select mb-2" onchange="window.toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
        <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Monto Inicial Personalizado" disabled style="display:none; background:#e9ecef;">
        
+       <div id="box-credito-detalles" style="display:none; background:#fffcf5; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid var(--gold);">
+          <label class="small fw-bold text-primary">Frecuencia de Pago:</label>
+          <select id="c-frecuencia" class="form-select form-select-sm mb-2" style="border-color: var(--gold);" onchange="window.updatePrimerPago()">
+              <option value="Mensual">Mensual (30 Días)</option>
+              <option value="Quincenal">Quincenal (15 Días)</option>
+          </select>
+          <label class="small fw-bold text-primary">Vencimiento 1ra Cuota:</label>
+          <input type="date" id="c-primer-pago" class="form-control form-control-sm" style="border-color: var(--gold);">
+       </div>
+
        <div id="box-vip" class="form-check form-switch mb-3 border p-2 rounded" style="background-color: #fffcf5; border-color: var(--gold) !important; display: none;">
            <input class="form-check-input" type="checkbox" id="c-vip" onchange="window.calcCart()">
            <label class="form-check-label small fw-bold" for="c-vip" style="color: var(--gold-hover);">⭐ Eximir Cuota Inicial (Cliente VIP / Familia)</label>
