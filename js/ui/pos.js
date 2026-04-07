@@ -289,7 +289,6 @@ function confirmarItemManual() {
     if(window.showToast) window.showToast("Ítem libre agregado", "success");
 }
 
-// FIX APP B: Cálculo de fecha segura contra crash de "Invalid Date"
 function updatePrimerPago() {
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
@@ -326,8 +325,7 @@ function updateCartUI(keepOpen = false) {
     if(!activeParent) activeParent = document.getElementById('desktop-cart-container'); 
 
     // Extraemos el método maestro que dominará toda la interfaz
-    var metodo = activeParent.querySelector('#c-metodo') ? activeParent.querySelector('#c-metodo').value : 'Contado';
-    var isEximir = activeParent.querySelector('#c-vip') ? activeParent.querySelector('#c-vip').checked : false;
+    var metodoMaster = activeParent.querySelector('#c-metodo') ? activeParent.querySelector('#c-metodo').value : 'Contado';
 
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
@@ -352,11 +350,11 @@ function updateCartUI(keepOpen = false) {
             parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
         }
 
-        // FIX APP B: Sincronización Estructural de Bloques de Crédito. Obliga a mostrarse sí o sí.
+        // Sincronización Estructural de Bloques de Crédito. Obliga a mostrarse sí o sí.
         var boxVip = parent.querySelector('#box-vip');
         var boxCred = parent.querySelector('#box-credito-detalles');
         
-        if (metodo === "Crédito") {
+        if (metodoMaster === "Crédito") {
             if(boxVip) boxVip.style.display = 'block';
             if(boxCred) boxCred.style.display = 'block';
         } else {
@@ -614,12 +612,11 @@ function calcCart() {
    });
 }
 
-// FIX APP B: Reescritura del sincronizador de eventos para eliminar Ghost Carts
-function toggleIni(element) { 
-    var masterMethod = "Contado";
+function toggleIni() { 
     var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible');
     var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
     
+    var masterMethod = "Contado";
     if (activeParent && activeParent.querySelector('#c-metodo')) {
         masterMethod = activeParent.querySelector('#c-metodo').value;
     }
@@ -642,8 +639,7 @@ function toggleIni(element) {
         window.updatePrimerPago();
     }
     
-    // updateCartUI ahora tiene el poder maestro de mostrar/ocultar los box
-    updateCartUI(); 
+    updateCartUI(true); 
 }
 
 function clearCart() { 
@@ -652,7 +648,7 @@ function clearCart() {
     
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
-        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = 'Contado'; // Fuerza Reset a Contado
+        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = 'Contado';
         if(parent.querySelector('#c-inicial')) { 
             parent.querySelector('#c-inicial').value = ''; 
             parent.querySelector('#c-inicial').style.background = '#fff'; 
@@ -665,7 +661,6 @@ function clearCart() {
         if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = '';
         parent.removeAttribute('data-cotizacion-id');
     });
-    
     renderPos(); 
     updateCartUI(); 
 }
@@ -791,8 +786,6 @@ function cargarCotizacion(id) {
     
     if(window.myModalCotizaciones) window.myModalCotizaciones.hide();
     if(window.showToast) window.showToast("Cotización cargada", "info");
-    
-    // Al retomar cotización, forzamos updateCartUI para que sincronice la vista del Crédito
     updateCartUI(true);
 }
 
