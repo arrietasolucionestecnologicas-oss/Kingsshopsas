@@ -6,7 +6,6 @@ function renderPos() {
     var c = document.getElementById('pos-list'); 
     if(!searchEl || !placeholder || !c) return;
     
-    // --- INYECCIÓN AUTCOMPLETADO DE CLIENTES ---
     var dl = document.getElementById('list-clientes');
     if(dl && window.D) {
         dl.innerHTML = '';
@@ -34,7 +33,6 @@ function renderPos() {
             dl.appendChild(o);
         });
     }
-    // --- FIN INYECCIÓN ---
 
     var q = searchEl.value.toLowerCase().trim();
     c.innerHTML = '';
@@ -291,6 +289,21 @@ function confirmarItemManual() {
     if(window.showToast) window.showToast("Ítem libre agregado", "success");
 }
 
+function updatePrimerPago() {
+    [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
+        if(!parent) return;
+        var fInput = parent.querySelector('#c-fecha'); 
+        var ppInput = parent.querySelector('#c-primer-pago'); 
+        var frec = parent.querySelector('#c-frecuencia');
+        if(fInput && ppInput && frec) {
+            var d = fInput.value ? new Date(fInput.value + "T12:00:00") : new Date();
+            if(frec.value === 'Quincenal') d.setDate(d.getDate() + 15); 
+            else d.setMonth(d.getMonth() + 1);
+            ppInput.value = d.toISOString().split('T')[0];
+        }
+    });
+}
+
 function updateCartUI(keepOpen = false) {
     var count = window.CART.reduce((acc, item) => acc + (item.cantidad || 1), 0);
     var btnFloat = document.getElementById('btn-float-cart');
@@ -326,10 +339,6 @@ function updateCartUI(keepOpen = false) {
             }
             parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
         }
-       
-        var metodoLocal = parent.querySelector('#c-metodo') ? parent.querySelector('#c-metodo').value : 'Contado';
-        var boxVip = parent.querySelector('#box-vip');
-        if(boxVip) boxVip.style.display = (metodoLocal === "Crédito") ? 'block' : 'none';
     });
 
     if(window.CART.length === 0 && !keepOpen) {
@@ -439,16 +448,18 @@ function calcCart() {
 
     var metaInicial = isEximir ? 0 : Math.round(totalFinal * 0.30);
     var inpInicial = activeParent.querySelector('#c-inicial');
-    var typedValue = inpInicial ? inpInicial.value.trim() : "";
+    var activeEl = document.activeElement; 
+    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && activeParent.contains(activeEl));
+    
     var inicial = 0;
-   
-    if (typedValue !== "") {
-        window.usuarioForzoInicial = true;
-        inicial = parseFloat(typedValue);
-        if(isNaN(inicial)) inicial = 0;
-    } else {
-        window.usuarioForzoInicial = false;
-        inicial = metaInicial;
+    if (isTypingInicial) {
+        if (inpInicial && inpInicial.value === "") { window.usuarioForzoInicial = false; inicial = isEximir ? 0 : metaInicial; } 
+        else if (inpInicial) { window.usuarioForzoInicial = true; inicial = parseFloat(inpInicial.value) || 0; }
+    } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") { 
+        inicial = parseFloat(inpInicial.value) || 0; 
+    } else { 
+        window.usuarioForzoInicial = false; 
+        inicial = isEximir ? 0 : metaInicial; 
     }
    
     var faltanteInicial = Math.max(0, metaInicial - inicial);
@@ -485,6 +496,8 @@ function calcCart() {
             if(parent.querySelector('#c-tel') && document.activeElement !== parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = activeParent.querySelector('#c-tel') ? activeParent.querySelector('#c-tel').value : "";
             if(parent.querySelector('#c-incluir-desc') && document.activeElement !== parent.querySelector('#c-incluir-desc')) parent.querySelector('#c-incluir-desc').checked = activeParent.querySelector('#c-incluir-desc') ? activeParent.querySelector('#c-incluir-desc').checked : false;
             if(parent.querySelector('#c-vip') && document.activeElement !== parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = isEximir;
+            if(parent.querySelector('#c-frecuencia') && document.activeElement !== parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
+            if(parent.querySelector('#c-primer-pago') && document.activeElement !== parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = activeParent.querySelector('#c-primer-pago') ? activeParent.querySelector('#c-primer-pago').value : "";
         }
 
         if (window.CART.length > 0) {
@@ -525,7 +538,7 @@ function calcCart() {
         }
 
         var pInpInicial = parent.querySelector('#c-inicial');
-        if (pInpInicial && document.activeElement !== pInpInicial) {
+        if (pInpInicial && (!isTypingInicial || parent !== activeParent)) {
             if (window.usuarioForzoInicial) {
                 pInpInicial.value = inicial;
             } else {
@@ -552,7 +565,9 @@ function calcCart() {
                 e.style.display = 'block'; 
                 if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(Math.round(inicial))} ${alertaFaltante}`; 
                 if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(Math.round(valorCuota)); 
-                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} mes(es)`; 
+                
+                var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
+                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} Cuota(s) (${fTexto})`; 
             });
             
             if (pInpInicial) { 
@@ -582,10 +597,15 @@ function toggleIni() {
     if(parent.querySelector('#c-metodo').value !== "Crédito") { 
         window.usuarioForzoInicial = false; 
         if(parent.querySelector('#box-vip')) parent.querySelector('#box-vip').style.display = 'none';
+        if(parent.querySelector('#box-credito-detalles')) parent.querySelector('#box-credito-detalles').style.display = 'none';
         if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = false;
         if(parent.querySelector('#c-inicial')) parent.querySelector('#c-inicial').value = "";
     } else {
         if(parent.querySelector('#box-vip')) parent.querySelector('#box-vip').style.display = 'block';
+        if(parent.querySelector('#box-credito-detalles')) { 
+            parent.querySelector('#box-credito-detalles').style.display = 'block'; 
+            if(window.updatePrimerPago) window.updatePrimerPago(); 
+        }
     }
     calcCart(); 
 }
@@ -604,6 +624,8 @@ function clearCart() {
         if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = '0';
         if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = '';
         if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = false;
+        if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = 'Mensual';
+        if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = '';
         parent.removeAttribute('data-cotizacion-id');
     });
     renderPos(); 
@@ -642,6 +664,8 @@ function guardarCotizacionActual() {
         eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
         inicialPersonalizada: window.usuarioForzoInicial,
         inicialValor: window.calculatedValues.inicial,
+        frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
+        primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
         cart: JSON.parse(JSON.stringify(window.CART)),
         total: window.calculatedValues.total
     };
@@ -717,6 +741,8 @@ function cargarCotizacion(id) {
         if(parent.querySelector('#c-target')) parent.querySelector('#c-target').value = cot.target || '';
         if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = cot.concepto || '';
         if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = cot.eximir || false;
+        if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = cot.frecuencia || 'Mensual';
+        if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = cot.primerPago || '';
         
         if(parent.querySelector('#c-inicial') && window.usuarioForzoInicial) {
             parent.querySelector('#c-inicial').value = cot.inicialValor || 0;
@@ -811,7 +837,9 @@ function finalizarVenta() {
        vendedor: window.currentUserAlias, 
        fechaPersonalizada: parent.querySelector('#c-fecha').value, 
        cuotas: parseInt(parent.querySelector('#c-cuotas').value) || 1, 
-       idCotizacion: parent.getAttribute('data-cotizacion-id') 
+       idCotizacion: parent.getAttribute('data-cotizacion-id'),
+       frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
+       primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "" 
    };
    
    var btn = parent.querySelector('#btn-vender-main'); 
@@ -890,11 +918,12 @@ async function shareQuote() {
     if(metodo === "Crédito") {
         var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
         var valorCuota = parent.querySelector('#res-cuota-val') ? parent.querySelector('#res-cuota-val').innerText : 0;
+        var frecTexto = parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual";
         
         msg += `💳 *Método:* Crédito\n`;
         msg += `💰 *Valor Total (Financiado):* ${window.COP.format(window.calculatedValues.total)}\n`;
         msg += `• *Inicial:* ${window.COP.format(window.calculatedValues.inicial)}\n`;
-        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}*\n\n`;
+        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}* (${frecTexto})\n\n`;
     } else {
         msg += `💵 *Método:* Contado\n`;
         msg += `💰 *Total a Pagar:* ${window.COP.format(window.calculatedValues.total)}\n\n`;
@@ -1095,6 +1124,7 @@ window.toggleItemIva = toggleItemIva;
 window.changeQty = changeQty;
 window.agregarItemManual = agregarItemManual;
 window.confirmarItemManual = confirmarItemManual;
+window.updatePrimerPago = updatePrimerPago;
 window.updateCartUI = updateCartUI;
 window.toggleManual = toggleManual;
 window.calcCart = calcCart;
