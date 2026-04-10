@@ -1060,6 +1060,22 @@ function generarCotizacionPDF() {
    var metodo = parent.querySelector('#c-metodo').value;
    var tasaMensual = parseFloat(parent.querySelector('#c-int').value) || 0;
    var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
+
+   // --- BLOQUEO DE BOTÓN (PREVENCIÓN MULTI-CLICK) ---
+   var btnPDF = parent.querySelector('button[onclick="window.generarCotizacionPDF()"]');
+   var prevHtml = "";
+   if(btnPDF) {
+       prevHtml = btnPDF.innerHTML;
+       btnPDF.innerHTML = "⏳ Generando...";
+       btnPDF.disabled = true;
+   }
+   var unlockBtn = () => {
+       if(btnPDF) {
+           btnPDF.innerHTML = prevHtml;
+           btnPDF.disabled = false;
+       }
+   };
+   // --------------------------------------------------
    
    var itemsData = []; 
    var ivaTotalCotizacion = 0; 
@@ -1221,12 +1237,17 @@ function generarCotizacionPDF() {
    document.getElementById('loader').style.display = 'flex';
    window.callAPI('generarCotizacionPDF', d).then(r => { 
        document.getElementById('loader').style.display = 'none';
+       unlockBtn();
        if(r.exito) {
            window.open(r.url, '_blank');
            if(window.showToast) window.showToast("Cotización guardada y PDF generado", "success");
        } else {
            alert("Error generando PDF: " + r.error); 
        } 
+   }).catch(err => {
+       document.getElementById('loader').style.display = 'none';
+       unlockBtn();
+       alert("Error de red al generar PDF.");
    });
 }
 
