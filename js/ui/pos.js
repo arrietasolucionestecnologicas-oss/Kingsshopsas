@@ -326,13 +326,10 @@ function updateCartUI(keepOpen = false) {
         btnFloat.innerText = "🛒 " + count; 
     }
    
-    // FIX DE SOMBRA DOM: Delegación estricta de variables de control
     var mSelect = document.querySelector('#mobile-cart #c-metodo');
     var dSelect = document.querySelector('#desktop-cart-container #c-metodo');
     var masterMethod = "Contado";
 
-    // Si la pantalla es pequeña y el carrito móvil existe y está visible, le hacemos caso al móvil.
-    // Si no, la fuente de verdad siempre es el escritorio (PC).
     if (window.innerWidth < 992 && mSelect && document.getElementById('mobile-cart').classList.contains('visible')) {
         masterMethod = mSelect.value;
     } else if (dSelect) {
@@ -362,7 +359,6 @@ function updateCartUI(keepOpen = false) {
             parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
         }
 
-        // SINCRONIZACIÓN FORZADA DE VISIBILIDAD PARA EL CRÉDITO
         var boxVip = parent.querySelector('#box-vip');
         var boxCred = parent.querySelector('#box-credito-detalles');
         var selMetodo = parent.querySelector('#c-metodo');
@@ -634,7 +630,6 @@ function calcCart() {
 }
 
 function toggleIni() { 
-    // Utilizamos el elemento activo para saber matemáticamente en qué carrito hizo clic
     var activeEl = document.activeElement;
     var masterMethod = "Contado";
     
@@ -659,7 +654,6 @@ function toggleIni() {
         }
     });
     
-    // Delegamos la visibilidad completamente a updateCartUI
     updateCartUI(true); 
 }
 
@@ -841,10 +835,21 @@ function finalizarVenta() {
    var parent = isMobile ? mobileCart : desktopCart;
    if(!parent) parent = document.getElementById('desktop-cart-container');
 
-   var cli = parent.querySelector('#c-cliente').value; 
+   const getVal = (id) => {
+       let d = desktopCart ? desktopCart.querySelector(id) : null;
+       let m = mobileCart ? mobileCart.querySelector(id) : null;
+       return (d ? d.value : "") || (m ? m.value : "");
+   };
+
+   var cli = getVal('#c-cliente'); 
    if(!cli) return alert("Falta Cliente");
    
    if(window.calculatedValues.total <= 0) return alert("Precio 0 no permitido");
+
+   var nit = getVal('#c-nit');
+   var tel = getVal('#c-tel');
+   var concepto = getVal('#c-concepto');
+   var fechaVal = getVal('#c-fecha');
    
    var itemsData = [];
    if(window.CART.length > 0) {
@@ -861,7 +866,7 @@ function finalizarVenta() {
    } else {
        var costoManual = window.calculatedValues.base === 0 ? Math.round(window.calculatedValues.total / 1.3) : window.calculatedValues.base;
        itemsData.push({ 
-           nombre: parent.querySelector('#c-concepto').value || "Venta Manual", 
+           nombre: concepto || "Venta Manual", 
            cat: "General", 
            costo: costoManual, 
            precioVenta: window.calculatedValues.total 
@@ -885,12 +890,14 @@ function finalizarVenta() {
    var d = { 
        items: itemsData, 
        cliente: cli, 
+       nit: nit,
+       telefono: tel,
        metodo: metodo, 
        inicial: (metodo === 'Crédito') ? window.calculatedValues.inicial : 0, 
        inicialPersonalizada: window.usuarioForzoInicial, 
        eximirInicial: isEximir, 
        vendedor: window.currentUserAlias, 
-       fechaPersonalizada: parent.querySelector('#c-fecha').value, 
+       fechaPersonalizada: fechaVal, 
        cuotas: parseInt(parent.querySelector('#c-cuotas').value) || 1, 
        idCotizacion: parent.getAttribute('data-cotizacion-id'),
        frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
@@ -923,10 +930,20 @@ function finalizarVenta() {
 }
 
 async function shareQuote() {
-    var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(!parent) return;
+    var desktopCart = document.getElementById('desktop-cart-container');
+    var mobileCart = document.getElementById('mobile-cart');
+    var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
+    if(!parent) parent = desktopCart;
 
-    var cli = parent.querySelector('#c-cliente').value || "Cliente";
+    const getVal = (id) => {
+        let d = desktopCart ? desktopCart.querySelector(id) : null;
+        let m = mobileCart ? mobileCart.querySelector(id) : null;
+        return (d ? d.value : "") || (m ? m.value : "");
+    };
+
+    var cli = getVal('#c-cliente') || "Cliente";
+    var concepto = getVal('#c-concepto') || "Varios";
+
     var msg = `👑 *KING'S SHOP SAS*\n\nHola *${cli.trim()}*, esta es tu cotización:\n\n`;
     
     var fileToShare = null; 
@@ -960,11 +977,8 @@ async function shareQuote() {
             } catch(e) {}
         }
     } else {
-        var concepto = "";
         if(window.CART.length > 0) { 
             concepto = window.CART.map(x => `${x.cantidad}x ${x.nombre}`).join(', '); 
-        } else { 
-            concepto = parent.querySelector('#c-concepto').value || "Varios"; 
         }
         msg += `📦 *Producto(s):* ${concepto}\n\n`;
     }
@@ -1010,16 +1024,27 @@ async function shareQuote() {
 }
 
 function generarCotizacionPDF() {
-   var parent = (window.innerWidth < 992 && document.getElementById('mobile-cart') && document.getElementById('mobile-cart').classList.contains('visible')) ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-   if(!parent) return;
+   var desktopCart = document.getElementById('desktop-cart-container');
+   var mobileCart = document.getElementById('mobile-cart');
+   var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
+   if(!parent) parent = desktopCart;
 
-   var cli = parent.querySelector('#c-cliente').value;
+   const getVal = (id) => {
+       let d = desktopCart ? desktopCart.querySelector(id) : null;
+       let m = mobileCart ? mobileCart.querySelector(id) : null;
+       return (d ? d.value : "") || (m ? m.value : "");
+   };
+
+   var cli = getVal('#c-cliente');
    if(!cli) return alert("Falta el Nombre del Cliente para la cotización");
    
    if(window.calculatedValues.total <= 0 && window.calculatedValues.base <= 0) return alert("El precio total no puede ser 0");
    
-   var nit = parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '';
-   var tel = parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '';
+   var nit = getVal('#c-nit');
+   var tel = getVal('#c-tel');
+   var concepto = getVal('#c-concepto');
+   var fechaVal = getVal('#c-fecha');
+
    var conIvaGlobal = parent.querySelector('#c-iva').checked;
    var utilGlobal = parseFloat(parent.querySelector('#c-util').value) || 0; 
    var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc').value) || 0; 
@@ -1110,7 +1135,7 @@ function generarCotizacionPDF() {
        }
        
        itemsData.push({ 
-           nombre: parent.querySelector('#c-concepto').value || "Venta Manual", 
+           nombre: concepto || "Venta Manual", 
            descripcion: "Servicio / Ítem Manual", 
            cantidad: 1, 
            valorUnitarioBase: manualVal,
@@ -1142,7 +1167,6 @@ function generarCotizacionPDF() {
        }
    }
 
-   var fechaVal = parent.querySelector('#c-fecha').value;
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
