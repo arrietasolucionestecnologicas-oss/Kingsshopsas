@@ -887,6 +887,8 @@ function finalizarVenta() {
    
    var isEximir = parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false;
    
+   var cotId = parent.getAttribute('data-cotizacion-id');
+
    var d = { 
        items: itemsData, 
        cliente: cli, 
@@ -899,7 +901,7 @@ function finalizarVenta() {
        vendedor: window.currentUserAlias, 
        fechaPersonalizada: fechaVal, 
        cuotas: parseInt(parent.querySelector('#c-cuotas').value) || 1, 
-       idCotizacion: parent.getAttribute('data-cotizacion-id'),
+       idCotizacion: cotId,
        frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
        primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "" 
    };
@@ -921,6 +923,11 @@ function finalizarVenta() {
            } else {
                if(window.showToast) window.showToast("¡Venta Registrada con Éxito!", "success"); 
            }
+           
+           if(cotId) {
+               window.D.cotizaciones = window.D.cotizaciones.filter(x => x.id !== cotId);
+           }
+           
            clearCart(); 
            if(window.loadData && !r.offline) window.loadData(true); 
        } else { 
@@ -1167,6 +1174,38 @@ function generarCotizacionPDF() {
        }
    }
 
+   var cotId = parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now());
+   parent.setAttribute('data-cotizacion-id', cotId);
+   
+   var paqueteCotiz = {
+       id: cotId,
+       fecha: fechaVal || new Date().toISOString().split('T')[0],
+       cliente: cli,
+       nit: nit,
+       tel: tel,
+       metodo: metodo,
+       cuotas: cuotas,
+       iva: conIvaGlobal,
+       manual: parent.querySelector('#c-manual') ? parent.querySelector('#c-manual').checked : false,
+       util: utilGlobal,
+       desc: descuentoGlobalPrc,
+       int: tasaMensual,
+       target: targetVal,
+       concepto: concepto,
+       eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
+       inicialPersonalizada: window.usuarioForzoInicial,
+       inicialValor: window.calculatedValues.inicial,
+       frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
+       primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
+       cart: JSON.parse(JSON.stringify(window.CART)),
+       total: window.calculatedValues.total
+   };
+   
+   var idxCot = window.D.cotizaciones.findIndex(x => x.id === paqueteCotiz.id);
+   if(idxCot > -1) { window.D.cotizaciones[idxCot] = paqueteCotiz; } 
+   else { window.D.cotizaciones.unshift(paqueteCotiz); }
+   window.callAPI('guardarCotizacion', paqueteCotiz); 
+
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
        items: itemsData,
@@ -1184,6 +1223,7 @@ function generarCotizacionPDF() {
        document.getElementById('loader').style.display = 'none';
        if(r.exito) {
            window.open(r.url, '_blank');
+           if(window.showToast) window.showToast("Cotización guardada y PDF generado", "success");
        } else {
            alert("Error generando PDF: " + r.error); 
        } 
