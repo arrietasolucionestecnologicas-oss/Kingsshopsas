@@ -157,7 +157,7 @@ function enviarSeguimientoWA(index) {
     if(!cli) return;
 
     var saludoCustom = document.getElementById(`crm-saludo-${index}`).value || `¡Hola!`;
-    var enlaceEncuesta = "[ENLACE_ENCUESTA]"; // REEMPLAZAR LUEGO POR EL ENLACE DEL FORMULARIO
+    var enlaceEncuesta = "https://docs.google.com/forms/d/e/1FAIpQLScQ4Of-FuvfrXiYP9MkfwljUi98LwmDocz8E7aR6vN-9gibiQ/viewform";
     var web = "www.kishopsas.com";
 
     var msg = `${saludoCustom} 👋\n\n`;
