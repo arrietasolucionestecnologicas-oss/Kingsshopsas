@@ -136,6 +136,77 @@ window.renderData = function() {
     
     var u = document.getElementById('user-display');
     if(u && window.currentUserAlias) u.innerText = window.currentUserAlias;
+
+    // --- FIX: EXTRACCIÓN DINÁMICA DE PROVEEDORES ---
+    var provSet = new Set();
+    if (window.D.proveedores) {
+        window.D.proveedores.forEach(p => {
+            if(p.nombre) provSet.add(String(p.nombre).toUpperCase().trim());
+        });
+    }
+    if (window.D.inv) {
+        window.D.inv.forEach(p => {
+            if(p.prov) provSet.add(String(p.prov).toUpperCase().trim());
+        });
+    }
+    var allProvs = Array.from(provSet).sort();
+
+    var provSelect = document.getElementById('filter-prov');
+    if(provSelect) {
+        provSelect.innerHTML = '<option value="">Todos los Proveedores</option>';
+        allProvs.forEach(p => {
+            provSelect.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+    }
+
+    var dlProvs = document.getElementById('list-provs-all');
+    if(dlProvs) {
+        dlProvs.innerHTML = '';
+        allProvs.forEach(p => {
+            var o = document.createElement('option');
+            o.value = p;
+            dlProvs.appendChild(o);
+        });
+    }
+
+    // --- FIX: EXTRACCIÓN DINÁMICA DE CATEGORÍAS ---
+    var catSet = new Set();
+    if (window.D.categorias) {
+        window.D.categorias.forEach(c => catSet.add(c));
+    }
+    if (window.D.inv) {
+        window.D.inv.forEach(p => {
+            if(p.cat) catSet.add(String(p.cat).trim());
+        });
+    }
+    var allCats = Array.from(catSet);
+
+    if(!allCats.includes("Gadget y Novedades")) {
+        allCats.push("Gadget y Novedades");
+    }
+    allCats.sort();
+
+    var dl = document.getElementById('list-cats'); 
+    if(dl) { 
+        dl.innerHTML=''; 
+        allCats.forEach(c => { var o=document.createElement('option'); o.value=c; dl.appendChild(o); }); 
+    }
+    
+    var dlp = document.querySelectorAll('#list-prods-all'); 
+    dlp.forEach(list => {
+        list.innerHTML = '';
+        if (window.D.inv) {
+            window.D.inv.forEach(p => { var o=document.createElement('option'); o.value=p.nombre; list.appendChild(o); });
+        }
+    });
+
+    var editCat = document.getElementById('inp-edit-categoria');
+    if(editCat && editCat.tagName === 'SELECT'){
+        editCat.innerHTML = '';
+        allCats.forEach(c => { var o = document.createElement('option'); o.value = c; o.text = c; editCat.appendChild(o); });
+    } else if (editCat) {
+        // En caso de que siga siendo un input con list="list-cats" en vez de un select real, no lo sobreescribimos
+    }
 }
 
 window.onload = function() {
