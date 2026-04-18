@@ -1062,7 +1062,24 @@ function enviarSeguimientoWA(index) {
 
     window.open(urlWa, '_blank');
 }
-
+function verBancos() {
+    const msg = `👑 ¡Hola! Gracias por elegir KINGS SHOP SAS 🛒\n\nPara procesar tu pedido, por favor realiza el pago mediante transferencia. Aquí tienes nuestros datos bancarios:\n\n🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat. Esto nos permite verificar el pago y programar tu envío de inmediato. 📦🚀\n\nQuedamos atentos a tu confirmación. ¡Gracias por tu confianza! 🤝`;
+    
+    Swal.fire({
+        title: 'Datos Bancarios',
+        text: '¿Copiar plantilla de pago al portapapeles?',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, Copiar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            navigator.clipboard.writeText(msg).then(() => {
+                if(window.showToast) window.showToast("Datos de pago copiados al portapapeles", "success");
+            });
+        }
+    });
+}
 // Exportaciones Globales
 window.renderFin = renderFin;
 window.abrirEditMov = abrirEditMov;
