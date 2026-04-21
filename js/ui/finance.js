@@ -825,8 +825,12 @@ function comprarPedido(id, nombreProd) {
 }
 
 function abrirRadiografia(idVenta) {
-    var v = window.D.deudores.find(x => x.idVenta === idVenta);
-    if(!v) return;
+    var v = window.D.deudores.find(x => x.idVenta === idVenta) || window.D.ultimasVentas.find(x => x.id === idVenta);
+    
+    // Si la abren desde el historial de ventas recientes y no solo de deudores, hay que buscar la data real.
+    // Como el POS carga "D.deudores" solo si deben, para las pagadas dependemos de que estén en memoria.
+    // Asumimos que si no está en D.deudores, la buscamos por si fue inyectada.
+    if(!v) return alert("Detalle no disponible en memoria rápida.");
     
     var safeNum = function(val) {
         if (val === undefined || val === null || val === '') return 0;
@@ -834,10 +838,10 @@ function abrirRadiografia(idVenta) {
         return isNaN(parsed) ? 0 : parsed;
     };
     
-    document.getElementById('rad-id').innerText = v.idVenta;
+    document.getElementById('rad-id').innerText = v.idVenta || v.id;
     document.getElementById('rad-fecha').innerText = v.fechaStr || "Sin fecha";
-    document.getElementById('rad-cliente').innerText = v.cliente;
-    document.getElementById('rad-prod').innerText = v.producto;
+    document.getElementById('rad-cliente').innerText = v.cliente || "Cliente";
+    document.getElementById('rad-prod').innerText = v.producto || "Producto";
     
     document.getElementById('rad-total').innerText = window.COP.format(safeNum(v.total));
     document.getElementById('rad-metodo').innerText = (v.metodo || "Crédito").toUpperCase();
@@ -869,9 +873,60 @@ function revelarSecretos() {
     document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
 }
 
-// =======================================================
-// MÓDULO CRM VISUAL AVANZADO
-// =======================================================
+// ==========================================================
+// NUEVO: ANULACIÓN DE VENTAS Y REVERSIÓN CONTABLE EXACTA
+// ==========================================================
+
+function anularVentaDesdeRadiografia() {
+    var idVenta = document.getElementById('rad-id').innerText;
+    var cliente = document.getElementById('rad-cliente').innerText;
+    
+    if (!idVenta || idVenta === "VEN-0000") return;
+    
+    Swal.fire({
+        title: '⚠️ ANULAR VENTA',
+        text: `Estás a punto de anular permanentemente la venta de ${cliente}. Todo el dinero pagado se registrará como un Egreso por Devolución para mantener la contabilidad exacta.\n\nEscribe el motivo de la anulación:`,
+        input: 'text',
+        icon: 'error',
+        inputPlaceholder: 'Ej: El cliente devolvió el producto, Error de facturación...',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, Anular Venta',
+        cancelButtonText: 'Cancelar',
+        preConfirm: (justificacion) => {
+            if (!justificacion || justificacion.length < 5) {
+                Swal.showValidationMessage('Debes ingresar una justificación válida (Mín. 5 caracteres)');
+            }
+            return justificacion;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.showLoading();
+            var d = {
+                idVenta: idVenta,
+                justificacion: result.value,
+                aliasOperador: window.currentUserAlias || "Sistema"
+            };
+            
+            window.callAPI('anularVentaTransaccional', d).then(r => {
+                Swal.close();
+                if (r.exito) {
+                    if (window.myModalRadiografia) window.myModalRadiografia.hide();
+                    Swal.fire(
+                        'Venta Anulada',
+                        `Se ha anulado la transacción con éxito. Se generó un egreso por devolución de ${window.COP.format(r.devolucion)}.`,
+                        'success'
+                    ).then(() => {
+                        if (window.loadData) window.loadData(true);
+                    });
+                } else {
+                    Swal.fire('Error', r.error, 'error');
+                }
+            });
+        }
+    });
+}
 
 function abrirModalCRM() {
     var modalEl = document.getElementById('modalCRM');
@@ -930,7 +985,7 @@ function abrirModalCRM() {
 
 function mostrarBuscadorCRM() {
     document.getElementById('crm-search-box').style.display = 'block';
-    document.getElementById('crm-list').innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-search fs-1 mb-2 opacity-50"></i><br>Ajusta el rango de días y presiona buscar para cargar ventas antiguas.</div>';
+    document.getElementById('crm-list').innerHTML = '<div class="text-center p-4 text-muted"><i class="fas fa-search fs-1 mb-2 opacity-50"></i><br>Ajusta el rango de días y presiona buscar para cargar ventas antiguas no contactadas.</div>';
     document.getElementById('crm-list').style.display = 'block';
     document.getElementById('crm-loader').style.display = 'none';
     
@@ -998,8 +1053,8 @@ function renderizarTarjetasCRM(datos) {
     if (!datos || datos.length === 0) {
         crmList.innerHTML = `<div class="text-center text-muted p-5">
                                 <i class="fas fa-check-circle" style="font-size: 3rem; color: #2ecc71;"></i>
-                                <h5 class="mt-3">Sin resultados</h5>
-                                <p>No hay clientes para hacer seguimiento en este rango.</p>
+                                <h5 class="mt-3">¡Todo al día!</h5>
+                                <p>No hay clientes pendientes de seguimiento en este rango.</p>
                              </div>`;
         return;
     }
@@ -1027,7 +1082,7 @@ function renderizarTarjetasCRM(datos) {
                 </div>
                 
                 <div class="mt-3 text-end border-top pt-2">
-                    <button class="btn btn-sm btn-success fw-bold px-4" onclick="window.enviarSeguimientoWA(${index})">
+                    <button class="btn btn-sm btn-success fw-bold px-4" onclick="window.enviarSeguimientoWA(${index}, this)">
                         <i class="fab fa-whatsapp"></i> Enviar Mensaje
                     </button>
                 </div>
@@ -1036,7 +1091,7 @@ function renderizarTarjetasCRM(datos) {
     });
 }
 
-function enviarSeguimientoWA(index) {
+function enviarSeguimientoWA(index, btnEl) {
     var cli = window.CLIENTES_CRM_PENDIENTES[index];
     if(!cli) return;
 
@@ -1061,7 +1116,25 @@ function enviarSeguimientoWA(index) {
     }
 
     window.open(urlWa, '_blank');
+
+    if(btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = "Marcando como contactado...";
+    }
+
+    window.callAPI('marcarCRMContactado', { idVenta: cli.idVenta }).then(r => {
+        if(r.exito) {
+            if(window.showToast) window.showToast("Cliente retirado de la lista", "success");
+            var isHist = document.getElementById('crm-search-box').style.display === 'block';
+            if (isHist) {
+                window.buscarHistorialCRM();
+            } else {
+                window.renderCRM();
+            }
+        }
+    });
 }
+
 function verBancos() {
     const msg = `👑 ¡Hola! Gracias por elegir KINGS SHOP SAS 🛒\n\nPara procesar tu pedido, por favor realiza el pago mediante transferencia. Aquí tienes nuestros datos bancarios:\n\n🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat. Esto nos permite verificar el pago y programar tu envío de inmediato. 📦🚀\n\nQuedamos atentos a tu confirmación. ¡Gracias por tu confianza! 🤝`;
     
@@ -1080,6 +1153,7 @@ function verBancos() {
         }
     });
 }
+
 // Exportaciones Globales
 window.renderFin = renderFin;
 window.abrirEditMov = abrirEditMov;
@@ -1115,3 +1189,5 @@ window.mostrarBuscadorCRM = mostrarBuscadorCRM;
 window.buscarHistorialCRM = buscarHistorialCRM;
 window.renderizarTarjetasCRM = renderizarTarjetasCRM;
 window.enviarSeguimientoWA = enviarSeguimientoWA;
+window.verBancos = verBancos;
+window.anularVentaDesdeRadiografia = anularVentaDesdeRadiografia;
