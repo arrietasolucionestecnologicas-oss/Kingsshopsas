@@ -883,6 +883,9 @@ function anularVentaDesdeRadiografia() {
     
     if (!idVenta || idVenta === "VEN-0000") return;
     
+    // FIX TÉCNICO: Se oculta el modal de Bootstrap para liberar el Focus Trap del teclado
+    if (window.myModalRadiografia) window.myModalRadiografia.hide();
+    
     Swal.fire({
         title: '⚠️ ANULAR VENTA',
         text: `Estás a punto de anular permanentemente la venta de ${cliente}. Todo el dinero pagado se registrará como un Egreso por Devolución para mantener la contabilidad exacta.\n\nEscribe el motivo de la anulación:`,
@@ -912,7 +915,6 @@ function anularVentaDesdeRadiografia() {
             window.callAPI('anularVentaTransaccional', d).then(r => {
                 Swal.close();
                 if (r.exito) {
-                    if (window.myModalRadiografia) window.myModalRadiografia.hide();
                     Swal.fire(
                         'Venta Anulada',
                         `Se ha anulado la transacción con éxito. Se generó un egreso por devolución de ${window.COP.format(r.devolucion)}.`,
@@ -924,6 +926,9 @@ function anularVentaDesdeRadiografia() {
                     Swal.fire('Error', r.error, 'error');
                 }
             });
+        } else {
+            // UX: Si el usuario cancela la alerta, se vuelve a mostrar la radiografía
+            if (window.myModalRadiografia) window.myModalRadiografia.show();
         }
     });
 }
