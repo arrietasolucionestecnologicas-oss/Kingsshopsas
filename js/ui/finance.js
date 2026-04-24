@@ -302,10 +302,19 @@ function renderCartera() {
                 var valCuotaReal = parseFloat(d.valCuota) || 0;
                 var numCuotas = parseInt(d.cuotas) || 1;
                 
+                // 🟢 FIX CUOTA RESIDUAL EN CARTERA: Mostrar el valor de la última cuota si el redondeo causó diferencia
+                var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
+                var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
+                
                 if(valCuotaReal > 0) {
                     var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
                     if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
-                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between"><span>Cuota Fija:</span><strong>${window.COP.format(valCuotaReal)}</strong></div><div class="d-flex justify-content-between text-danger fw-bold"><span>Restan:</span><span>${cuotasRestantes} Cuotas</span></div></div>`;
+                    
+                    var cuotaMuestra = (numCuotas > 1 && Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) 
+                                       ? `${window.COP.format(valCuotaReal)} <br><small class="text-muted">(Última: ${window.COP.format(ultimaCuotaReal)})</small>` 
+                                       : window.COP.format(valCuotaReal);
+
+                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between"><span>Cuota Fija:</span><strong class="text-end">${cuotaMuestra}</strong></div><div class="d-flex justify-content-between text-danger fw-bold mt-1"><span>Restan:</span><span>${cuotasRestantes} Cuotas</span></div></div>`;
                 } else if (numCuotas > 1 && d.saldo > 0) {
                     var cuotaEstimada = d.saldo / numCuotas; 
                     planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between text-muted"><span>Plan Original:</span><span>${numCuotas} Cuotas</span></div><div class="d-flex justify-content-between text-danger fw-bold"><span>Cuota Aprox:</span><span>${window.COP.format(cuotaEstimada)} (Est)</span></div></div>`;
@@ -369,17 +378,21 @@ function notificarCobroWA(idVenta) {
     } else {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var fechaTxt = d.fechaLimite || "Pago Inmediato";
-        
-        msg += `Pasamos por aquí para recordarte el pago de tu *${d.producto}* 📦.\n\n`;
-        
-        if (valCuotaReal > 0) {
-            var montoCobrar = Math.min(valCuotaReal, d.saldo);
-            msg += `💳 *${montoCobrar < d.saldo ? "Cuota" : "Saldo Total"}:* ${window.COP.format(montoCobrar)}\n`;
+        var numCuotas = parseInt(d.cuotas) || 1;
+        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
+        var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
+        var montoCobrar = valCuotaReal;
+
+        // 🟢 FIX CUOTA RESIDUAL EN COBRO WA
+        if (d.saldo <= (ultimaCuotaReal + 100) && d.saldo > 0 && numCuotas > 1) {
+            montoCobrar = Math.min(d.saldo, ultimaCuotaReal); 
         } else {
-            msg += `💳 *Saldo Total:* ${window.COP.format(d.saldo)}\n`;
+            montoCobrar = Math.min(valCuotaReal, d.saldo);
         }
         
-        msg += `📅 *Fecha:* ${fechaTxt}\n\n`;
+        msg += `Pasamos por aquí para recordarte el pago de tu *${d.producto}* 📦.\n\n`;
+        msg += `💳 *${montoCobrar < d.saldo ? "Próxima Cuota" : "Saldo Total"}:* ${window.COP.format(montoCobrar)}\n`;
+        msg += `📅 *Fecha de Corte:* ${fechaTxt}\n\n`;
         msg += `Quedamos muy atentos a tus comprobantes. ¡Gracias por tu confianza! 🤝`;
     }
     
@@ -402,18 +415,23 @@ function compartirBalanceWA(idVenta) {
     } else {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var numCuotas = parseInt(d.cuotas) || 1;
+        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
+        var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
         
         if (valCuotaReal > 0 && numCuotas > 1) {
-            var deudaOriginal = valCuotaReal * numCuotas;
-            if (deudaOriginal < d.saldo) deudaOriginal = d.saldo; 
-            
-            var totalAbonado = deudaOriginal - d.saldo;
+            var totalAbonado = saldoOriginal - d.saldo;
             if (totalAbonado < 0) totalAbonado = 0;
             
             var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
             if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
 
-            msg += `💰 *Financiado:* ${window.COP.format(deudaOriginal)} (${numCuotas} Cuotas)\n`;
+            msg += `💰 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
+            
+            // 🟢 FIX CUOTA RESIDUAL EN BALANCE
+            if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
+                 msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
+            }
+            
             msg += `✅ *Total Abonado:* ${window.COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
             msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
         } else {
@@ -827,9 +845,6 @@ function comprarPedido(id, nombreProd) {
 function abrirRadiografia(idVenta) {
     var v = window.D.deudores.find(x => x.idVenta === idVenta) || window.D.ultimasVentas.find(x => x.id === idVenta);
     
-    // Si la abren desde el historial de ventas recientes y no solo de deudores, hay que buscar la data real.
-    // Como el POS carga "D.deudores" solo si deben, para las pagadas dependemos de que estén en memoria.
-    // Asumimos que si no está en D.deudores, la buscamos por si fue inyectada.
     if(!v) return alert("Detalle no disponible en memoria rápida.");
     
     var safeNum = function(val) {
@@ -861,8 +876,25 @@ function abrirRadiografia(idVenta) {
         boxDeuda.style.borderColor = '#e74c3c';
         document.getElementById('rad-saldo').innerText = window.COP.format(safeNum(v.saldo));
         document.getElementById('rad-saldo').className = 'rad-val text-danger';
+        
         var cuotas = parseInt(v.cuotas) || 1;
-        var cuotaTxt = cuotas > 1 ? `${cuotas} cuotas de ${window.COP.format(safeNum(v.valCuota))}` : `Pago único pendiente`;
+        var valCuota = safeNum(v.valCuota);
+        
+        // 🟢 FIX CUOTA RESIDUAL EN RADIOGRAFÍA
+        var saldoOriginal = safeNum(v.total) - safeNum(v.inicial);
+        var ultimaCuota = saldoOriginal - (valCuota * (cuotas - 1));
+        
+        var cuotaTxt = "";
+        if (cuotas > 1) {
+            if (Math.abs(ultimaCuota - valCuota) > 1 && ultimaCuota > 0) {
+                cuotaTxt = `${cuotas - 1} de ${window.COP.format(valCuota)} y 1 de ${window.COP.format(ultimaCuota)}`;
+            } else {
+                cuotaTxt = `${cuotas} cuotas de ${window.COP.format(valCuota)}`;
+            }
+        } else {
+            cuotaTxt = `Pago único pendiente`;
+        }
+        
         document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(safeNum(v.inicial))} | ${cuotaTxt}`;
     }
     
@@ -873,17 +905,12 @@ function revelarSecretos() {
     document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
 }
 
-// ==========================================================
-// NUEVO: ANULACIÓN DE VENTAS Y REVERSIÓN CONTABLE EXACTA
-// ==========================================================
-
 function anularVentaDesdeRadiografia() {
     var idVenta = document.getElementById('rad-id').innerText;
     var cliente = document.getElementById('rad-cliente').innerText;
     
     if (!idVenta || idVenta === "VEN-0000") return;
     
-    // FIX TÉCNICO: Se oculta el modal de Bootstrap para liberar el Focus Trap del teclado
     if (window.myModalRadiografia) window.myModalRadiografia.hide();
     
     Swal.fire({
@@ -924,10 +951,10 @@ function anularVentaDesdeRadiografia() {
                     });
                 } else {
                     Swal.fire('Error', r.error, 'error');
+                    if (window.myModalRadiografia) window.myModalRadiografia.show();
                 }
             });
         } else {
-            // UX: Si el usuario cancela la alerta, se vuelve a mostrar la radiografía
             if (window.myModalRadiografia) window.myModalRadiografia.show();
         }
     });
@@ -1188,6 +1215,7 @@ window.delPed = delPed;
 window.comprarPedido = comprarPedido;
 window.abrirRadiografia = abrirRadiografia;
 window.revelarSecretos = revelarSecretos;
+window.anularVentaDesdeRadiografia = anularVentaDesdeRadiografia;
 window.abrirModalCRM = abrirModalCRM;
 window.renderCRM = renderCRM;
 window.mostrarBuscadorCRM = mostrarBuscadorCRM;
@@ -1195,4 +1223,3 @@ window.buscarHistorialCRM = buscarHistorialCRM;
 window.renderizarTarjetasCRM = renderizarTarjetasCRM;
 window.enviarSeguimientoWA = enviarSeguimientoWA;
 window.verBancos = verBancos;
-window.anularVentaDesdeRadiografia = anularVentaDesdeRadiografia;
