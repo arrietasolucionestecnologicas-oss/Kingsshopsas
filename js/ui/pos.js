@@ -346,7 +346,7 @@ function updateCartUI(keepOpen = false) {
             var today = new Date();
             dateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         }
-       
+        
         var inputConcepto = parent.querySelector('#c-concepto');
         if(window.CART.length === 0) {
             if(inputConcepto) inputConcepto.style.display = 'block';
@@ -472,9 +472,10 @@ function calcCart() {
 
     if (tieneTarget) {
         totalFinal = targetVal;
-        if(activeParent.querySelector('#c-int')) activeParent.querySelector('#c-int').value = 0;
-        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
         descuentoDineroTotal = 0;
+        
+        // FIX: Ya no ponemos #c-int a 0 forzosamente, permitiendo pactar el precio y luego financiarlo.
+        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
         
         if (window.CART.length > 0) {
             let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
@@ -485,15 +486,34 @@ function calcCart() {
         }
     }
 
-    var metaInicial = isEximir ? 0 : Math.round(totalFinal * 0.30);
+    // 🟢 FIX COLOMBIA: REDONDEO COMERCIAL (Múltiplos de $100)
+    totalFinal = Math.round(totalFinal / 100) * 100;
+
+    if (metodo === "Crédito") {
+        var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
+        var saldoTemp = Math.max(0, totalFinal - iniTemp);
+        var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
+        totalFinal = totalFinal + interesTotal;
+        // Redondear nuevamente tras intereses
+        totalFinal = Math.round(totalFinal / 100) * 100;
+    }
+
+    var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
     var inpInicial = activeParent.querySelector('#c-inicial');
+    
+    // FIX PC: Validación estricta de nodo para evitar falsos positivos con IDs duplicados.
     var activeEl = document.activeElement; 
-    var isTypingInicial = (activeEl && activeEl.id === 'c-inicial' && activeParent.contains(activeEl));
+    var isTypingInicial = (activeEl && activeEl === inpInicial);
     
     var inicial = 0;
     if (isTypingInicial) {
-        if (inpInicial && inpInicial.value === "") { window.usuarioForzoInicial = false; inicial = isEximir ? 0 : metaInicial; } 
-        else if (inpInicial) { window.usuarioForzoInicial = true; inicial = parseFloat(inpInicial.value) || 0; }
+        if (inpInicial && inpInicial.value === "") { 
+            window.usuarioForzoInicial = false; 
+            inicial = isEximir ? 0 : metaInicial; 
+        } else if (inpInicial) { 
+            window.usuarioForzoInicial = true; 
+            inicial = parseFloat(inpInicial.value) || 0; 
+        }
     } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") { 
         inicial = parseFloat(inpInicial.value) || 0; 
     } else { 
@@ -502,19 +522,17 @@ function calcCart() {
     }
    
     var faltanteInicial = Math.max(0, metaInicial - inicial);
+    if (!window.calculatedValues) window.calculatedValues = {};
     window.calculatedValues.inicial = inicial;
-   
-    if (!tieneTarget && metodo === "Crédito") {
-        var saldoTemp = Math.max(0, totalFinal - inicial);
-        var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
-        totalFinal += interesTotal;
-    }
-   
     window.calculatedValues.base = baseParaCalculo; 
     window.calculatedValues.total = totalFinal;
     window.calculatedValues.descuento = descuentoDineroTotal;
 
-    var valorCuota = metodo === "Crédito" ? Math.max(0, totalFinal - inicial) / cuotas : 0;
+    var valorCuota = 0;
+    if(metodo === "Crédito") {
+        var saldo = Math.max(0, totalFinal - inicial);
+        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
+    }
 
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
@@ -591,19 +609,19 @@ function calcCart() {
         var inputTotal = parent.querySelector('#res-cont-input');
 
         if(metodo === "Crédito") {
-            totalText.forEach(e => { e.innerText = window.COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
+            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
             if(window.CART.length === 0) { 
                 if(inputTotal) inputTotal.style.display = 'inline-block'; 
             } else { 
                 if(inputTotal) inputTotal.style.display = 'none'; 
             }
-           
+            
             var alertaFaltante = faltanteInicial > 0 ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>` : "";
 
             rowCred.forEach(e => { 
                 e.style.display = 'block'; 
-                if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(Math.round(inicial))} ${alertaFaltante}`; 
-                if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(Math.round(valorCuota)); 
+                if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(inicial)} ${alertaFaltante}`; 
+                if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota); 
                 
                 var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
                 if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} Cuota(s) (${fTexto})`; 
@@ -615,7 +633,7 @@ function calcCart() {
                 pInpInicial.style.background = faltanteInicial > 0 ? '#fff3cd' : '#fff'; 
             }
         } else { 
-            totalText.forEach(e => { e.innerText = window.COP.format(Math.round(totalFinal)); e.style.display = 'block'; });
+            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
             if (window.CART.length === 0) {
                 if(inputTotal) inputTotal.style.display = 'inline-block';
                 if(isManual) totalText.forEach(e => e.style.display = 'none');
@@ -626,7 +644,7 @@ function calcCart() {
             rowCred.forEach(e => e.style.display = 'none'); 
             if(pInpInicial) pInpInicial.style.display = 'none'; 
         }
-   });
+    });
 }
 
 function toggleIni() { 
@@ -886,7 +904,6 @@ function finalizarVenta() {
    }
    
    var isEximir = parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false;
-   
    var cotId = parent.getAttribute('data-cotizacion-id');
 
    var d = { 
@@ -1030,6 +1047,110 @@ async function shareQuote() {
     window.open(url, '_blank');
 }
 
+function shareProdWhatsApp(id) {
+    var p = window.D.inv.find(x => x.id === id);
+    if (!p) return alert("Producto no encontrado");
+    var nombre = p.nombre.toUpperCase();
+    var precio = p.publico > 0 ? window.COP.format(p.publico) : 'Consultar';
+    var descripcionBonita = window.embellecerDescripcion ? window.embellecerDescripcion(p.desc) : p.desc;
+    var linkFoto = window.fixDriveLink ? window.fixDriveLink(p.foto) : p.foto; 
+    
+    var msg = `👑 *KING'S SHOP SAS*\n\n`;
+    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *Imagen:* ${linkFoto}\n\n`; }
+    msg += `🛍️ *Producto:* ${nombre}\n`;
+    msg += `💳 *Inversión:* ${precio}\n\n`;
+    if (descripcionBonita) { msg += `📋 *Detalles:*\n${descripcionBonita}\n\n`; }
+    msg += `🤝 _Quedamos a su entera disposición._`; 
+    
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
+async function getFileFromUrlAsync(url, defaultName) {
+    try {
+        if (url.startsWith('data:image')) {
+            var arr = url.split(',');
+            var mime = arr[0].match(/:(.*?);/)[1];
+            var bstr = atob(arr[1]);
+            var n = bstr.length;
+            var u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], defaultName + ".jpg", {type: mime});
+        } else {
+            const response = await fetch(url, { mode: 'cors' });
+            const blob = await response.blob();
+            return new File([blob], defaultName + ".jpg", {type: blob.type || "image/jpeg"});
+        }
+    } catch(e) {
+        console.error("Fallo al convertir URL a File:", e);
+        return null;
+    }
+}
+
+async function shareProductNative(id) {
+    var loader = document.getElementById('loader');
+    if(loader) loader.style.display = 'flex';
+    
+    try {
+        var p = window.D.inv.find(x => x.id === id);
+        if (!p) {
+            if(loader) loader.style.display = 'none';
+            return alert("Producto no encontrado");
+        }
+        
+        var nombre = p.nombre.toUpperCase();
+        var precio = p.publico > 0 ? window.COP.format(p.publico) : 'Consultar';
+        var desc = window.embellecerDescripcion ? window.embellecerDescripcion(p.desc) : p.desc;
+        
+        var shareText = `👑 *KING'S SHOP SAS*\n\n🛍️ *Producto:* ${nombre}\n💳 *Inversión:* ${precio}\n\n`;
+        if (desc) { shareText += `📋 *Detalles:*\n${desc}\n\n`; }
+        shareText += `🤝 _Quedamos a su entera disposición._`;
+        
+        var shareData = {
+            title: nombre,
+            text: shareText
+        };
+
+        var hasImage = false;
+        var fixedUrl = window.fixDriveLink ? window.fixDriveLink(p.foto) : p.foto;
+        
+        if (fixedUrl && fixedUrl.length > 5) {
+            var cleanName = p.nombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            var file = await getFileFromUrlAsync(fixedUrl, cleanName);
+            if (file) {
+                shareData.files = [file];
+                hasImage = true;
+            }
+        }
+        
+        if(loader) loader.style.display = 'none';
+
+        if (navigator.canShare && navigator.share) {
+            if (hasImage && !navigator.canShare({ files: shareData.files })) {
+                console.warn("El dispositivo no soporta compartir archivos, se enviará solo texto.");
+                delete shareData.files;
+            }
+            
+            await navigator.share(shareData);
+            if(window.showToast) window.showToast("¡Compartido con éxito!", "success");
+        } else {
+            alert("Tu navegador no soporta compartir nativamente. Abriendo WhatsApp clásico.");
+            shareProdWhatsApp(id);
+        }
+    } catch(error) {
+        if(loader) loader.style.display = 'none';
+        console.error("Error compartiendo:", error);
+        if (error.name !== 'AbortError') {
+            alert("No se pudo compartir el archivo nativamente. Abriendo texto clásico.");
+            shareProdWhatsApp(id); 
+        } else {
+            if(window.showToast) window.showToast("Compartir cancelado por el usuario", "info");
+        }
+    }
+}
+
 function generarCotizacionPDF() {
    var desktopCart = document.getElementById('desktop-cart-container');
    var mobileCart = document.getElementById('mobile-cart');
@@ -1052,16 +1173,15 @@ function generarCotizacionPDF() {
    var concepto = getVal('#c-concepto');
    var fechaVal = getVal('#c-fecha');
 
-   var conIvaGlobal = parent.querySelector('#c-iva').checked;
-   var utilGlobal = parseFloat(parent.querySelector('#c-util').value) || 0; 
-   var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc').value) || 0; 
-   var targetVal = parseFloat(parent.querySelector('#c-target').value);
+   var conIvaGlobal = parent.querySelector('#c-iva') ? parent.querySelector('#c-iva').checked : false;
+   var utilGlobal = parseFloat(parent.querySelector('#c-util') ? parent.querySelector('#c-util').value : 0) || 0; 
+   var descuentoGlobalPrc = parseFloat(parent.querySelector('#c-desc') ? parent.querySelector('#c-desc').value : 0) || 0; 
+   var targetVal = parseFloat(parent.querySelector('#c-target') ? parent.querySelector('#c-target').value : 0);
    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
-   var metodo = parent.querySelector('#c-metodo').value;
-   var tasaMensual = parseFloat(parent.querySelector('#c-int').value) || 0;
-   var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
+   var metodo = parent.querySelector('#c-metodo') ? parent.querySelector('#c-metodo').value : 'Contado';
+   var tasaMensual = parseFloat(parent.querySelector('#c-int') ? parent.querySelector('#c-int').value : 0) || 0;
+   var cuotas = parseInt(parent.querySelector('#c-cuotas') ? parent.querySelector('#c-cuotas').value : 1) || 1;
 
-   // --- BLOQUEO DE BOTÓN (PREVENCIÓN MULTI-CLICK) ---
    var btnPDF = parent.querySelector('button[onclick="window.generarCotizacionPDF()"]');
    var prevHtml = "";
    if(btnPDF) {
@@ -1075,7 +1195,6 @@ function generarCotizacionPDF() {
            btnPDF.disabled = false;
        }
    };
-   // --------------------------------------------------
    
    var itemsData = []; 
    var ivaTotalCotizacion = 0; 
@@ -1087,7 +1206,7 @@ function generarCotizacionPDF() {
            var qty = p.cantidad || 1;
            
            if (tieneTarget) {
-               var unitPrice = p.precioUnitarioFinal || 0;
+               var unitPrice = Math.round((p.precioUnitarioFinal || 0) / 100) * 100;
                var totalItem = unitPrice * qty;
                subtotalBaseCotizacion += totalItem;
                
@@ -1170,9 +1289,16 @@ function generarCotizacionPDF() {
        });
    }
    
-   if (metodo === "Crédito" && !tieneTarget) {
-       var preTotal = subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion;
-       var interesAplicado = Math.max(0, preTotal - window.calculatedValues.inicial) * (tasaMensual / 100) * cuotas;
+   var interesAplicado = 0;
+   var totalFormateadoPDF = subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion;
+   totalFormateadoPDF = Math.round(totalFormateadoPDF / 100) * 100;
+
+   // 🟢 FIX: Redondeo y aplicación de interés en cotización
+   if (metodo === "Crédito") {
+       var iniTemp = Math.round((totalFormateadoPDF * 0.30) / 100) * 100;
+       var saldoTemp = Math.max(0, totalFormateadoPDF - iniTemp);
+       interesAplicado = saldoTemp * (tasaMensual / 100) * cuotas;
+       interesAplicado = Math.round(interesAplicado / 100) * 100;
        
        if (interesAplicado > 0) {
            itemsData.push({
@@ -1186,41 +1312,9 @@ function generarCotizacionPDF() {
                total: interesAplicado,
                conIva: false
            });
-           subtotalBaseCotizacion += interesAplicado; 
+           totalFormateadoPDF += interesAplicado; 
        }
    }
-
-   var cotId = parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now());
-   parent.setAttribute('data-cotizacion-id', cotId);
-   
-   var paqueteCotiz = {
-       id: cotId,
-       fecha: fechaVal || new Date().toISOString().split('T')[0],
-       cliente: cli,
-       nit: nit,
-       tel: tel,
-       metodo: metodo,
-       cuotas: cuotas,
-       iva: conIvaGlobal,
-       manual: parent.querySelector('#c-manual') ? parent.querySelector('#c-manual').checked : false,
-       util: utilGlobal,
-       desc: descuentoGlobalPrc,
-       int: tasaMensual,
-       target: targetVal,
-       concepto: concepto,
-       eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
-       inicialPersonalizada: window.usuarioForzoInicial,
-       inicialValor: window.calculatedValues.inicial,
-       frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
-       primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
-       cart: JSON.parse(JSON.stringify(window.CART)),
-       total: window.calculatedValues.total
-   };
-   
-   var idxCot = window.D.cotizaciones.findIndex(x => x.id === paqueteCotiz.id);
-   if(idxCot > -1) { window.D.cotizaciones[idxCot] = paqueteCotiz; } 
-   else { window.D.cotizaciones.unshift(paqueteCotiz); }
-   window.callAPI('guardarCotizacion', paqueteCotiz); 
 
    var d = {
        cliente: { nombre: cli, nit: nit, telefono: tel },
@@ -1229,23 +1323,25 @@ function generarCotizacionPDF() {
            subtotal: subtotalBaseCotizacion, 
            descuento: descuentoTotalCotizacion,
            iva: ivaTotalCotizacion,
-           total: subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion 
+           total: totalFormateadoPDF 
        },
        fecha: fechaVal
    };
    
-   document.getElementById('loader').style.display = 'flex';
+   var loader = document.getElementById('loader');
+   if(loader) loader.style.display = 'flex';
+   
    window.callAPI('generarCotizacionPDF', d).then(r => { 
-       document.getElementById('loader').style.display = 'none';
+       if(loader) loader.style.display = 'none';
        unlockBtn();
-       if(r.exito) {
+       if(r.exito) { 
            window.open(r.url, '_blank');
            if(window.showToast) window.showToast("Cotización guardada y PDF generado", "success");
-       } else {
+       } else { 
            alert("Error generando PDF: " + r.error); 
        } 
    }).catch(err => {
-       document.getElementById('loader').style.display = 'none';
+       if(loader) loader.style.display = 'none';
        unlockBtn();
        alert("Error de red al generar PDF.");
    });
@@ -1279,4 +1375,7 @@ window.toggleMobileCart = toggleMobileCart;
 window.toggleDatosFormales = toggleDatosFormales;
 window.finalizarVenta = finalizarVenta;
 window.shareQuote = shareQuote;
+window.shareProdWhatsApp = shareProdWhatsApp;
+window.getFileFromUrlAsync = getFileFromUrlAsync;
+window.shareProductNative = shareProductNative;
 window.generarCotizacionPDF = generarCotizacionPDF;
