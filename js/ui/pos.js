@@ -389,9 +389,14 @@ function updateCartUI(keepOpen = false) {
 }
 
 function toggleManual() {
-    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-    var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(!activeParent) activeParent = document.getElementById('desktop-cart-container');
+    var activeParent = null;
+    if (document.activeElement && document.activeElement.closest) {
+        activeParent = document.activeElement.closest('.cotizador-panel-container');
+    }
+    if (!activeParent) {
+        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    }
     if(!activeParent) return;
     
     var isManual = activeParent.querySelector('#c-manual') ? activeParent.querySelector('#c-manual').checked : false;
@@ -410,28 +415,42 @@ function toggleManual() {
     calcCart();
 }
 
-function calcCart() {
-    var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-    var activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    if(!activeParent) activeParent = document.getElementById('desktop-cart-container'); 
-    if(!activeParent) return;
+window.calcCart = function() {
+    // FIX 1: Detección estricta del contenedor activo para evadir el bug de duplicidad de IDs en PC vs Móvil
+    var activeParent = null;
+    if (document.activeElement && document.activeElement.closest) {
+        activeParent = document.activeElement.closest('.cotizador-panel-container');
+    }
+    if (!activeParent) {
+        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    }
+    if (!activeParent) return;
 
-    var cuotas = parseInt(activeParent.querySelector('#c-cuotas') ? activeParent.querySelector('#c-cuotas').value : 1) || 1;
-    var metodo = activeParent.querySelector('#c-metodo') ? activeParent.querySelector('#c-metodo').value : 'Contado';
-    var conIvaGlobal = activeParent.querySelector('#c-iva') ? activeParent.querySelector('#c-iva').checked : false;
-    var isManual = activeParent.querySelector('#c-manual') ? activeParent.querySelector('#c-manual').checked : false;
-    var utilGlobal = parseFloat(activeParent.querySelector('#c-util') ? activeParent.querySelector('#c-util').value : 30) || 0; 
-    var descuentoGlobalPrc = parseFloat(activeParent.querySelector('#c-desc') ? activeParent.querySelector('#c-desc').value : 0) || 0; 
-    var tasaMensual = parseFloat(activeParent.querySelector('#c-int') ? activeParent.querySelector('#c-int').value : 5) || 0; 
-    var targetVal = parseFloat(activeParent.querySelector('#c-target') ? activeParent.querySelector('#c-target').value : 0);
+    const getVal = (selector, defaultVal) => {
+        var el = activeParent.querySelector(selector);
+        if (!el) return defaultVal;
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+    };
+
+    var cuotas = parseInt(getVal('#c-cuotas', 1)) || 1;
+    var metodo = getVal('#c-metodo', 'Contado');
+    var conIvaGlobal = getVal('#c-iva', false);
+    var isManual = getVal('#c-manual', false);
+    var utilGlobal = parseFloat(getVal('#c-util', 30)) || 0; 
+    var descuentoGlobalPrc = parseFloat(getVal('#c-desc', 0)) || 0; 
+    var tasaMensual = parseFloat(getVal('#c-int', 5)) || 0; 
+    var targetValStr = getVal('#c-target', "");
+    var targetVal = parseFloat(targetValStr);
     var tieneTarget = !isNaN(targetVal) && targetVal > 0;
-    var isEximir = activeParent.querySelector('#c-vip') ? activeParent.querySelector('#c-vip').checked : false;
+    var isEximir = getVal('#c-vip', false);
    
     var baseParaCalculo = 0; 
     var totalFinal = 0; 
     var descuentoDineroTotal = 0; 
 
-    if (window.CART.length > 0) {
+    if (window.CART && window.CART.length > 0) {
         window.CART.forEach(item => {
             let c = item.costo || 0; 
             let q = item.cantidad || 1;
@@ -445,7 +464,7 @@ function calcCart() {
             }
 
             let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
-            let descuentoDinero = precioLista * (dPrc / 100);
+            let descuentoDinero = tieneTarget ? 0 : precioLista * (dPrc / 100);
             
             descuentoDineroTotal += (descuentoDinero * q);
             
@@ -464,7 +483,7 @@ function calcCart() {
         baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
         
         let precioListaBruto = baseParaCalculo * (1 + utilGlobal / 100);
-        descuentoDineroTotal = precioListaBruto * (descuentoGlobalPrc / 100);
+        descuentoDineroTotal = tieneTarget ? 0 : precioListaBruto * (descuentoGlobalPrc / 100);
         
         totalFinal = Math.max(0, precioListaBruto - descuentoDineroTotal);
         if (conIvaGlobal) totalFinal *= 1.19; 
@@ -474,10 +493,7 @@ function calcCart() {
         totalFinal = targetVal;
         descuentoDineroTotal = 0;
         
-        // FIX: Ya no ponemos #c-int a 0 forzosamente, permitiendo pactar el precio y luego financiarlo.
-        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
-        
-        if (window.CART.length > 0) {
+        if (window.CART && window.CART.length > 0) {
             let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
             window.CART.forEach(item => {
                 let peso = totalPrevio > 0 ? ((item.precioUnitarioFinal || 0) * item.cantidad) / totalPrevio : 1 / window.CART.length;
@@ -486,24 +502,22 @@ function calcCart() {
         }
     }
 
-    // 🟢 FIX COLOMBIA: REDONDEO COMERCIAL (Múltiplos de $100)
+    // 🟢 FIX 2: REDONDEO COLOMBIANO ESTRICTO (Múltiplos de $100)
     totalFinal = Math.round(totalFinal / 100) * 100;
 
+    // FIX 3: Permitir sumar intereses incluso si hay Precio Pactado
     if (metodo === "Crédito") {
         var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
         var saldoTemp = Math.max(0, totalFinal - iniTemp);
         var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
         totalFinal = totalFinal + interesTotal;
-        // Redondear nuevamente tras intereses
+        // Redondeo final tras aplicar intereses
         totalFinal = Math.round(totalFinal / 100) * 100;
     }
 
     var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
     var inpInicial = activeParent.querySelector('#c-inicial');
-    
-    // FIX PC: Validación estricta de nodo para evitar falsos positivos con IDs duplicados.
-    var activeEl = document.activeElement; 
-    var isTypingInicial = (activeEl && activeEl === inpInicial);
+    var isTypingInicial = (document.activeElement && document.activeElement === inpInicial);
     
     var inicial = 0;
     if (isTypingInicial) {
@@ -534,30 +548,38 @@ function calcCart() {
         valorCuota = Math.round((saldo / cuotas) / 100) * 100;
     }
 
+    // Sincronización segura de contenedores
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
     panels.forEach(parent => {
         if(!parent) return;
 
         if (parent !== activeParent) {
-            if(parent.querySelector('#c-cuotas') && document.activeElement !== parent.querySelector('#c-cuotas')) parent.querySelector('#c-cuotas').value = cuotas;
-            if(parent.querySelector('#c-metodo') && document.activeElement !== parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = metodo;
-            if(parent.querySelector('#c-iva') && document.activeElement !== parent.querySelector('#c-iva')) parent.querySelector('#c-iva').checked = conIvaGlobal;
-            if(parent.querySelector('#c-manual') && document.activeElement !== parent.querySelector('#c-manual')) parent.querySelector('#c-manual').checked = isManual;
-            if(parent.querySelector('#c-util') && document.activeElement !== parent.querySelector('#c-util')) parent.querySelector('#c-util').value = utilGlobal;
-            if(parent.querySelector('#c-desc') && document.activeElement !== parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = descuentoGlobalPrc;
-            if(parent.querySelector('#c-int') && document.activeElement !== parent.querySelector('#c-int')) parent.querySelector('#c-int').value = tasaMensual;
-            if(parent.querySelector('#c-target') && document.activeElement !== parent.querySelector('#c-target')) parent.querySelector('#c-target').value = isNaN(targetVal) ? '' : targetVal;
-            if(parent.querySelector('#c-cliente') && document.activeElement !== parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = activeParent.querySelector('#c-cliente') ? activeParent.querySelector('#c-cliente').value : "";
-            if(parent.querySelector('#c-nit') && document.activeElement !== parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = activeParent.querySelector('#c-nit') ? activeParent.querySelector('#c-nit').value : "";
-            if(parent.querySelector('#c-tel') && document.activeElement !== parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = activeParent.querySelector('#c-tel') ? activeParent.querySelector('#c-tel').value : "";
-            if(parent.querySelector('#c-incluir-desc') && document.activeElement !== parent.querySelector('#c-incluir-desc')) parent.querySelector('#c-incluir-desc').checked = activeParent.querySelector('#c-incluir-desc') ? activeParent.querySelector('#c-incluir-desc').checked : false;
-            if(parent.querySelector('#c-vip') && document.activeElement !== parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = isEximir;
-            if(parent.querySelector('#c-frecuencia') && document.activeElement !== parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
-            if(parent.querySelector('#c-primer-pago') && document.activeElement !== parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = activeParent.querySelector('#c-primer-pago') ? activeParent.querySelector('#c-primer-pago').value : "";
+            const syncVal = (selector, val) => {
+                let el = parent.querySelector(selector);
+                if (el && document.activeElement !== el) {
+                    if (el.type === 'checkbox') el.checked = val;
+                    else el.value = val;
+                }
+            };
+            syncVal('#c-cuotas', cuotas);
+            syncVal('#c-metodo', metodo);
+            syncVal('#c-iva', conIvaGlobal);
+            syncVal('#c-manual', isManual);
+            syncVal('#c-util', utilGlobal);
+            syncVal('#c-desc', descuentoGlobalPrc);
+            syncVal('#c-int', tasaMensual);
+            syncVal('#c-target', isNaN(targetVal) ? '' : targetVal);
+            syncVal('#c-cliente', getVal('#c-cliente', ""));
+            syncVal('#c-nit', getVal('#c-nit', ""));
+            syncVal('#c-tel', getVal('#c-tel', ""));
+            syncVal('#c-incluir-desc', getVal('#c-incluir-desc', false));
+            syncVal('#c-vip', isEximir);
+            syncVal('#c-frecuencia', getVal('#c-frecuencia', "Mensual"));
+            syncVal('#c-primer-pago', getVal('#c-primer-pago', ""));
         }
 
-        if (window.CART.length > 0) {
+        if (window.CART && window.CART.length > 0) {
             var listContainer = parent.querySelector('#cart-items-list');
             if (listContainer) {
                 var html = '';
@@ -567,7 +589,7 @@ function calcCart() {
                     <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
                         <div class="lh-1" style="flex:1;">
                             <small class="fw-bold" style="color:var(--primary);">${isLocked} ${x.nombre}</small><br>
-                            <small class="text-muted">${window.COP.format(Math.round(x.precioUnitarioFinal || 0))} c/u</small>
+                            <small class="text-muted">${window.COP.format(Math.round((x.precioUnitarioFinal || 0)/100)*100)} c/u</small>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <button class="btn btn-sm ${x.modificadoManualmente ? 'btn-dark' : 'btn-light border'} py-0 px-2 text-primary" onclick="window.abrirEditorItem('${x.id}')" title="Editar precio/descuento">✏️</button>
@@ -610,7 +632,7 @@ function calcCart() {
 
         if(metodo === "Crédito") {
             totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
-            if(window.CART.length === 0) { 
+            if(window.CART && window.CART.length === 0) { 
                 if(inputTotal) inputTotal.style.display = 'inline-block'; 
             } else { 
                 if(inputTotal) inputTotal.style.display = 'none'; 
@@ -634,7 +656,7 @@ function calcCart() {
             }
         } else { 
             totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
-            if (window.CART.length === 0) {
+            if (window.CART && window.CART.length === 0) {
                 if(inputTotal) inputTotal.style.display = 'inline-block';
                 if(isManual) totalText.forEach(e => e.style.display = 'none');
             } else { 
@@ -645,7 +667,7 @@ function calcCart() {
             if(pInpInicial) pInpInicial.style.display = 'none'; 
         }
     });
-}
+};
 
 function toggleIni() { 
     var activeEl = document.activeElement;
@@ -1151,7 +1173,7 @@ async function shareProductNative(id) {
     }
 }
 
-function generarCotizacionPDF() {
+window.generarCotizacionPDF = function() {
    var desktopCart = document.getElementById('desktop-cart-container');
    var mobileCart = document.getElementById('mobile-cart');
    var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
@@ -1201,7 +1223,7 @@ function generarCotizacionPDF() {
    var subtotalBaseCotizacion = 0; 
    var descuentoTotalCotizacion = 0; 
 
-   if(window.CART.length > 0) {
+   if(window.CART && window.CART.length > 0) {
        window.CART.forEach(p => {
            var qty = p.cantidad || 1;
            
@@ -1363,7 +1385,6 @@ window.confirmarItemManual = confirmarItemManual;
 window.updatePrimerPago = updatePrimerPago;
 window.updateCartUI = updateCartUI;
 window.toggleManual = toggleManual;
-window.calcCart = calcCart;
 window.toggleIni = toggleIni;
 window.clearCart = clearCart;
 window.guardarCotizacionActual = guardarCotizacionActual;
@@ -1378,4 +1399,3 @@ window.shareQuote = shareQuote;
 window.shareProdWhatsApp = shareProdWhatsApp;
 window.getFileFromUrlAsync = getFileFromUrlAsync;
 window.shareProductNative = shareProductNative;
-window.generarCotizacionPDF = generarCotizacionPDF;
