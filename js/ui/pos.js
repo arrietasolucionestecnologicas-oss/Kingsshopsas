@@ -416,7 +416,6 @@ function toggleManual() {
 }
 
 window.calcCart = function() {
-    // FIX 1: Detección estricta del contenedor activo para evadir el bug de duplicidad de IDs en PC vs Móvil
     var activeParent = null;
     if (document.activeElement && document.activeElement.closest) {
         activeParent = document.activeElement.closest('.cotizador-panel-container');
@@ -493,6 +492,8 @@ window.calcCart = function() {
         totalFinal = targetVal;
         descuentoDineroTotal = 0;
         
+        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
+        
         if (window.CART && window.CART.length > 0) {
             let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
             window.CART.forEach(item => {
@@ -502,16 +503,13 @@ window.calcCart = function() {
         }
     }
 
-    // 🟢 FIX 2: REDONDEO COLOMBIANO ESTRICTO (Múltiplos de $100)
     totalFinal = Math.round(totalFinal / 100) * 100;
 
-    // FIX 3: Permitir sumar intereses incluso si hay Precio Pactado
     if (metodo === "Crédito") {
         var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
         var saldoTemp = Math.max(0, totalFinal - iniTemp);
         var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
         totalFinal = totalFinal + interesTotal;
-        // Redondeo final tras aplicar intereses
         totalFinal = Math.round(totalFinal / 100) * 100;
     }
 
@@ -536,19 +534,31 @@ window.calcCart = function() {
     }
    
     var faltanteInicial = Math.max(0, metaInicial - inicial);
+    
+    // 🟢 FIX CUOTA RESIDUAL: Calcular diferencia matemática exacta en última cuota
+    var valorCuota = 0;
+    var ultimaCuota = 0;
+    
+    if(metodo === "Crédito") {
+        var saldo = Math.max(0, totalFinal - inicial);
+        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
+        ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+        
+        // Prevención de cuota negativa si el redondeo comercial supera el límite matemático
+        if (ultimaCuota <= 0 && cuotas > 1) {
+            valorCuota -= 100;
+            ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+        }
+    }
+
     if (!window.calculatedValues) window.calculatedValues = {};
     window.calculatedValues.inicial = inicial;
     window.calculatedValues.base = baseParaCalculo; 
     window.calculatedValues.total = totalFinal;
     window.calculatedValues.descuento = descuentoDineroTotal;
+    window.calculatedValues.valorCuota = valorCuota;
+    window.calculatedValues.ultimaCuota = ultimaCuota;
 
-    var valorCuota = 0;
-    if(metodo === "Crédito") {
-        var saldo = Math.max(0, totalFinal - inicial);
-        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
-    }
-
-    // Sincronización segura de contenedores
     var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
    
     panels.forEach(parent => {
@@ -646,7 +656,16 @@ window.calcCart = function() {
                 if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota); 
                 
                 var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
-                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = `x ${cuotas} Cuota(s) (${fTexto})`; 
+                
+                // 🟢 FIX CUOTA RESIDUAL EN UI: Desglosar la última cuota si el redondeo causó diferencia
+                var txtCuotas = "";
+                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) > 1 && ultimaCuota > 0) {
+                    txtCuotas = `x ${cuotas - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
+                } else {
+                    txtCuotas = `x ${cuotas} Cuota(s) (${fTexto})`;
+                }
+                
+                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = txtCuotas; 
             });
             
             if (pInpInicial) { 
@@ -752,6 +771,8 @@ function guardarCotizacionActual() {
         eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
         inicialPersonalizada: window.usuarioForzoInicial,
         inicialValor: window.calculatedValues.inicial,
+        valorCuota: window.calculatedValues.valorCuota,
+        ultimaCuota: window.calculatedValues.ultimaCuota,
         frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
         primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
         cart: JSON.parse(JSON.stringify(window.CART)),
@@ -1032,13 +1053,20 @@ async function shareQuote() {
     var metodo = parent.querySelector('#c-metodo').value;
     if(metodo === "Crédito") {
         var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
-        var valorCuota = parent.querySelector('#res-cuota-val') ? parent.querySelector('#res-cuota-val').innerText : 0;
         var frecTexto = parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual";
+        var valCuota = window.calculatedValues.valorCuota || 0;
+        var ultCuota = window.calculatedValues.ultimaCuota || 0;
         
         msg += `💳 *Método:* Crédito\n`;
         msg += `💰 *Valor Total (Financiado):* ${window.COP.format(window.calculatedValues.total)}\n`;
         msg += `• *Inicial:* ${window.COP.format(window.calculatedValues.inicial)}\n`;
-        msg += `📅 *Plan:* ${cuotas} cuotas de *${valorCuota}* (${frecTexto})\n\n`;
+        
+        // 🟢 FIX CUOTA RESIDUAL EN WHATSAPP
+        if (cuotas > 1 && Math.abs(ultCuota - valCuota) > 1 && ultCuota > 0) {
+            msg += `📅 *Plan:* ${cuotas - 1} cuotas de *${window.COP.format(valCuota)}* y 1 cuota final de *${window.COP.format(ultCuota)}* (${frecTexto})\n\n`;
+        } else {
+            msg += `📅 *Plan:* ${cuotas} cuotas de *${window.COP.format(valCuota)}* (${frecTexto})\n\n`;
+        }
     } else {
         msg += `💵 *Método:* Contado\n`;
         msg += `💰 *Total a Pagar:* ${window.COP.format(window.calculatedValues.total)}\n\n`;
@@ -1315,7 +1343,6 @@ window.generarCotizacionPDF = function() {
    var totalFormateadoPDF = subtotalBaseCotizacion - descuentoTotalCotizacion + ivaTotalCotizacion;
    totalFormateadoPDF = Math.round(totalFormateadoPDF / 100) * 100;
 
-   // 🟢 FIX: Redondeo y aplicación de interés en cotización
    if (metodo === "Crédito") {
        var iniTemp = Math.round((totalFormateadoPDF * 0.30) / 100) * 100;
        var saldoTemp = Math.max(0, totalFormateadoPDF - iniTemp);
@@ -1345,7 +1372,10 @@ window.generarCotizacionPDF = function() {
            subtotal: subtotalBaseCotizacion, 
            descuento: descuentoTotalCotizacion,
            iva: ivaTotalCotizacion,
-           total: totalFormateadoPDF 
+           total: totalFormateadoPDF,
+           inicial: window.calculatedValues.inicial,
+           valorCuota: window.calculatedValues.valorCuota,
+           ultimaCuota: window.calculatedValues.ultimaCuota
        },
        fecha: fechaVal
    };
