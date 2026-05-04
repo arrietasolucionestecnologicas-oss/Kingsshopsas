@@ -317,77 +317,6 @@ function updatePrimerPago() {
     }
 }
 
-function updateCartUI(keepOpen = false) {
-    var count = window.CART.reduce((acc, item) => acc + (item.cantidad || 1), 0);
-    var btnFloat = document.getElementById('btn-float-cart');
-    
-    if(btnFloat) { 
-        btnFloat.style.display = count > 0 ? 'block' : 'none'; 
-        btnFloat.innerText = "🛒 " + count; 
-    }
-   
-    var mSelect = document.querySelector('#mobile-cart #c-metodo');
-    var dSelect = document.querySelector('#desktop-cart-container #c-metodo');
-    var masterMethod = "Contado";
-
-    if (window.innerWidth < 992 && mSelect && document.getElementById('mobile-cart').classList.contains('visible')) {
-        masterMethod = mSelect.value;
-    } else if (dSelect) {
-        masterMethod = dSelect.value;
-    }
-
-    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
-   
-    panels.forEach(parent => {
-        if(!parent) return;
-        
-        var dateInput = parent.querySelector('#c-fecha');
-        if(dateInput && !dateInput.value) {
-            var today = new Date();
-            dateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        }
-        
-        var inputConcepto = parent.querySelector('#c-concepto');
-        if(window.CART.length === 0) {
-            if(inputConcepto) inputConcepto.style.display = 'block';
-            parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
-        } else {
-            if(inputConcepto) { 
-                inputConcepto.style.display = 'none'; 
-                inputConcepto.value = ''; 
-            }
-            parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
-        }
-
-        var boxVip = parent.querySelector('#box-vip');
-        var boxCred = parent.querySelector('#box-credito-detalles');
-        var selMetodo = parent.querySelector('#c-metodo');
-        
-        if (selMetodo && selMetodo.value !== masterMethod) {
-            selMetodo.value = masterMethod;
-        }
-
-        if (masterMethod === "Crédito") {
-            if(boxVip) boxVip.style.display = 'block';
-            if(boxCred) boxCred.style.display = 'block';
-        } else {
-            if(boxVip) boxVip.style.display = 'none';
-            if(boxCred) boxCred.style.display = 'none';
-        }
-    });
-
-    if (masterMethod === "Crédito" && window.updatePrimerPago) {
-        window.updatePrimerPago();
-    }
-
-    if(window.CART.length === 0 && !keepOpen) {
-        var mobCart = document.getElementById('mobile-cart');
-        if(mobCart) mobCart.classList.remove('visible');
-    }
-    
-    calcCart(); 
-}
-
 function toggleManual() {
     var activeParent = null;
     if (document.activeElement && document.activeElement.closest) {
@@ -412,281 +341,8 @@ function toggleManual() {
         if(inpUtil) inpUtil.disabled = false; 
     }
     
-    calcCart();
+    window.calcCart();
 }
-
-window.calcCart = function() {
-    var activeParent = null;
-    if (document.activeElement && document.activeElement.closest) {
-        activeParent = document.activeElement.closest('.cotizador-panel-container');
-    }
-    if (!activeParent) {
-        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    }
-    if (!activeParent) return;
-
-    const getVal = (selector, defaultVal) => {
-        var el = activeParent.querySelector(selector);
-        if (!el) return defaultVal;
-        if (el.type === 'checkbox') return el.checked;
-        return el.value;
-    };
-
-    var cuotas = parseInt(getVal('#c-cuotas', 1)) || 1;
-    var metodo = getVal('#c-metodo', 'Contado');
-    var conIvaGlobal = getVal('#c-iva', false);
-    var isManual = getVal('#c-manual', false);
-    var utilGlobal = parseFloat(getVal('#c-util', 30)) || 0; 
-    var descuentoGlobalPrc = parseFloat(getVal('#c-desc', 0)) || 0; 
-    var tasaMensual = parseFloat(getVal('#c-int', 5)) || 0; 
-    var targetValStr = getVal('#c-target', "");
-    var targetVal = parseFloat(targetValStr);
-    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
-    var isEximir = getVal('#c-vip', false);
-   
-    var baseParaCalculo = 0; 
-    var totalFinal = 0; 
-    var descuentoDineroTotal = 0; 
-
-    if (window.CART && window.CART.length > 0) {
-        window.CART.forEach(item => {
-            let c = item.costo || 0; 
-            let q = item.cantidad || 1;
-            let precioLista = 0;
-            
-            if (c > 0) {
-                let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
-                precioLista = c * (1 + m / 100);
-            } else {
-                precioLista = item.publico || item.precioUnitarioFinal || 0;
-            }
-
-            let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
-            let descuentoDinero = tieneTarget ? 0 : precioLista * (dPrc / 100);
-            
-            descuentoDineroTotal += (descuentoDinero * q);
-            
-            let px = Math.max(0, precioLista - descuentoDinero);
-            if (item.conIva || conIvaGlobal) px *= 1.19;
-            
-            item.precioUnitarioFinal = px;
-            
-            let baseCostoEstimado = c > 0 ? c : (precioLista / 1.3);
-            baseParaCalculo += (baseCostoEstimado * q);
-            totalFinal += (px * q);
-        });
-    } else {
-        var resContInput = activeParent.querySelector('#res-cont-input');
-        var manualVal = resContInput ? parseFloat(resContInput.value) : 0;
-        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
-        
-        let precioListaBruto = baseParaCalculo * (1 + utilGlobal / 100);
-        descuentoDineroTotal = tieneTarget ? 0 : precioListaBruto * (descuentoGlobalPrc / 100);
-        
-        totalFinal = Math.max(0, precioListaBruto - descuentoDineroTotal);
-        if (conIvaGlobal) totalFinal *= 1.19; 
-    }
-
-    if (tieneTarget) {
-        totalFinal = targetVal;
-        descuentoDineroTotal = 0;
-        
-        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
-        
-        if (window.CART && window.CART.length > 0) {
-            let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
-            window.CART.forEach(item => {
-                let peso = totalPrevio > 0 ? ((item.precioUnitarioFinal || 0) * item.cantidad) / totalPrevio : 1 / window.CART.length;
-                item.precioUnitarioFinal = (targetVal * peso) / item.cantidad;
-            });
-        }
-    }
-
-    totalFinal = Math.round(totalFinal / 100) * 100;
-
-    if (metodo === "Crédito") {
-        var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
-        var saldoTemp = Math.max(0, totalFinal - iniTemp);
-        var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
-        totalFinal = totalFinal + interesTotal;
-        totalFinal = Math.round(totalFinal / 100) * 100;
-    }
-
-    var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
-    var inpInicial = activeParent.querySelector('#c-inicial');
-    var isTypingInicial = (document.activeElement && document.activeElement === inpInicial);
-    
-    var inicial = 0;
-    if (isTypingInicial) {
-        if (inpInicial && inpInicial.value === "") { 
-            window.usuarioForzoInicial = false; 
-            inicial = isEximir ? 0 : metaInicial; 
-        } else if (inpInicial) { 
-            window.usuarioForzoInicial = true; 
-            inicial = parseFloat(inpInicial.value) || 0; 
-        }
-    } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") { 
-        inicial = parseFloat(inpInicial.value) || 0; 
-    } else { 
-        window.usuarioForzoInicial = false; 
-        inicial = isEximir ? 0 : metaInicial; 
-    }
-   
-    var faltanteInicial = Math.max(0, metaInicial - inicial);
-    
-    // 🟢 FIX CUOTA RESIDUAL: Calcular diferencia matemática exacta en última cuota
-    var valorCuota = 0;
-    var ultimaCuota = 0;
-    
-    if(metodo === "Crédito") {
-        var saldo = Math.max(0, totalFinal - inicial);
-        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
-        ultimaCuota = saldo - (valorCuota * (cuotas - 1));
-        
-        // Prevención de cuota negativa si el redondeo comercial supera el límite matemático
-        if (ultimaCuota <= 0 && cuotas > 1) {
-            valorCuota -= 100;
-            ultimaCuota = saldo - (valorCuota * (cuotas - 1));
-        }
-    }
-
-    if (!window.calculatedValues) window.calculatedValues = {};
-    window.calculatedValues.inicial = inicial;
-    window.calculatedValues.base = baseParaCalculo; 
-    window.calculatedValues.total = totalFinal;
-    window.calculatedValues.descuento = descuentoDineroTotal;
-    window.calculatedValues.valorCuota = valorCuota;
-    window.calculatedValues.ultimaCuota = ultimaCuota;
-
-    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
-   
-    panels.forEach(parent => {
-        if(!parent) return;
-
-        if (parent !== activeParent) {
-            const syncVal = (selector, val) => {
-                let el = parent.querySelector(selector);
-                if (el && document.activeElement !== el) {
-                    if (el.type === 'checkbox') el.checked = val;
-                    else el.value = val;
-                }
-            };
-            syncVal('#c-cuotas', cuotas);
-            syncVal('#c-metodo', metodo);
-            syncVal('#c-iva', conIvaGlobal);
-            syncVal('#c-manual', isManual);
-            syncVal('#c-util', utilGlobal);
-            syncVal('#c-desc', descuentoGlobalPrc);
-            syncVal('#c-int', tasaMensual);
-            syncVal('#c-target', isNaN(targetVal) ? '' : targetVal);
-            syncVal('#c-cliente', getVal('#c-cliente', ""));
-            syncVal('#c-nit', getVal('#c-nit', ""));
-            syncVal('#c-tel', getVal('#c-tel', ""));
-            syncVal('#c-incluir-desc', getVal('#c-incluir-desc', false));
-            syncVal('#c-vip', isEximir);
-            syncVal('#c-frecuencia', getVal('#c-frecuencia', "Mensual"));
-            syncVal('#c-primer-pago', getVal('#c-primer-pago', ""));
-        }
-
-        if (window.CART && window.CART.length > 0) {
-            var listContainer = parent.querySelector('#cart-items-list');
-            if (listContainer) {
-                var html = '';
-                window.CART.forEach(x => {
-                    var isLocked = x.modificadoManualmente ? `<i class="fas fa-lock" style="font-size:0.6rem; color:var(--gold);"></i>` : '';
-                    html += `
-                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
-                        <div class="lh-1" style="flex:1;">
-                            <small class="fw-bold" style="color:var(--primary);">${isLocked} ${x.nombre}</small><br>
-                            <small class="text-muted">${window.COP.format(Math.round((x.precioUnitarioFinal || 0)/100)*100)} c/u</small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <button class="btn btn-sm ${x.modificadoManualmente ? 'btn-dark' : 'btn-light border'} py-0 px-2 text-primary" onclick="window.abrirEditorItem('${x.id}')" title="Editar precio/descuento">✏️</button>
-                            <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="window.toggleItemIva('${x.id}')"><small>IVA</small></button>
-                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="window.changeQty('${x.id}', -1)">-</button>
-                            <span class="fw-bold small">${x.cantidad || 1}</span>
-                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="window.changeQty('${x.id}', 1)">+</button>
-                        </div>
-                    </div>`;
-                });
-                listContainer.innerHTML = html;
-            }
-        }
-
-        var rowDesc = parent.querySelector('#row-descuento');
-        var resDescVal = parent.querySelector('#res-desc-val');
-        
-        if(descuentoDineroTotal > 0 && !tieneTarget) {
-            if(rowDesc) { 
-                rowDesc.style.display = 'block'; 
-                if(resDescVal) resDescVal.innerText = "- " + window.COP.format(descuentoDineroTotal); 
-            }
-        } else {
-            if(rowDesc) rowDesc.style.display = 'none';
-        }
-
-        var pInpInicial = parent.querySelector('#c-inicial');
-        if (pInpInicial && (!isTypingInicial || parent !== activeParent)) {
-            if (window.usuarioForzoInicial) {
-                pInpInicial.value = inicial;
-            } else {
-                pInpInicial.value = ""; 
-                pInpInicial.placeholder = `Sugerido (30%): ${window.COP.format(inicial)}`;
-            }
-        }
-
-        var rowCred = parent.querySelectorAll('#row-cred'); 
-        var totalText = parent.querySelectorAll('#res-cont');
-        var inputTotal = parent.querySelector('#res-cont-input');
-
-        if(metodo === "Crédito") {
-            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
-            if(window.CART && window.CART.length === 0) { 
-                if(inputTotal) inputTotal.style.display = 'inline-block'; 
-            } else { 
-                if(inputTotal) inputTotal.style.display = 'none'; 
-            }
-            
-            var alertaFaltante = faltanteInicial > 0 ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>` : "";
-
-            rowCred.forEach(e => { 
-                e.style.display = 'block'; 
-                if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(inicial)} ${alertaFaltante}`; 
-                if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota); 
-                
-                var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
-                
-                // 🟢 FIX CUOTA RESIDUAL EN UI: Desglosar la última cuota si el redondeo causó diferencia
-                var txtCuotas = "";
-                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) > 1 && ultimaCuota > 0) {
-                    txtCuotas = `x ${cuotas - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
-                } else {
-                    txtCuotas = `x ${cuotas} Cuota(s) (${fTexto})`;
-                }
-                
-                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = txtCuotas; 
-            });
-            
-            if (pInpInicial) { 
-                pInpInicial.style.display = 'block'; 
-                pInpInicial.disabled = false; 
-                pInpInicial.style.background = faltanteInicial > 0 ? '#fff3cd' : '#fff'; 
-            }
-        } else { 
-            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
-            if (window.CART && window.CART.length === 0) {
-                if(inputTotal) inputTotal.style.display = 'inline-block';
-                if(isManual) totalText.forEach(e => e.style.display = 'none');
-            } else { 
-                if(inputTotal) inputTotal.style.display = 'none'; 
-            }
-            
-            rowCred.forEach(e => e.style.display = 'none'); 
-            if(pInpInicial) pInpInicial.style.display = 'none'; 
-        }
-    });
-};
 
 function toggleIni() { 
     var activeEl = document.activeElement;
@@ -733,6 +389,7 @@ function clearCart() {
         if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = false;
         if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = 'Mensual';
         if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = '';
+        if(parent.querySelector('#c-incluir-politicas')) parent.querySelector('#c-incluir-politicas').checked = false;
         parent.removeAttribute('data-cotizacion-id');
     });
     renderPos(); 
@@ -769,6 +426,7 @@ function guardarCotizacionActual() {
         target: parent.querySelector('#c-target').value,
         concepto: parent.querySelector('#c-concepto').value,
         eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
+        politicas: parent.querySelector('#c-incluir-politicas') ? parent.querySelector('#c-incluir-politicas').checked : false,
         inicialPersonalizada: window.usuarioForzoInicial,
         inicialValor: window.calculatedValues.inicial,
         valorCuota: window.calculatedValues.valorCuota,
@@ -850,6 +508,7 @@ function cargarCotizacion(id) {
         if(parent.querySelector('#c-target')) parent.querySelector('#c-target').value = cot.target || '';
         if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = cot.concepto || '';
         if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = cot.eximir || false;
+        if(parent.querySelector('#c-incluir-politicas')) parent.querySelector('#c-incluir-politicas').checked = cot.politicas || false;
         if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = cot.frecuencia || 'Mensual';
         if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = cot.primerPago || '';
         
@@ -1018,6 +677,7 @@ async function shareQuote() {
     var firstImgUrl = "";
     
     var incDesc = parent.querySelector('#c-incluir-desc') ? parent.querySelector('#c-incluir-desc').checked : false;
+    var incPoliticas = parent.querySelector('#c-incluir-politicas') ? parent.querySelector('#c-incluir-politicas').checked : false;
 
     if (incDesc && window.CART.length > 0) {
         window.CART.forEach(x => {
@@ -1061,12 +721,22 @@ async function shareQuote() {
         msg += `💰 *Valor Total (Financiado):* ${window.COP.format(window.calculatedValues.total)}\n`;
         msg += `• *Inicial:* ${window.COP.format(window.calculatedValues.inicial)}\n`;
         
-        // 🟢 FIX CUOTA RESIDUAL EN WHATSAPP
         if (cuotas > 1 && Math.abs(ultCuota - valCuota) > 1 && ultCuota > 0) {
             msg += `📅 *Plan:* ${cuotas - 1} cuotas de *${window.COP.format(valCuota)}* y 1 cuota final de *${window.COP.format(ultCuota)}* (${frecTexto})\n\n`;
         } else {
             msg += `📅 *Plan:* ${cuotas} cuotas de *${window.COP.format(valCuota)}* (${frecTexto})\n\n`;
         }
+
+        // 🟢 INYECCIÓN: Texto Firme de Políticas de Crédito
+        if (incPoliticas) {
+            msg += `────────────────\n`;
+            msg += `📜 *Políticas de Crédito:*\n`;
+            msg += `¡Hola! En King's Shop nuestra prioridad es entregarte lo mejor en tecnología con el respaldo y la calidad que mereces. 🚀\n\n`;
+            msg += `Para brindarte un servicio de excelencia, te recordamos amablemente:\n`;
+            msg += `📌 *Cuota Inicial:* Su pago puntual es el requisito indispensable para formalizar la entrega de tu equipo.\n`;
+            msg += `⏰ *Fechas de Pago:* Cumplir con el día estipulado garantiza que tu beneficio se mantenga activo y sin interrupciones.\n\n`;
+        }
+
     } else {
         msg += `💵 *Método:* Contado\n`;
         msg += `💰 *Total a Pagar:* ${window.COP.format(window.calculatedValues.total)}\n\n`;
@@ -1199,6 +869,354 @@ async function shareProductNative(id) {
             if(window.showToast) window.showToast("Compartir cancelado por el usuario", "info");
         }
     }
+}
+
+window.calcCart = function() {
+    var activeParent = null;
+    if (document.activeElement && document.activeElement.closest) {
+        activeParent = document.activeElement.closest('.cotizador-panel-container');
+    }
+    if (!activeParent) {
+        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
+        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
+    }
+    if (!activeParent) return;
+
+    const getVal = (selector, defaultVal) => {
+        var el = activeParent.querySelector(selector);
+        if (!el) return defaultVal;
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+    };
+
+    var cuotas = parseInt(getVal('#c-cuotas', 1)) || 1;
+    var metodo = getVal('#c-metodo', 'Contado');
+    var conIvaGlobal = getVal('#c-iva', false);
+    var isManual = getVal('#c-manual', false);
+    var utilGlobal = parseFloat(getVal('#c-util', 30)) || 0; 
+    var descuentoGlobalPrc = parseFloat(getVal('#c-desc', 0)) || 0; 
+    var tasaMensual = parseFloat(getVal('#c-int', 5)) || 0; 
+    var targetValStr = getVal('#c-target', "");
+    var targetVal = parseFloat(targetValStr);
+    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
+    var isEximir = getVal('#c-vip', false);
+   
+    var baseParaCalculo = 0; 
+    var totalFinal = 0; 
+    var descuentoDineroTotal = 0; 
+
+    if (window.CART && window.CART.length > 0) {
+        window.CART.forEach(item => {
+            let c = item.costo || 0; 
+            let q = item.cantidad || 1;
+            let precioLista = 0;
+            
+            if (c > 0) {
+                let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
+                precioLista = c * (1 + m / 100);
+            } else {
+                precioLista = item.publico || item.precioUnitarioFinal || 0;
+            }
+
+            let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
+            let descuentoDinero = tieneTarget ? 0 : precioLista * (dPrc / 100);
+            
+            descuentoDineroTotal += (descuentoDinero * q);
+            
+            let px = Math.max(0, precioLista - descuentoDinero);
+            if (item.conIva || conIvaGlobal) px *= 1.19;
+            
+            item.precioUnitarioFinal = px;
+            
+            let baseCostoEstimado = c > 0 ? c : (precioLista / 1.3);
+            baseParaCalculo += (baseCostoEstimado * q);
+            totalFinal += (px * q);
+        });
+    } else {
+        var resContInput = activeParent.querySelector('#res-cont-input');
+        var manualVal = resContInput ? parseFloat(resContInput.value) : 0;
+        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
+        
+        let precioListaBruto = baseParaCalculo * (1 + utilGlobal / 100);
+        descuentoDineroTotal = tieneTarget ? 0 : precioListaBruto * (descuentoGlobalPrc / 100);
+        
+        totalFinal = Math.max(0, precioListaBruto - descuentoDineroTotal);
+        if (conIvaGlobal) totalFinal *= 1.19; 
+    }
+
+    if (tieneTarget) {
+        totalFinal = targetVal;
+        descuentoDineroTotal = 0;
+        
+        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
+        
+        if (window.CART && window.CART.length > 0) {
+            let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
+            window.CART.forEach(item => {
+                let peso = totalPrevio > 0 ? ((item.precioUnitarioFinal || 0) * item.cantidad) / totalPrevio : 1 / window.CART.length;
+                item.precioUnitarioFinal = (targetVal * peso) / item.cantidad;
+            });
+        }
+    }
+
+    totalFinal = Math.round(totalFinal / 100) * 100;
+
+    if (metodo === "Crédito") {
+        var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
+        var saldoTemp = Math.max(0, totalFinal - iniTemp);
+        var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
+        totalFinal = totalFinal + interesTotal;
+        totalFinal = Math.round(totalFinal / 100) * 100;
+    }
+
+    var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
+    var inpInicial = activeParent.querySelector('#c-inicial');
+    var isTypingInicial = (document.activeElement && document.activeElement === inpInicial);
+    
+    var inicial = 0;
+    if (isTypingInicial) {
+        if (inpInicial && inpInicial.value === "") { 
+            window.usuarioForzoInicial = false; 
+            inicial = isEximir ? 0 : metaInicial; 
+        } else if (inpInicial) { 
+            window.usuarioForzoInicial = true; 
+            inicial = parseFloat(inpInicial.value) || 0; 
+        }
+    } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") { 
+        inicial = parseFloat(inpInicial.value) || 0; 
+    } else { 
+        window.usuarioForzoInicial = false; 
+        inicial = isEximir ? 0 : metaInicial; 
+    }
+   
+    var faltanteInicial = Math.max(0, metaInicial - inicial);
+    
+    var valorCuota = 0;
+    var ultimaCuota = 0;
+    
+    if(metodo === "Crédito") {
+        var saldo = Math.max(0, totalFinal - inicial);
+        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
+        ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+        
+        if (ultimaCuota <= 0 && cuotas > 1) {
+            valorCuota -= 100;
+            ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+        }
+    }
+
+    if (!window.calculatedValues) window.calculatedValues = {};
+    window.calculatedValues.inicial = inicial;
+    window.calculatedValues.base = baseParaCalculo; 
+    window.calculatedValues.total = totalFinal;
+    window.calculatedValues.descuento = descuentoDineroTotal;
+    window.calculatedValues.valorCuota = valorCuota;
+    window.calculatedValues.ultimaCuota = ultimaCuota;
+
+    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+   
+    panels.forEach(parent => {
+        if(!parent) return;
+
+        if (parent !== activeParent) {
+            const syncVal = (selector, val) => {
+                let el = parent.querySelector(selector);
+                if (el && document.activeElement !== el) {
+                    if (el.type === 'checkbox') el.checked = val;
+                    else el.value = val;
+                }
+            };
+            syncVal('#c-cuotas', cuotas);
+            syncVal('#c-metodo', metodo);
+            syncVal('#c-iva', conIvaGlobal);
+            syncVal('#c-manual', isManual);
+            syncVal('#c-util', utilGlobal);
+            syncVal('#c-desc', descuentoGlobalPrc);
+            syncVal('#c-int', tasaMensual);
+            syncVal('#c-target', isNaN(targetVal) ? '' : targetVal);
+            syncVal('#c-cliente', getVal('#c-cliente', ""));
+            syncVal('#c-nit', getVal('#c-nit', ""));
+            syncVal('#c-tel', getVal('#c-tel', ""));
+            syncVal('#c-incluir-desc', getVal('#c-incluir-desc', false));
+            syncVal('#c-incluir-politicas', getVal('#c-incluir-politicas', false));
+            syncVal('#c-vip', isEximir);
+            syncVal('#c-frecuencia', getVal('#c-frecuencia', "Mensual"));
+            syncVal('#c-primer-pago', getVal('#c-primer-pago', ""));
+        }
+
+        if (window.CART && window.CART.length > 0) {
+            var listContainer = parent.querySelector('#cart-items-list');
+            if (listContainer) {
+                var html = '';
+                window.CART.forEach(x => {
+                    var isLocked = x.modificadoManualmente ? `<i class="fas fa-lock" style="font-size:0.6rem; color:var(--gold);"></i>` : '';
+                    html += `
+                    <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
+                        <div class="lh-1" style="flex:1;">
+                            <small class="fw-bold" style="color:var(--primary);">${isLocked} ${x.nombre}</small><br>
+                            <small class="text-muted">${window.COP.format(Math.round((x.precioUnitarioFinal || 0)/100)*100)} c/u</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm ${x.modificadoManualmente ? 'btn-dark' : 'btn-light border'} py-0 px-2 text-primary" onclick="window.abrirEditorItem('${x.id}')" title="Editar precio/descuento">✏️</button>
+                            <button class="btn btn-sm ${x.conIva ? 'btn-success' : 'btn-outline-secondary'} py-0 px-2 fw-bold" onclick="window.toggleItemIva('${x.id}')"><small>IVA</small></button>
+                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="window.changeQty('${x.id}', -1)">-</button>
+                            <span class="fw-bold small">${x.cantidad || 1}</span>
+                            <button class="btn btn-sm btn-light border py-0 px-2" onclick="window.changeQty('${x.id}', 1)">+</button>
+                        </div>
+                    </div>`;
+                });
+                listContainer.innerHTML = html;
+            }
+        }
+
+        var rowDesc = parent.querySelector('#row-descuento');
+        var resDescVal = parent.querySelector('#res-desc-val');
+        
+        if(descuentoDineroTotal > 0 && !tieneTarget) {
+            if(rowDesc) { 
+                rowDesc.style.display = 'block'; 
+                if(resDescVal) resDescVal.innerText = "- " + window.COP.format(descuentoDineroTotal); 
+            }
+        } else {
+            if(rowDesc) rowDesc.style.display = 'none';
+        }
+
+        var pInpInicial = parent.querySelector('#c-inicial');
+        if (pInpInicial && (!isTypingInicial || parent !== activeParent)) {
+            if (window.usuarioForzoInicial) {
+                pInpInicial.value = inicial;
+            } else {
+                pInpInicial.value = ""; 
+                pInpInicial.placeholder = `Sugerido (30%): ${window.COP.format(inicial)}`;
+            }
+        }
+
+        var rowCred = parent.querySelectorAll('#row-cred'); 
+        var totalText = parent.querySelectorAll('#res-cont');
+        var inputTotal = parent.querySelector('#res-cont-input');
+        var boxPoliticas = parent.querySelector('#box-politicas');
+
+        if(metodo === "Crédito") {
+            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
+            if(window.CART && window.CART.length === 0) { 
+                if(inputTotal) inputTotal.style.display = 'inline-block'; 
+            } else { 
+                if(inputTotal) inputTotal.style.display = 'none'; 
+            }
+            
+            var alertaFaltante = faltanteInicial > 0 ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>` : "";
+
+            rowCred.forEach(e => { 
+                e.style.display = 'block'; 
+                if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(inicial)} ${alertaFaltante}`; 
+                if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota); 
+                
+                var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
+                
+                var txtCuotas = "";
+                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) > 1 && ultimaCuota > 0) {
+                    txtCuotas = `x ${cuotas - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
+                } else {
+                    txtCuotas = `x ${cuotas} Cuota(s) (${fTexto})`;
+                }
+                
+                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = txtCuotas; 
+            });
+            
+            if (pInpInicial) { 
+                pInpInicial.style.display = 'block'; 
+                pInpInicial.disabled = false; 
+                pInpInicial.style.background = faltanteInicial > 0 ? '#fff3cd' : '#fff'; 
+            }
+            if (boxPoliticas) boxPoliticas.style.display = 'block';
+        } else { 
+            totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
+            if (window.CART && window.CART.length === 0) {
+                if(inputTotal) inputTotal.style.display = 'inline-block';
+                if(isManual) totalText.forEach(e => e.style.display = 'none');
+            } else { 
+                if(inputTotal) inputTotal.style.display = 'none'; 
+            }
+            
+            rowCred.forEach(e => e.style.display = 'none'); 
+            if(pInpInicial) pInpInicial.style.display = 'none'; 
+            if(boxPoliticas) boxPoliticas.style.display = 'none';
+        }
+    });
+};
+
+function updateCartUI(keepOpen = false) {
+    var count = window.CART.reduce((acc, item) => acc + (item.cantidad || 1), 0);
+    var btnFloat = document.getElementById('btn-float-cart');
+    
+    if(btnFloat) { 
+        btnFloat.style.display = count > 0 ? 'block' : 'none'; 
+        btnFloat.innerText = "🛒 " + count; 
+    }
+   
+    var mSelect = document.querySelector('#mobile-cart #c-metodo');
+    var dSelect = document.querySelector('#desktop-cart-container #c-metodo');
+    var masterMethod = "Contado";
+
+    if (window.innerWidth < 992 && mSelect && document.getElementById('mobile-cart').classList.contains('visible')) {
+        masterMethod = mSelect.value;
+    } else if (dSelect) {
+        masterMethod = dSelect.value;
+    }
+
+    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
+   
+    panels.forEach(parent => {
+        if(!parent) return;
+        
+        var dateInput = parent.querySelector('#c-fecha');
+        if(dateInput && !dateInput.value) {
+            var today = new Date();
+            dateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+        
+        var inputConcepto = parent.querySelector('#c-concepto');
+        if(window.CART.length === 0) {
+            if(inputConcepto) inputConcepto.style.display = 'block';
+            parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'none');
+        } else {
+            if(inputConcepto) { 
+                inputConcepto.style.display = 'none'; 
+                inputConcepto.value = ''; 
+            }
+            parent.querySelectorAll('#cart-items-list').forEach(e => e.style.display = 'block');
+        }
+
+        var boxVip = parent.querySelector('#box-vip');
+        var boxCred = parent.querySelector('#box-credito-detalles');
+        var boxPoliticas = parent.querySelector('#box-politicas');
+        var selMetodo = parent.querySelector('#c-metodo');
+        
+        if (selMetodo && selMetodo.value !== masterMethod) {
+            selMetodo.value = masterMethod;
+        }
+
+        if (masterMethod === "Crédito") {
+            if(boxVip) boxVip.style.display = 'block';
+            if(boxCred) boxCred.style.display = 'block';
+            if(boxPoliticas) boxPoliticas.style.display = 'block';
+        } else {
+            if(boxVip) boxVip.style.display = 'none';
+            if(boxCred) boxCred.style.display = 'none';
+            if(boxPoliticas) boxPoliticas.style.display = 'none';
+        }
+    });
+
+    if (masterMethod === "Crédito" && window.updatePrimerPago) {
+        window.updatePrimerPago();
+    }
+
+    if(window.CART.length === 0 && !keepOpen) {
+        var mobCart = document.getElementById('mobile-cart');
+        if(mobCart) mobCart.classList.remove('visible');
+    }
+    
+    window.calcCart(); 
 }
 
 window.generarCotizacionPDF = function() {
