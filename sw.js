@@ -1,13 +1,18 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v85 - UPDATE FORCE
- * - Versión crítica: Limpieza de caché para visualización de Cartera.
+ * 👑 KINGSHOP SERVICE WORKER v86 - UPDATE FORCE
+ * - Versión crítica: Rutas corregidas para caché modular ES6.
  */
 
-const CACHE_NAME = 'kingshop-v85-cache'; // <--- CAMBIADO A v85
+const CACHE_NAME = 'kingshop-v86-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './app.js', 
+  './js/app.js',
+  './js/state.js',
+  './js/api.js',
+  './js/ui/pos.js',
+  './js/ui/finance.js',
+  './js/ui/inventory.js',
   './icon-192.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
@@ -44,15 +49,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com')) return;
 
-  // HTML y JS principal: Siempre intentar red primero
-  if (event.request.mode === 'navigate' || event.request.url.includes('app.js')) {
+  // HTML y JS: Siempre intentar red primero (Garantiza tener la última versión si hay internet)
+  if (event.request.mode === 'navigate' || event.request.url.includes('.js')) {
       event.respondWith(
         fetch(event.request).catch(() => {
             return caches.match(event.request);
         })
       );
   } else {
-      // Imágenes y librerías: Cache First
+      // Imágenes y librerías externas: Cache First
       event.respondWith(
         caches.match(event.request)
           .then(response => {
