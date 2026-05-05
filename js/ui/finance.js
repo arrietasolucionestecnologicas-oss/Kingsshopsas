@@ -97,6 +97,7 @@ function guardarEdicionMovimiento() {
     var originalClone = Object.assign({}, window.movEditObj);
     var payload = { original: originalClone, fecha: nuevaFecha, monto: nuevoMonto, justificacion: justificacion };
     
+    // 🟢 FIX: Actualización Optimista
     window.movEditObj.fecha = nuevaFecha;
     window.movEditObj.monto = nuevoMonto;
     
@@ -108,10 +109,19 @@ function guardarEdicionMovimiento() {
     window.callAPI('editarMovimiento', payload).then(r => { 
         unlock();
         if(!r.exito) { 
+            // 🟢 FIX: Rollback en caso de error
+            window.movEditObj.fecha = originalClone.fecha;
+            window.movEditObj.monto = originalClone.monto;
+            renderFin();
             alert("Error al editar: " + r.error); 
-            if(window.loadData) window.loadData(true); 
         } 
-    }).catch(e => unlock());
+    }).catch(e => {
+        unlock();
+        window.movEditObj.fecha = originalClone.fecha;
+        window.movEditObj.monto = originalClone.monto;
+        renderFin();
+        alert("Error de conexión al editar.");
+    });
 }
 
 function doIngresoExtra() {
@@ -136,6 +146,12 @@ function doIngresoExtra() {
     }
     
     var ingresoNum = parseFloat(monto) || 0;
+
+    // 🟢 FIX: Snapshot de Memoria para Rollback
+    var snapSaldo = window.D.metricas ? window.D.metricas.saldo : 0;
+    var snapHist = window.D.historial ? [...window.D.historial] : [];
+    var snapPasivos = window.D.pasivos ? [...window.D.pasivos] : [];
+
     if(window.D.metricas) window.D.metricas.saldo += ingresoNum;
     
     window.D.historial.unshift({ 
@@ -143,9 +159,11 @@ function doIngresoExtra() {
         tipo: "ingresos", 
         monto: ingresoNum, 
         fecha: new Date().toISOString().split('T')[0], 
-        _originalIndex: window.D.historial.length, 
-        saldo: window.D.metricas.saldo 
+        saldo: window.D.metricas ? window.D.metricas.saldo : 0 
     });
+    
+    // 🟢 FIX: Re-indexación dinámica
+    window.D.historial.forEach((item, i) => item._originalIndex = i);
     
     if (cat === 'Prestamo') {
          window.D.pasivos.push({
@@ -177,7 +195,31 @@ function doIngresoExtra() {
     if(window.showToast) window.showToast("Ingreso registrado", "success");
     
     window.callAPI('registrarIngresoExtra', { desc: desc, cat: cat, monto: monto, acreedor: acreedor, fechaLimite: fechaLimite })
-        .then(r => unlock()).catch(e => unlock());
+        .then(r => {
+            if(!r.exito) {
+                // Rollback
+                if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+                window.D.historial = snapHist;
+                window.D.pasivos = snapPasivos;
+                renderFin();
+                if(window.renderPasivos) window.renderPasivos();
+                var bC = document.getElementById('bal-caja');
+                if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+                alert("Error al registrar ingreso: " + r.error);
+            }
+            unlock();
+        }).catch(e => {
+            // Rollback
+            if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            window.D.historial = snapHist;
+            window.D.pasivos = snapPasivos;
+            renderFin();
+            if(window.renderPasivos) window.renderPasivos();
+            var bC = document.getElementById('bal-caja');
+            if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+            alert("Error de red al registrar ingreso.");
+            unlock();
+        });
 }
 
 function doGasto() {
@@ -208,6 +250,11 @@ function doGasto() {
     };
 
     var gastoNum = parseFloat(monto) || 0;
+
+    // 🟢 FIX: Snapshot de Memoria para Rollback
+    var snapSaldo = window.D.metricas ? window.D.metricas.saldo : 0;
+    var snapHist = window.D.historial ? [...window.D.historial] : [];
+
     if(window.D.metricas) window.D.metricas.saldo -= gastoNum;
     
     window.D.historial.unshift({ 
@@ -215,9 +262,11 @@ function doGasto() {
         tipo: "egreso", 
         monto: gastoNum, 
         fecha: new Date().toISOString().split('T')[0], 
-        _originalIndex: window.D.historial.length, 
-        saldo: window.D.metricas.saldo 
+        saldo: window.D.metricas ? window.D.metricas.saldo : 0 
     });
+    
+    // 🟢 FIX: Re-indexación dinámica
+    window.D.historial.forEach((item, i) => item._originalIndex = i);
 
     document.getElementById('g-desc').value = '';
     document.getElementById('g-monto').value = '';
@@ -229,7 +278,27 @@ function doGasto() {
     if(bCaja && window.D.metricas) bCaja.innerText = window.COP.format(window.D.metricas.saldo||0);
     if(window.showToast) window.showToast("Gasto registrado", "success");
 
-    window.callAPI('registrarGasto', d).then(r => unlock()).catch(e => unlock());
+    window.callAPI('registrarGasto', d).then(r => {
+        if(!r.exito) {
+            // Rollback
+            if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            window.D.historial = snapHist;
+            renderFin();
+            var bC = document.getElementById('bal-caja');
+            if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+            alert("Error al registrar gasto: " + r.error);
+        }
+        unlock();
+    }).catch(e => {
+        // Rollback
+        if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+        window.D.historial = snapHist;
+        renderFin();
+        var bC = document.getElementById('bal-caja');
+        if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+        alert("Error de red al registrar gasto.");
+        unlock();
+    });
 }
 
 function updateGastosSelect() {
@@ -495,6 +564,9 @@ function procesarRefinanciamiento() {
         nuevaFecha: fecha
     };
     
+    // 🟢 FIX: Snapshot de Memoria para Rollback
+    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+
     var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
     if(dIdx > -1) {
         window.D.deudores[dIdx].saldo += cargo;
@@ -511,9 +583,17 @@ function procesarRefinanciamiento() {
     window.callAPI('refinanciarDeuda', d).then(r => { 
         unlock();
         if(!r.exito) { 
-            if(window.loadData) window.loadData(true); 
+            // Rollback
+            window.D.deudores = snapDeudores;
+            renderCartera();
+            alert("Error al refinanciar: " + r.error);
         } 
-    }).catch(e => unlock());
+    }).catch(e => {
+        unlock();
+        window.D.deudores = snapDeudores;
+        renderCartera();
+        alert("Error de conexión al refinanciar.");
+    });
 }
 
 function castigarDeuda(id, nombre) {
@@ -528,6 +608,10 @@ function castigarDeuda(id, nombre) {
     }).then((result) => {
         if (result.isConfirmed) {
             Swal.showLoading();
+            
+            // 🟢 FIX: Snapshot de Memoria para Rollback
+            var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+            
             var d = window.D.deudores.find(x => x.idVenta === id);
             if(d) d.estado = 'Castigado';
             
@@ -537,8 +621,16 @@ function castigarDeuda(id, nombre) {
             window.callAPI('castigarCartera', {idVenta: id}).then(r => { 
                 Swal.close();
                 if(!r.exito) { 
-                    if(window.loadData) window.loadData(true); 
+                    // Rollback
+                    window.D.deudores = snapDeudores;
+                    renderCartera();
+                    alert("Error al castigar: " + r.error);
                 } 
+            }).catch(e => {
+                Swal.close();
+                window.D.deudores = snapDeudores;
+                renderCartera();
+                alert("Error de red.");
             });
         }
     });
@@ -561,6 +653,11 @@ function doAbono() {
     var abonoNum = parseFloat(monto) || 0;
     if(abonoNum <= 0) { unlock(); return alert("Verifique el monto ingresado"); }
 
+    // 🟢 FIX: Snapshot de Memoria para Rollback Completo
+    var snapSaldo = window.D.metricas ? window.D.metricas.saldo : 0;
+    var snapHist = window.D.historial ? [...window.D.historial] : [];
+    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+
     if(window.D.metricas) window.D.metricas.saldo += abonoNum;
     
     var dIndex = window.D.deudores.findIndex(x => x.idVenta === id);
@@ -577,9 +674,11 @@ function doAbono() {
         tipo: "abono", 
         monto: abonoNum, 
         fecha: fechaVal || new Date().toISOString().split('T')[0], 
-        _originalIndex: window.D.historial.length, 
-        saldo: window.D.metricas.saldo 
+        saldo: window.D.metricas ? window.D.metricas.saldo : 0 
     });
+    
+    // 🟢 FIX: Re-indexación dinámica
+    window.D.historial.forEach((item, i) => item._originalIndex = i);
     
     document.getElementById('ab-monto').value = '';
     renderCartera();
@@ -591,7 +690,31 @@ function doAbono() {
     if(window.showToast) window.showToast("Abono registrado", "success");
     
     window.callAPI('registrarAbono', {idVenta: id, monto: monto, cliente: cli, fecha: fechaVal})
-        .then(r => unlock()).catch(e => unlock());
+        .then(r => {
+            if(!r.exito) {
+                // Rollback
+                if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+                window.D.historial = snapHist;
+                window.D.deudores = snapDeudores;
+                renderCartera();
+                renderFin();
+                var bC = document.getElementById('bal-caja');
+                if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+                alert("Error al registrar abono: " + r.error);
+            }
+            unlock();
+        }).catch(e => {
+            // Rollback
+            if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            window.D.historial = snapHist;
+            window.D.deudores = snapDeudores;
+            renderCartera();
+            renderFin();
+            var bC = document.getElementById('bal-caja');
+            if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+            alert("Error de red al registrar abono.");
+            unlock();
+        });
 }
 
 function renderPasivos() {
@@ -639,6 +762,11 @@ function doAbonoPasivo() {
     var monto = parseFloat(m.value) || 0;
     if(!id || monto <= 0) { unlock(); return alert("Verifica el monto a pagar."); }
     
+    // 🟢 FIX: Snapshot de Memoria para Rollback
+    var snapSaldo = window.D.metricas ? window.D.metricas.saldo : 0;
+    var snapHist = window.D.historial ? [...window.D.historial] : [];
+    var snapPasivos = window.D.pasivos ? JSON.parse(JSON.stringify(window.D.pasivos)) : [];
+
     var pIdx = window.D.pasivos.findIndex(x => x.id === id);
     var acreedorName = "Desconocido";
     
@@ -656,9 +784,11 @@ function doAbonoPasivo() {
         tipo: "egreso", 
         monto: monto, 
         fecha: new Date().toISOString().split('T')[0], 
-        _originalIndex: window.D.historial.length, 
-        saldo: window.D.metricas.saldo 
+        saldo: window.D.metricas ? window.D.metricas.saldo : 0 
     });
+    
+    // 🟢 FIX: Re-indexación dinámica
+    window.D.historial.forEach((item, i) => item._originalIndex = i);
     
     if(window.myModalAbonarPasivo) window.myModalAbonarPasivo.hide();
     
@@ -671,7 +801,31 @@ function doAbonoPasivo() {
     if(window.showToast) window.showToast("Pago de obligación registrado", "success");
     
     window.callAPI('abonarPasivo', {idPasivo: id, monto: monto, acreedor: acreedorName})
-        .then(r => unlock()).catch(e => unlock());
+        .then(r => {
+            if(!r.exito) {
+                // Rollback
+                if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+                window.D.historial = snapHist;
+                window.D.pasivos = snapPasivos;
+                renderPasivos();
+                renderFin();
+                var bC = document.getElementById('bal-caja');
+                if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+                alert("Error al registrar pago de pasivo: " + r.error);
+            }
+            unlock();
+        }).catch(e => {
+            // Rollback
+            if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            window.D.historial = snapHist;
+            window.D.pasivos = snapPasivos;
+            renderPasivos();
+            renderFin();
+            var bC = document.getElementById('bal-caja');
+            if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+            alert("Error de red.");
+            unlock();
+        });
 }
 
 function renderPed() { 
