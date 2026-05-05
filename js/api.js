@@ -20,6 +20,10 @@ export async function sincronizarCola() {
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
+                redirect: 'follow', // 🟢 FIX CORS: Seguir redirección estricta de Google
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8' // 🟢 FIX CORS: Evadir preflight OPTIONS
+                },
                 body: JSON.stringify({ action: item.action, data: item.data })
             });
             const res = await response.json();
@@ -53,6 +57,10 @@ export async function callAPI(action, data = null) {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
+      redirect: 'follow', // 🟢 FIX CORS: Seguir redirección estricta de Google
+      headers: {
+          'Content-Type': 'text/plain;charset=utf-8' // 🟢 FIX CORS: Evadir preflight OPTIONS
+      },
       body: JSON.stringify({ action: action, data: data })
     });
     const result = await response.json();
