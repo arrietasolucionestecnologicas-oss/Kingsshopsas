@@ -1,5 +1,7 @@
 /* ARCHIVO: js/ui/pos.js - Motor POS KING'S SHOP SAS */
 
+window.ACTIVE_PANEL = 'desktop'; 
+
 function renderPos() {
     var searchEl = document.getElementById('pos-search');
     var placeholder = document.getElementById('pos-placeholder');
@@ -318,14 +320,7 @@ function updatePrimerPago() {
 }
 
 function toggleManual() {
-    var activeParent = null;
-    if (document.activeElement && document.activeElement.closest) {
-        activeParent = document.activeElement.closest('.cotizador-panel-container');
-    }
-    if (!activeParent) {
-        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    }
+    var activeParent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
     if(!activeParent) return;
     
     var isManual = activeParent.querySelector('#c-manual') ? activeParent.querySelector('#c-manual').checked : false;
@@ -406,7 +401,7 @@ function guardarCotizacionActual() {
     
     if(!cli) return alert("Falta Cliente");
     
-    var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
+    var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
     if(!parent) return;
     if(window.CART.length === 0 && !parent.querySelector('#c-concepto').value && window.calculatedValues.total <= 0) return alert("El carrito está vacío");
 
@@ -535,7 +530,8 @@ function eliminarCotizacion(id) {
 function toggleMobileCart() { 
     var mc = document.getElementById('mobile-cart'); 
     if(mc) { 
-        mc.classList.toggle('visible'); 
+        var isVis = mc.classList.toggle('visible'); 
+        window.ACTIVE_PANEL = isVis ? 'mobile' : 'desktop';
         updateCartUI(true); 
     } 
 }
@@ -549,16 +545,12 @@ function toggleDatosFormales() {
 }
 
 function finalizarVenta() {
-   var desktopCart = document.getElementById('desktop-cart-container');
-   var mobileCart = document.getElementById('mobile-cart');
-   var isMobile = window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible');
-   var parent = isMobile ? mobileCart : desktopCart;
-   if(!parent) parent = document.getElementById('desktop-cart-container');
+   var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
+   if(!parent) return;
 
    const getVal = (id) => {
-       let d = desktopCart ? desktopCart.querySelector(id) : null;
-       let m = mobileCart ? mobileCart.querySelector(id) : null;
-       return (d ? d.value : "") || (m ? m.value : "");
+       var el = parent.querySelector(id);
+       return el ? el.value : "";
    };
 
    var cli = getVal('#c-cliente'); 
@@ -656,15 +648,12 @@ function finalizarVenta() {
 }
 
 async function shareQuote() {
-    var desktopCart = document.getElementById('desktop-cart-container');
-    var mobileCart = document.getElementById('mobile-cart');
-    var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
-    if(!parent) parent = desktopCart;
+    var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
+    if(!parent) return;
 
     const getVal = (id) => {
-        let d = desktopCart ? desktopCart.querySelector(id) : null;
-        let m = mobileCart ? mobileCart.querySelector(id) : null;
-        return (d ? d.value : "") || (m ? m.value : "");
+        var el = parent.querySelector(id);
+        return el ? el.value : "";
     };
 
     var cli = getVal('#c-cliente') || "Cliente";
@@ -727,7 +716,6 @@ async function shareQuote() {
             msg += `📅 *Plan:* ${cuotas} cuotas de *${window.COP.format(valCuota)}* (${frecTexto})\n\n`;
         }
 
-        // 🟢 INYECCIÓN: Texto Firme de Políticas de Crédito
         if (incPoliticas) {
             msg += `────────────────\n`;
             msg += `📜 *Políticas de Crédito:*\n`;
@@ -767,119 +755,8 @@ async function shareQuote() {
     window.open(url, '_blank');
 }
 
-function shareProdWhatsApp(id) {
-    var p = window.D.inv.find(x => x.id === id);
-    if (!p) return alert("Producto no encontrado");
-    var nombre = p.nombre.toUpperCase();
-    var precio = p.publico > 0 ? window.COP.format(p.publico) : 'Consultar';
-    var descripcionBonita = window.embellecerDescripcion ? window.embellecerDescripcion(p.desc) : p.desc;
-    var linkFoto = window.fixDriveLink ? window.fixDriveLink(p.foto) : p.foto; 
-    
-    var msg = `👑 *KING'S SHOP SAS*\n\n`;
-    if(linkFoto && linkFoto.length > 10) { msg += `🖼️ *Imagen:* ${linkFoto}\n\n`; }
-    msg += `🛍️ *Producto:* ${nombre}\n`;
-    msg += `💳 *Inversión:* ${precio}\n\n`;
-    if (descripcionBonita) { msg += `📋 *Detalles:*\n${descripcionBonita}\n\n`; }
-    msg += `🤝 _Quedamos a su entera disposición._`; 
-    
-    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
-    window.open(url, '_blank');
-}
-
-async function getFileFromUrlAsync(url, defaultName) {
-    try {
-        if (url.startsWith('data:image')) {
-            var arr = url.split(',');
-            var mime = arr[0].match(/:(.*?);/)[1];
-            var bstr = atob(arr[1]);
-            var n = bstr.length;
-            var u8arr = new Uint8Array(n);
-            while(n--){
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            return new File([u8arr], defaultName + ".jpg", {type: mime});
-        } else {
-            const response = await fetch(url, { mode: 'cors' });
-            const blob = await response.blob();
-            return new File([blob], defaultName + ".jpg", {type: blob.type || "image/jpeg"});
-        }
-    } catch(e) {
-        console.error("Fallo al convertir URL a File:", e);
-        return null;
-    }
-}
-
-async function shareProductNative(id) {
-    var loader = document.getElementById('loader');
-    if(loader) loader.style.display = 'flex';
-    
-    try {
-        var p = window.D.inv.find(x => x.id === id);
-        if (!p) {
-            if(loader) loader.style.display = 'none';
-            return alert("Producto no encontrado");
-        }
-        
-        var nombre = p.nombre.toUpperCase();
-        var precio = p.publico > 0 ? window.COP.format(p.publico) : 'Consultar';
-        var desc = window.embellecerDescripcion ? window.embellecerDescripcion(p.desc) : p.desc;
-        
-        var shareText = `👑 *KING'S SHOP SAS*\n\n🛍️ *Producto:* ${nombre}\n💳 *Inversión:* ${precio}\n\n`;
-        if (desc) { shareText += `📋 *Detalles:*\n${desc}\n\n`; }
-        shareText += `🤝 _Quedamos a su entera disposición._`;
-        
-        var shareData = {
-            title: nombre,
-            text: shareText
-        };
-
-        var hasImage = false;
-        var fixedUrl = window.fixDriveLink ? window.fixDriveLink(p.foto) : p.foto;
-        
-        if (fixedUrl && fixedUrl.length > 5) {
-            var cleanName = p.nombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            var file = await getFileFromUrlAsync(fixedUrl, cleanName);
-            if (file) {
-                shareData.files = [file];
-                hasImage = true;
-            }
-        }
-        
-        if(loader) loader.style.display = 'none';
-
-        if (navigator.canShare && navigator.share) {
-            if (hasImage && !navigator.canShare({ files: shareData.files })) {
-                console.warn("El dispositivo no soporta compartir archivos, se enviará solo texto.");
-                delete shareData.files;
-            }
-            
-            await navigator.share(shareData);
-            if(window.showToast) window.showToast("¡Compartido con éxito!", "success");
-        } else {
-            alert("Tu navegador no soporta compartir nativamente. Abriendo WhatsApp clásico.");
-            shareProdWhatsApp(id);
-        }
-    } catch(error) {
-        if(loader) loader.style.display = 'none';
-        console.error("Error compartiendo:", error);
-        if (error.name !== 'AbortError') {
-            alert("No se pudo compartir el archivo nativamente. Abriendo texto clásico.");
-            shareProdWhatsApp(id); 
-        } else {
-            if(window.showToast) window.showToast("Compartir cancelado por el usuario", "info");
-        }
-    }
-}
-
 window.calcCart = function() {
-    var activeParent = null;
-    if (document.activeElement && document.activeElement.closest) {
-        activeParent = document.activeElement.closest('.cotizador-panel-container');
-    }
-    if (!activeParent) {
-        var isMobile = window.innerWidth < 992 && document.getElementById('mobile-cart').classList.contains('visible');
-        activeParent = isMobile ? document.getElementById('mobile-cart') : document.getElementById('desktop-cart-container');
-    }
+    var activeParent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
     if (!activeParent) return;
 
     const getVal = (selector, defaultVal) => {
@@ -994,14 +871,21 @@ window.calcCart = function() {
     var valorCuota = 0;
     var ultimaCuota = 0;
     
+    // 🟢 FIX MEDIO: Bucle seguro para Cuota Residual
     if(metodo === "Crédito") {
         var saldo = Math.max(0, totalFinal - inicial);
-        valorCuota = Math.round((saldo / cuotas) / 100) * 100;
-        ultimaCuota = saldo - (valorCuota * (cuotas - 1));
         
-        if (ultimaCuota <= 0 && cuotas > 1) {
-            valorCuota -= 100;
+        if (cuotas === 1) {
+            valorCuota = saldo;
+            ultimaCuota = saldo;
+        } else {
+            valorCuota = Math.round((saldo / cuotas) / 100) * 100;
             ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+            
+            while (ultimaCuota <= 0 && valorCuota >= 100) {
+                valorCuota -= 100;
+                ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+            }
         }
     }
 
@@ -1220,15 +1104,12 @@ function updateCartUI(keepOpen = false) {
 }
 
 window.generarCotizacionPDF = function() {
-   var desktopCart = document.getElementById('desktop-cart-container');
-   var mobileCart = document.getElementById('mobile-cart');
-   var parent = (window.innerWidth < 992 && mobileCart && mobileCart.classList.contains('visible')) ? mobileCart : desktopCart;
-   if(!parent) parent = desktopCart;
+   var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
+   if(!parent) return;
 
    const getVal = (id) => {
-       let d = desktopCart ? desktopCart.querySelector(id) : null;
-       let m = mobileCart ? mobileCart.querySelector(id) : null;
-       return (d ? d.value : "") || (m ? m.value : "");
+       var el = parent.querySelector(id);
+       return el ? el.value : "";
    };
 
    var cli = getVal('#c-cliente');
