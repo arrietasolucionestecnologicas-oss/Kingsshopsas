@@ -2,7 +2,10 @@
 import { API_URL, COP } from './state.js';
 import { callAPI, sincronizarCola } from './api.js';
 
-// Importación de módulos UI (Rutas corregidas)
+// Importación de utilidades globales (Única Fuente de Verdad)
+import './utils.js';
+
+// Importación de módulos UI
 import './ui/inventory.js';
 import './ui/pos.js';
 import './ui/finance.js';
