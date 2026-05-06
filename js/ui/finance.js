@@ -79,10 +79,7 @@ function abrirEditMov(index) {
 }
 
 function guardarEdicionMovimiento() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     if(!window.movEditObj) { unlock(); return; }
     
@@ -125,10 +122,7 @@ function guardarEdicionMovimiento() {
 }
 
 function doIngresoExtra() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     var desc = document.getElementById('inc-desc').value;
     var cat = document.getElementById('inc-cat').value;
@@ -223,10 +217,7 @@ function doIngresoExtra() {
 }
 
 function doGasto() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     var desc = document.getElementById('g-desc').value;
     var monto = document.getElementById('g-monto').value;
@@ -371,9 +362,8 @@ function renderCartera() {
                 var valCuotaReal = parseFloat(d.valCuota) || 0;
                 var numCuotas = parseInt(d.cuotas) || 1;
                 
-                // 🟢 FIX CUOTA RESIDUAL EN CARTERA: Mostrar el valor de la última cuota si el redondeo causó diferencia
-                var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
-                var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
+                // 🟢 FIX CUOTA RESIDUAL EN CARTERA (USANDO UTILS)
+                var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
                 
                 if(valCuotaReal > 0) {
                     var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
@@ -448,8 +438,7 @@ function notificarCobroWA(idVenta) {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var fechaTxt = d.fechaLimite || "Pago Inmediato";
         var numCuotas = parseInt(d.cuotas) || 1;
-        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
-        var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
+        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
         var montoCobrar = valCuotaReal;
 
         // 🟢 FIX CUOTA RESIDUAL EN COBRO WA
@@ -485,7 +474,7 @@ function compartirBalanceWA(idVenta) {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var numCuotas = parseInt(d.cuotas) || 1;
         var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
-        var ultimaCuotaReal = saldoOriginal - (valCuotaReal * (numCuotas - 1));
+        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
         
         if (valCuotaReal > 0 && numCuotas > 1) {
             var totalAbonado = saldoOriginal - d.saldo;
@@ -544,10 +533,7 @@ function calcRefinanciamiento() {
 }
 
 function procesarRefinanciamiento() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     if(!window.refEditId) { unlock(); return; }
     
@@ -637,10 +623,7 @@ function castigarDeuda(id, nombre) {
 }
 
 function doAbono() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     var id = document.getElementById('ab-cli').value;
     if(!id) { unlock(); return alert("Seleccione un cliente"); }
@@ -749,10 +732,7 @@ function seleccionarPasivo() {
 }
 
 function doAbonoPasivo() {
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     var sel = document.getElementById('pas-select');
     var m = document.getElementById('pas-monto');
@@ -865,10 +845,7 @@ function abrirModalPed() {
 }
 
 function savePed() { 
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     var p = document.getElementById('pe-prod').value; 
     if(!p) { unlock(); return alert("Escribe un producto"); }
@@ -906,10 +883,7 @@ function openEditPed(p) {
 }
 
 function guardarEdicionPed() { 
-    var btn = document.activeElement;
-    var prevHtml = "";
-    if(btn && btn.tagName === 'BUTTON') { prevHtml = btn.innerHTML; btn.disabled = true; btn.innerText = "Procesando..."; }
-    var unlock = () => { if(btn && btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerHTML = prevHtml; } };
+    const unlock = window.lockBtn();
 
     if(!window.pedEditId) { unlock(); return; }
     
@@ -1034,9 +1008,8 @@ function abrirRadiografia(idVenta) {
         var cuotas = parseInt(v.cuotas) || 1;
         var valCuota = safeNum(v.valCuota);
         
-        // 🟢 FIX CUOTA RESIDUAL EN RADIOGRAFÍA
-        var saldoOriginal = safeNum(v.total) - safeNum(v.inicial);
-        var ultimaCuota = saldoOriginal - (valCuota * (cuotas - 1));
+        // 🟢 FIX CUOTA RESIDUAL EN RADIOGRAFÍA (USANDO UTILS)
+        var ultimaCuota = window.calcUltimaCuota(safeNum(v.total), safeNum(v.inicial), valCuota, cuotas);
         
         var cuotaTxt = "";
         if (cuotas > 1) {
