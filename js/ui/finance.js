@@ -531,90 +531,95 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
 }
 
 function calcRefinanciamiento() {
-    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
-    var tasa       = parseFloat(document.getElementById('ref-tasa').value)   || 5;
-    var saldo      = window.refSaldoActual     || 0;
-    var restantes  = window.refCuotasRestantes || 1;
+    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
+    var tasa       = parseFloat(document.getElementById('ref-tasa').value)   || 5;
+    var saldo      = window.refSaldoActual     || 0;
+    var restantes  = window.refCuotasRestantes || 1;
 
-    var cuotasExtra = Math.max(0, cuotas - restantes);
-    var cargo       = (cuotasExtra > 0) ? (saldo * (tasa / 100) * cuotasExtra) : 0;
-    var nuevoSaldo  = saldo + cargo;
-    var nuevaCuota  = nuevoSaldo / cuotas;
+    var cuotasExtra = cuotas - restantes;
+    var cargo       = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
+    var nuevoSaldo  = saldo + cargo;
+    var nuevaCuota  = nuevoSaldo / cuotas;
 
-    document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
-    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
+    document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
+    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
 
-    var elAviso = document.getElementById('ref-aviso-cargo');
-    if(elAviso) {
-        if(cuotasExtra > 0) {
-            elAviso.innerHTML = `⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> con interés del <strong>${tasa}%</strong> = Cargo: <strong>${window.COP.format(cargo)}</strong>`;
-            elAviso.style.display = 'block';
-        } else {
-            elAviso.style.display = 'none';
-        }
-    }
+    var elAviso = document.getElementById('ref-aviso-cargo');
+    if(elAviso) {
+        if(cuotasExtra > 0) {
+            elAviso.innerHTML = `⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al <strong>${tasa}%</strong> = Cargo: <strong>${window.COP.format(cargo)}</strong>`;
+            elAviso.className = "text-danger mt-2 small";
+            elAviso.style.display = 'block';
+        } else if (cuotasExtra < 0) {
+            elAviso.innerHTML = `✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> al <strong>${tasa}%</strong> = Descuento: <strong>${window.COP.format(Math.abs(cargo))}</strong>`;
+            elAviso.className = "text-success mt-2 small";
+            elAviso.style.display = 'block';
+        } else {
+            elAviso.style.display = 'none';
+        }
+    }
 
-    window.refCargoCalculado = cargo;
-    window.refTasaUsada      = tasa;
+    window.refCargoCalculado = cargo;
+    window.refTasaUsada      = tasa;
 }
 
 function procesarRefinanciamiento() {
-    const unlock = window.lockBtn();
+    const unlock = window.lockBtn();
 
-    if(!window.refEditId) { unlock(); return; }
+    if(!window.refEditId) { unlock(); return; }
 
-    if(!window.D || !window.D.deudores) { 
-        unlock(); 
-        return alert("Error: datos de cartera no disponibles."); 
-    }
+    if(!window.D || !window.D.deudores) { 
+        unlock(); 
+        return alert("Error: datos de cartera no disponibles."); 
+    }
 
-    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
-    var fecha  = document.getElementById('ref-fecha').value;
-    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
+    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
+    var fecha  = document.getElementById('ref-fecha').value;
+    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
 
-    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
+    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
 
-    var restantes   = window.refCuotasRestantes || 1;
-    var cuotasExtra = Math.max(0, cuotas - restantes);
-    var cargo       = (cuotasExtra > 0) ? (window.refSaldoActual * (tasa / 100) * cuotasExtra) : 0;
+    var restantes   = window.refCuotasRestantes || 1;
+    var cuotasExtra = cuotas - restantes;
+    var cargo       = cuotasExtra !== 0 ? (window.refSaldoActual * (tasa / 100) * cuotasExtra) : 0;
 
-    var d = {
-        idVenta        : window.refEditId,
-        cargoAdicional : cargo,
-        nuevasCuotas   : cuotas,
-        nuevaFecha     : fecha,
-        tasaInteres    : tasa,
-        aliasOperador  : window.currentUserAlias || "Operador"
-    };
+    var d = {
+        idVenta        : window.refEditId,
+        cargoAdicional : cargo,
+        nuevasCuotas   : cuotas,
+        nuevaFecha     : fecha,
+        tasaInteres    : tasa,
+        aliasOperador  : window.currentUserAlias || "Operador"
+    };
 
-    var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
+    var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
 
-    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
-    if(dIdx > -1) {
-        window.D.deudores[dIdx].saldo    += cargo;
-        window.D.deudores[dIdx].valCuota  = window.D.deudores[dIdx].saldo / cuotas;
-        window.D.deudores[dIdx].cuotas    = cuotas;
-        window.D.deudores[dIdx].fechaLimite = fecha;
-    }
+    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
+    if(dIdx > -1) {
+        window.D.deudores[dIdx].saldo    += cargo; // Si cargo es negativo (descuento), el saldo bajará automáticamente
+        window.D.deudores[dIdx].valCuota  = window.D.deudores[dIdx].saldo / cuotas;
+        window.D.deudores[dIdx].cuotas    = cuotas;
+        window.D.deudores[dIdx].fechaLimite = fecha;
+    }
 
-    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
+    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
 
-    renderCartera();
-    if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
+    renderCartera();
+    if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
 
-    window.callAPI('refinanciarDeuda', d).then(r => {
-        unlock();
-        if(!r.exito) {
-            window.D.deudores = snapDeudores;
-            renderCartera();
-            alert("Error al refinanciar: " + r.error);
-        }
-    }).catch(e => {
-        unlock();
-        window.D.deudores = snapDeudores;
-        renderCartera();
-        alert("Error de conexión al refinanciar.");
-    });
+    window.callAPI('refinanciarDeuda', d).then(r => {
+        unlock();
+        if(!r.exito) {
+            window.D.deudores = snapDeudores;
+            renderCartera();
+            alert("Error al refinanciar: " + r.error);
+        }
+    }).catch(e => {
+        unlock();
+        window.D.deudores = snapDeudores;
+        renderCartera();
+        alert("Error de conexión al refinanciar.");
+    });
 }
 
 function castigarDeuda(id, nombre) {
