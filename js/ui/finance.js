@@ -566,6 +566,11 @@ function procesarRefinanciamiento() {
 
     if(!window.refEditId) { unlock(); return; }
 
+    if(!window.D || !window.D.deudores) { 
+        unlock(); 
+        return alert("Error: datos de cartera no disponibles."); 
+    }
+
     var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
     var fecha  = document.getElementById('ref-fecha').value;
     var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
@@ -585,7 +590,7 @@ function procesarRefinanciamiento() {
         aliasOperador  : window.ALIAS || "Operador"
     };
 
-    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+    var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
 
     var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
     if(dIdx > -1) {
@@ -614,7 +619,6 @@ function procesarRefinanciamiento() {
         alert("Error de conexión al refinanciar.");
     });
 }
-
     
     // 🟢 FIX: Snapshot de Memoria para Rollback
     var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
