@@ -587,7 +587,7 @@ function procesarRefinanciamiento() {
         nuevasCuotas   : cuotas,
         nuevaFecha     : fecha,
         tasaInteres    : tasa,
-        aliasOperador  : window.ALIAS || "Operador"
+        aliasOperador  : window.currentUserAlias || "Operador"
     };
 
     var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
