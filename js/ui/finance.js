@@ -400,7 +400,6 @@ function renderCartera() {
                     <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
                     <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
                     <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0})" title="Refinanciar Deuda">🔄 Refinanc.</button>
-
                 </div>
                 ${planDetalle}
             </div>`;
@@ -531,7 +530,6 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     if(window.myModalRefinanciar) window.myModalRefinanciar.show();
 }
 
-
 function calcRefinanciamiento() {
     var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
     var tasa       = parseFloat(document.getElementById('ref-tasa').value)   || 5;
@@ -559,7 +557,6 @@ function calcRefinanciamiento() {
     window.refCargoCalculado = cargo;
     window.refTasaUsada      = tasa;
 }
-
 
 function procesarRefinanciamiento() {
     const unlock = window.lockBtn();
@@ -619,37 +616,6 @@ function procesarRefinanciamiento() {
         alert("Error de conexión al refinanciar.");
     });
 }
-    
-    // 🟢 FIX: Snapshot de Memoria para Rollback
-    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
-
-    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
-    if(dIdx > -1) {
-        window.D.deudores[dIdx].saldo += cargo;
-        window.D.deudores[dIdx].valCuota = (window.D.deudores[dIdx].saldo) / cuotas;
-        window.D.deudores[dIdx].cuotas = cuotas;
-        window.D.deudores[dIdx].fechaLimite = fecha;
-    }
-    
-    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
-    
-    renderCartera();
-    if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
-    
-    window.callAPI('refinanciarDeuda', d).then(r => { 
-        unlock();
-        if(!r.exito) { 
-            // Rollback
-            window.D.deudores = snapDeudores;
-            renderCartera();
-            alert("Error al refinanciar: " + r.error);
-        } 
-    }).catch(e => {
-        unlock();
-        window.D.deudores = snapDeudores;
-        renderCartera();
-        alert("Error de conexión al refinanciar.");
-    });
 
 function castigarDeuda(id, nombre) {
     Swal.fire({
