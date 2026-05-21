@@ -399,7 +399,8 @@ function renderCartera() {
                     <button class="btn btn-xs btn-outline-dark flex-fill fw-bold" onclick="window.abrirRadiografia('${d.idVenta}')" title="Ver Radiografía Financiera"><i class="fas fa-microscope"></i> Detalles</button>
                     <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
                     <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
-                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo})" title="Refinanciar Deuda">🔄 Refinanc.</button>
+                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0})" title="Refinanciar Deuda">🔄 Refinanc.</button>
+
                 </div>
                 ${planDetalle}
             </div>`;
@@ -502,53 +503,123 @@ function compartirBalanceWA(idVenta) {
     window.open(url, '_blank');
 }
 
-function abrirModalRefinanciar(id, cliente, saldo) {
-    window.refEditId = id;
-    window.refSaldoActual = parseFloat(saldo) || 0;
-    
-    document.getElementById('ref-cliente').value = cliente;
-    document.getElementById('ref-saldo-actual').value = window.COP.format(window.refSaldoActual);
-    document.getElementById('ref-cargo').value = "0";
-    document.getElementById('ref-cuotas').value = "1";
-    
+function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
+    window.refEditId          = id;
+    window.refSaldoActual     = parseFloat(saldo)          || 0;
+    window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
+    window.refValCuota        = parseFloat(valCuota)       || 0;
+    window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
+
+    // Cuotas ya pagadas implícitas según montos
+    var montoYaPagado     = window.refTotalOriginal - window.refSaldoActual;
+    var cuotasPagadas     = (window.refValCuota > 0) ? Math.floor(montoYaPagado / window.refValCuota) : 0;
+    window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
+
+    document.getElementById('ref-cliente').value       = cliente;
+    document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
+    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
+    document.getElementById('ref-tasa').value          = "5";
+    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
+
     var today = new Date();
     today.setMonth(today.getMonth() + 1);
     var yyyy = today.getFullYear();
-    var mm = String(today.getMonth() + 1).padStart(2, '0');
-    var dd = String(today.getDate()).padStart(2, '0');
+    var mm   = String(today.getMonth() + 1).padStart(2, '0');
+    var dd   = String(today.getDate()).padStart(2, '0');
     document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
-    
+
     calcRefinanciamiento();
     if(window.myModalRefinanciar) window.myModalRefinanciar.show();
 }
 
+
 function calcRefinanciamiento() {
-    var cargo = parseFloat(document.getElementById('ref-cargo').value) || 0;
-    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
-    var nuevoSaldo = window.refSaldoActual + cargo;
-    var nuevaCuota = nuevoSaldo / cuotas;
-    
-    document.getElementById('ref-nuevo-saldo').innerText = window.COP.format(nuevoSaldo);
-    document.getElementById('ref-nueva-cuota').innerText = window.COP.format(nuevaCuota) + " / mes";
+    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
+    var tasa       = parseFloat(document.getElementById('ref-tasa').value)   || 5;
+    var saldo      = window.refSaldoActual     || 0;
+    var restantes  = window.refCuotasRestantes || 1;
+
+    // Cuotas extra sobre las que aplica interés
+    var cuotasExtra = Math.max(0, cuotas - restantes);
+    var cargo       = (cuotasExtra > 0) ? (saldo * (tasa / 100) * cuotasExtra) : 0;
+    var nuevoSaldo  = saldo + cargo;
+    var nuevaCuota  = nuevoSaldo / cuotas;
+
+    document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
+    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
+
+    // Mostrar u ocultar advertencia de cargo
+    var elAviso = document.getElementById('ref-aviso-cargo');
+    if(elAviso) {
+        if(cuotasExtra > 0) {
+            elAviso.innerHTML = `⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> con interés del <strong>${tasa}%</strong> = Cargo: <strong>${window.COP.format(cargo)}</strong>`;
+            elAviso.style.display = 'block';
+        } else {
+            elAviso.style.display = 'none';
+        }
+    }
+
+    // Guardar para procesarRefinanciamiento
+    window.refCargoCalculado = cargo;
+    window.refTasaUsada      = tasa;
 }
+
 
 function procesarRefinanciamiento() {
     const unlock = window.lockBtn();
 
     if(!window.refEditId) { unlock(); return; }
-    
-    var cargo = parseFloat(document.getElementById('ref-cargo').value) || 0;
+
     var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
-    var fecha = document.getElementById('ref-fecha').value;
-    
+    var fecha  = document.getElementById('ref-fecha').value;
+    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
+
     if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
-    
+
+    // Recalcular para asegurar consistencia
+    var restantes   = window.refCuotasRestantes || 1;
+    var cuotasExtra = Math.max(0, cuotas - restantes);
+    var cargo       = (cuotasExtra > 0) ? (window.refSaldoActual * (tasa / 100) * cuotasExtra) : 0;
+
     var d = {
-        idVenta: window.refEditId,
-        cargoAdicional: cargo,
-        nuevasCuotas: cuotas,
-        nuevaFecha: fecha
+        idVenta        : window.refEditId,
+        cargoAdicional : cargo,
+        nuevasCuotas   : cuotas,
+        nuevaFecha     : fecha,
+        tasaInteres    : tasa,
+        aliasOperador  : window.ALIAS || "Operador"
     };
+
+    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+
+    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
+    if(dIdx > -1) {
+        window.D.deudores[dIdx].saldo    += cargo;
+        window.D.deudores[dIdx].valCuota  = window.D.deudores[dIdx].saldo / cuotas;
+        window.D.deudores[dIdx].cuotas    = cuotas;
+        window.D.deudores[dIdx].fechaLimite = fecha;
+    }
+
+    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
+
+    renderCartera();
+    if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
+
+    window.callAPI('refinanciarDeuda', d).then(r => {
+        unlock();
+        if(!r.exito) {
+            window.D.deudores = snapDeudores;
+            renderCartera();
+            alert("Error al refinanciar: " + r.error);
+        }
+    }).catch(e => {
+        unlock();
+        window.D.deudores = snapDeudores;
+        renderCartera();
+        alert("Error de conexión al refinanciar.");
+    });
+}
+
     
     // 🟢 FIX: Snapshot de Memoria para Rollback
     var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
