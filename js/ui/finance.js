@@ -651,7 +651,6 @@ function procesarRefinanciamiento() {
         renderCartera();
         alert("Error de conexión al refinanciar.");
     });
-}
 
 function castigarDeuda(id, nombre) {
     Swal.fire({
