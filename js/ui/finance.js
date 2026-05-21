@@ -510,7 +510,6 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     window.refValCuota        = parseFloat(valCuota)       || 0;
     window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
 
-    // Cuotas ya pagadas implícitas según montos
     var montoYaPagado     = window.refTotalOriginal - window.refSaldoActual;
     var cuotasPagadas     = (window.refValCuota > 0) ? Math.floor(montoYaPagado / window.refValCuota) : 0;
     window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
@@ -539,7 +538,6 @@ function calcRefinanciamiento() {
     var saldo      = window.refSaldoActual     || 0;
     var restantes  = window.refCuotasRestantes || 1;
 
-    // Cuotas extra sobre las que aplica interés
     var cuotasExtra = Math.max(0, cuotas - restantes);
     var cargo       = (cuotasExtra > 0) ? (saldo * (tasa / 100) * cuotasExtra) : 0;
     var nuevoSaldo  = saldo + cargo;
@@ -548,7 +546,6 @@ function calcRefinanciamiento() {
     document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
     document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
 
-    // Mostrar u ocultar advertencia de cargo
     var elAviso = document.getElementById('ref-aviso-cargo');
     if(elAviso) {
         if(cuotasExtra > 0) {
@@ -559,7 +556,6 @@ function calcRefinanciamiento() {
         }
     }
 
-    // Guardar para procesarRefinanciamiento
     window.refCargoCalculado = cargo;
     window.refTasaUsada      = tasa;
 }
@@ -576,7 +572,6 @@ function procesarRefinanciamiento() {
 
     if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
 
-    // Recalcular para asegurar consistencia
     var restantes   = window.refCuotasRestantes || 1;
     var cuotasExtra = Math.max(0, cuotas - restantes);
     var cargo       = (cuotasExtra > 0) ? (window.refSaldoActual * (tasa / 100) * cuotasExtra) : 0;
