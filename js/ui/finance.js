@@ -459,47 +459,59 @@ function notificarCobroWA(idVenta) {
 }
 
 function compartirBalanceWA(idVenta) {
-    var d = window.D.deudores.find(x => x.idVenta === idVenta);
-    if (!d) return alert("Error: Deuda no encontrada en memoria.");
-    
-    var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola 👋.\n\n`;
-    msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
-    
-    if ((d.deudaInicial || 0) > 0) {
-        msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${window.COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
-        msg += `⏳ *Saldo Total Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        msg += `Una vez cubiertas las iniciales, te enviaremos el extracto de tus cuotas. 🤝`;
-    } else {
-        var valCuotaReal = parseFloat(d.valCuota) || 0;
-        var numCuotas = parseInt(d.cuotas) || 1;
-        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
-        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
-        
-        if (valCuotaReal > 0 && numCuotas > 1) {
-            var totalAbonado = saldoOriginal - d.saldo;
-            if (totalAbonado < 0) totalAbonado = 0;
-            
-            var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
-            if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
+    var d = window.D.deudores.find(x => x.idVenta === idVenta);
+    if (!d) return alert("Error: Deuda no encontrada en memoria.");
+    
+    var msg = `👑 *KING'S SHOP* 👑\n\n`;
+    msg += `Hola 👋.\n\n`;
+    msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
+    
+    if ((d.deudaInicial || 0) > 0) {
+        msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${window.COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
+        msg += `⏳ *Saldo Total Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        msg += `Una vez cubiertas las iniciales, te enviaremos el extracto de tus cuotas. 🤝`;
+    } else {
+        var valCuotaReal = parseFloat(d.valCuota) || 0;
+        var numCuotas = parseInt(d.cuotas) || 1;
+        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
+        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
+        
+        var abonosCliente = (window.D.historial || []).filter(h => h.tipo === 'abono' && h.desc.toLowerCase().includes(d.cliente.toLowerCase()));
+        var historialTxt = "";
+        if (abonosCliente.length > 0) {
+            var abonosCopia = [...abonosCliente].reverse();
+            historialTxt += `\n📝 *Historial de Pagos:*\n`;
+            abonosCopia.forEach(ab => {
+                historialTxt += `🔸 ${ab.fecha}: ${window.COP.format(ab.monto)}\n`;
+            });
+            historialTxt += `\n`;
+        }
 
-            msg += `💰 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
-            
-            // 🟢 FIX CUOTA RESIDUAL EN BALANCE
-            if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
-                 msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
-            }
-            
-            msg += `✅ *Total Abonado:* ${window.COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
-            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        } else {
-            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        }
-        msg += `Cualquier duda estamos a tu disposición. 🤝`;
-    }
-    
-    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
-    window.open(url, '_blank');
+        if (valCuotaReal > 0 && numCuotas > 1) {
+            var totalAbonado = saldoOriginal - d.saldo;
+            if (totalAbonado < 0) totalAbonado = 0;
+            
+            var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
+            if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
+
+            msg += `💰 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
+            
+            if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
+                 msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
+            }
+            
+            msg += `✅ *Total Abonado:* ${window.COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
+            msg += historialTxt;
+            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        } else {
+            msg += historialTxt;
+            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        }
+        msg += `Cualquier duda estamos a tu disposición. 🤝`;
+    }
+    
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
 }
 
 function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
