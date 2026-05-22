@@ -503,63 +503,105 @@ function compartirBalanceWA(idVenta) {
 }
 
 function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
-    window.refEditId          = id;
-    window.refSaldoActual     = parseFloat(saldo)          || 0;
-    window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
-    window.refValCuota        = parseFloat(valCuota)       || 0;
-    window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
+    window.refEditId          = id;
+    window.refSaldoActual     = parseFloat(saldo)          || 0;
+    window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
+    window.refValCuota        = parseFloat(valCuota)       || 0;
+    window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
 
-    var montoYaPagado     = window.refTotalOriginal - window.refSaldoActual;
-    var cuotasPagadas     = (window.refValCuota > 0) ? Math.floor(montoYaPagado / window.refValCuota) : 0;
-    window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
+    // Capturar deudor para extraer su fecha límite original
+    var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
+    window.refFechaLimiteOriginal = dObj ? dObj.fechaLimite : null;
+    window.refDescProntoPago  = 0;
 
-    document.getElementById('ref-cliente').value       = cliente;
-    document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
-    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
-    document.getElementById('ref-tasa').value          = "5";
-    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
+    var montoYaPagado     = window.refTotalOriginal - window.refSaldoActual;
+    var cuotasPagadas     = (window.refValCuota > 0) ? Math.floor(montoYaPagado / window.refValCuota) : 0;
+    window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
 
-    var today = new Date();
-    today.setMonth(today.getMonth() + 1);
-    var yyyy = today.getFullYear();
-    var mm   = String(today.getMonth() + 1).padStart(2, '0');
-    var dd   = String(today.getDate()).padStart(2, '0');
-    document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('ref-cliente').value       = cliente;
+    document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
+    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
+    document.getElementById('ref-tasa').value          = "5";
+    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
 
-    calcRefinanciamiento();
-    if(window.myModalRefinanciar) window.myModalRefinanciar.show();
+    var today = new Date();
+    today.setMonth(today.getMonth() + 1);
+    var yyyy = today.getFullYear();
+    var mm   = String(today.getMonth() + 1).padStart(2, '0');
+    var dd   = String(today.getDate()).padStart(2, '0');
+    document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
+
+    calcRefinanciamiento();
+    if(window.myModalRefinanciar) window.myModalRefinanciar.show();
 }
 
 function calcRefinanciamiento() {
     var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
-    var tasa       = parseFloat(document.getElementById('ref-tasa').value)   || 5;
+    var tasa       = parseFloat(document.getElementById('ref-tasa').value)  || 5;
     var saldo      = window.refSaldoActual     || 0;
     var restantes  = window.refCuotasRestantes || 1;
+    var nuevaFecha = document.getElementById('ref-fecha').value;
 
+    // 1. Cálculo estructural (Por diferencia de cuotas)
     var cuotasExtra = cuotas - restantes;
-    var cargo       = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
-    var nuevoSaldo  = saldo + cargo;
+    var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
+
+    // 2. Cálculo temporal exacto (Pronto Pago por fecha)
+    window.refDescProntoPago = 0;
+    if(window.refFechaLimiteOriginal && nuevaFecha) {
+        var fOrig = new Date(window.refFechaLimiteOriginal);
+        var fNueva = new Date(nuevaFecha);
+        var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
+        if(diffDias >= 10) { // Mínimo 10 días para justificar descuento
+            var mesesAdelanto = diffDias / 30;
+            window.refDescProntoPago = saldo * (tasa / 100) * mesesAdelanto;
+        }
+    }
+
+    var chkPronto = document.getElementById('chk-pronto-pago');
+    var aplicarProntoPago = chkPronto ? chkPronto.checked : false;
+
+    // 3. Consolidación
+    var cargoTotal = cargoEstructural;
+    if(aplicarProntoPago && window.refDescProntoPago > 0) {
+        cargoTotal -= window.refDescProntoPago;
+    }
+
+    var nuevoSaldo  = Math.max(0, saldo + cargoTotal);
     var nuevaCuota  = nuevoSaldo / cuotas;
 
     document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
     document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
 
+    // 4. Renderizado Dinámico de Sugerencias
     var elAviso = document.getElementById('ref-aviso-cargo');
     if(elAviso) {
+        var html = "";
         if(cuotasExtra > 0) {
-            elAviso.innerHTML = `⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al <strong>${tasa}%</strong> = Cargo: <strong>${window.COP.format(cargo)}</strong>`;
-            elAviso.className = "text-danger mt-2 small";
-            elAviso.style.display = 'block';
+            html += `<div class="text-danger mt-1 small">⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al ${tasa}% = Cargo: <strong>${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
         } else if (cuotasExtra < 0) {
-            elAviso.innerHTML = `✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> al <strong>${tasa}%</strong> = Descuento: <strong>${window.COP.format(Math.abs(cargo))}</strong>`;
-            elAviso.className = "text-success mt-2 small";
-            elAviso.style.display = 'block';
-        } else {
-            elAviso.style.display = 'none';
+            html += `<div class="text-success mt-1 small">✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
         }
+
+        if(window.refDescProntoPago > 0) {
+            html += `
+            <div class="mt-2 p-2 border border-success rounded bg-light">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="chk-pronto-pago" onchange="window.calcRefinanciamiento()" ${aplicarProntoPago ? 'checked' : ''}>
+                    <label class="form-check-label small fw-bold text-success" for="chk-pronto-pago">
+                        💡 Aplicar Dto. Pronto Pago: -${window.COP.format(window.refDescProntoPago)}<br>
+                        <small class="text-muted">(Ahorro por adelantar fecha)</small>
+                    </label>
+                </div>
+            </div>`;
+        }
+
+        elAviso.innerHTML = html;
+        elAviso.style.display = html ? 'block' : 'none';
+        elAviso.className = "mt-2"; 
     }
 
-    window.refCargoCalculado = cargo;
+    window.refCargoCalculado = cargoTotal;
     window.refTasaUsada      = tasa;
 }
 
@@ -567,11 +609,7 @@ function procesarRefinanciamiento() {
     const unlock = window.lockBtn();
 
     if(!window.refEditId) { unlock(); return; }
-
-    if(!window.D || !window.D.deudores) { 
-        unlock(); 
-        return alert("Error: datos de cartera no disponibles."); 
-    }
+    if(!window.D || !window.D.deudores) { unlock(); return alert("Error: datos de cartera no disponibles."); }
 
     var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
     var fecha  = document.getElementById('ref-fecha').value;
@@ -579,13 +617,12 @@ function procesarRefinanciamiento() {
 
     if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
 
-    var restantes   = window.refCuotasRestantes || 1;
-    var cuotasExtra = cuotas - restantes;
-    var cargo       = cuotasExtra !== 0 ? (window.refSaldoActual * (tasa / 100) * cuotasExtra) : 0;
+    // Usamos el cálculo final consolidado que ya contempla cuotas extra y pronto pago
+    var cargoFinal = window.refCargoCalculado || 0;
 
     var d = {
         idVenta        : window.refEditId,
-        cargoAdicional : cargo,
+        cargoAdicional : cargoFinal,
         nuevasCuotas   : cuotas,
         nuevaFecha     : fecha,
         tasaInteres    : tasa,
@@ -593,19 +630,19 @@ function procesarRefinanciamiento() {
     };
 
     var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
-
     var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
+    
     if(dIdx > -1) {
-        window.D.deudores[dIdx].saldo    += cargo; // Si cargo es negativo (descuento), el saldo bajará automáticamente
-        window.D.deudores[dIdx].valCuota  = window.D.deudores[dIdx].saldo / cuotas;
-        window.D.deudores[dIdx].cuotas    = cuotas;
+        window.D.deudores[dIdx].saldo    = Math.max(0, window.D.deudores[dIdx].saldo + cargoFinal);
+        window.D.deudores[dIdx].valCuota = window.D.deudores[dIdx].saldo / cuotas;
+        window.D.deudores[dIdx].cuotas   = cuotas;
         window.D.deudores[dIdx].fechaLimite = fecha;
     }
 
     if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
 
     renderCartera();
-    if(window.showToast) window.showToast("Cartera refinanciada (Guardando...)", "success");
+    if(window.showToast) window.showToast("Acuerdo financiero aplicado", "success");
 
     window.callAPI('refinanciarDeuda', d).then(r => {
         unlock();
@@ -618,7 +655,7 @@ function procesarRefinanciamiento() {
         unlock();
         window.D.deudores = snapDeudores;
         renderCartera();
-        alert("Error de conexión al refinanciar.");
+        alert("Error de red al procesar acuerdo.");
     });
 }
 
