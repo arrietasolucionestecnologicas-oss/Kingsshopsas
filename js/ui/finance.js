@@ -562,9 +562,18 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     var yyyy = today.getFullYear();
     var mm   = String(today.getMonth() + 1).padStart(2, '0');
     var dd   = String(today.getDate()).padStart(2, '0');
-    document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
+    
+    var inputFecha = document.getElementById('ref-fecha');
+    inputFecha.value = `${yyyy}-${mm}-${dd}`;
+    
+    // FIX TÉCNICO: Inyectar Listeners para recálculo en vivo
+    inputFecha.addEventListener('change', window.calcRefinanciamiento);
+    inputFecha.addEventListener('input', window.calcRefinanciamiento);
+    
+    // Asegurar que cuotas y tasa también recalculen en vivo
+    document.getElementById('ref-cuotas').addEventListener('input', window.calcRefinanciamiento);
+    document.getElementById('ref-tasa').addEventListener('input', window.calcRefinanciamiento);
 
-    // Reset factor a 0.8 por defecto al abrir
     window.refFactorIncentivo = 0.8;
 
     calcRefinanciamiento();
