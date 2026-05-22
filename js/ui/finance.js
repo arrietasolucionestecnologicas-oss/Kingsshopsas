@@ -478,13 +478,23 @@ function compartirBalanceWA(idVenta) {
         var saldoOriginal = totalVenta - inicialVenta;
         var ultimaCuotaReal = window.calcUltimaCuota(totalVenta, inicialVenta, valCuotaReal, numCuotas);
         
-        var abonosCliente = (window.D.historial || []).filter(h => h.tipo === 'abono' && h.desc.toLowerCase().includes(d.cliente.toLowerCase()));
+        // 🟢 FIX: Filtro robusto multinivel (Busca por ID exacto inyectado por el backend o coincidencia de texto)
+        var abonosCliente = (window.D.historial || []).filter(h => {
+            var matchId = (h.idVenta === idVenta || h.ID_Venta === idVenta || h.id_venta === idVenta);
+            var matchDesc = h.desc && (h.desc.includes(idVenta) || (h.tipo && h.tipo.includes('abono') && h.desc.toLowerCase().includes(d.cliente.toLowerCase())));
+            return matchId || matchDesc;
+        });
+
         var historialTxt = "";
         
         if (inicialVenta > 0 || abonosCliente.length > 0) {
             historialTxt += `\n📝 *Historial de Pagos:*\n`;
             if (inicialVenta > 0) {
-                historialTxt += `🔸 Cuota Inicial: ${window.COP.format(inicialVenta)}\n`;
+                // Previene duplicar la inicial si el backend ya la integró al historial
+                var inicialEnHistorial = abonosCliente.some(ab => parseFloat(ab.monto) === inicialVenta && ab.desc && ab.desc.toLowerCase().includes('inicial'));
+                if (!inicialEnHistorial) {
+                    historialTxt += `🔸 Cuota Inicial: ${window.COP.format(inicialVenta)}\n`;
+                }
             }
             if (abonosCliente.length > 0) {
                 var abonosCopia = [...abonosCliente].reverse();
@@ -496,11 +506,9 @@ function compartirBalanceWA(idVenta) {
         }
 
         if (valCuotaReal > 0 && numCuotas > 1) {
-            // FIX: Total abonado incluye la inicial
             var totalAbonado = totalVenta - d.saldo;
             if (totalAbonado < 0) totalAbonado = 0;
             
-            // Cuotas cubiertas se calculan solo sobre lo abonado a la deuda financiada
             var abonadoACuotas = saldoOriginal - d.saldo;
             if (abonadoACuotas < 0) abonadoACuotas = 0;
             var cuotasCubiertas = (abonadoACuotas / valCuotaReal).toFixed(1);
