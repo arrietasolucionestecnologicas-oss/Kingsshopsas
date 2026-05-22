@@ -509,13 +509,17 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     window.refValCuota        = parseFloat(valCuota)       || 0;
     window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
 
-    // Capturar deudor para extraer su fecha límite original
     var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
-    window.refFechaLimiteOriginal = dObj ? dObj.fechaLimite : null;
+    // FIX 1: Priorizar fecha cruda ISO para cálculos matemáticos
+    window.refFechaLimiteOriginal = dObj ? (dObj.fechaLimiteRaw || dObj.fechaLimite) : null;
     window.refDescProntoPago  = 0;
 
-    var montoYaPagado     = window.refTotalOriginal - window.refSaldoActual;
-    var cuotasPagadas     = (window.refValCuota > 0) ? Math.floor(montoYaPagado / window.refValCuota) : 0;
+    // FIX 2: Separar la cuota inicial para conocer las cuotas reales pagadas
+    var inicial = dObj ? (parseFloat(dObj.inicial) || 0) : 0;
+    var montoFinanciado = window.refTotalOriginal - inicial;
+    var montoCuotasPagado = montoFinanciado - window.refSaldoActual;
+    var cuotasPagadas = (window.refValCuota > 0) ? Math.floor(montoCuotasPagado / window.refValCuota) : 0;
+    
     window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
 
     document.getElementById('ref-cliente').value       = cliente;
@@ -542,26 +546,33 @@ function calcRefinanciamiento() {
     var restantes  = window.refCuotasRestantes || 1;
     var nuevaFecha = document.getElementById('ref-fecha').value;
 
-    // 1. Cálculo estructural (Por diferencia de cuotas)
     var cuotasExtra = cuotas - restantes;
     var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
 
-    // 2. Cálculo temporal exacto (Pronto Pago por fecha)
     window.refDescProntoPago = 0;
     if(window.refFechaLimiteOriginal && nuevaFecha) {
-        var fOrig = new Date(window.refFechaLimiteOriginal);
+        // FIX 3: Convertir fecha DD/MM/YYYY a YYYY-MM-DD si es necesario
+        var fOrigStr = window.refFechaLimiteOriginal;
+        if(fOrigStr.includes('/')) {
+            var parts = fOrigStr.split('/');
+            if(parts.length === 3) fOrigStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        
+        var fOrig = new Date(fOrigStr);
         var fNueva = new Date(nuevaFecha);
-        var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
-        if(diffDias >= 10) { // Mínimo 10 días para justificar descuento
-            var mesesAdelanto = diffDias / 30;
-            window.refDescProntoPago = saldo * (tasa / 100) * mesesAdelanto;
+        
+        if(!isNaN(fOrig.getTime()) && !isNaN(fNueva.getTime())) {
+            var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
+            if(diffDias >= 10) { 
+                var mesesAdelanto = diffDias / 30;
+                window.refDescProntoPago = saldo * (tasa / 100) * mesesAdelanto;
+            }
         }
     }
 
     var chkPronto = document.getElementById('chk-pronto-pago');
     var aplicarProntoPago = chkPronto ? chkPronto.checked : false;
 
-    // 3. Consolidación
     var cargoTotal = cargoEstructural;
     if(aplicarProntoPago && window.refDescProntoPago > 0) {
         cargoTotal -= window.refDescProntoPago;
@@ -573,7 +584,6 @@ function calcRefinanciamiento() {
     document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
     document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
 
-    // 4. Renderizado Dinámico de Sugerencias
     var elAviso = document.getElementById('ref-aviso-cargo');
     if(elAviso) {
         var html = "";
