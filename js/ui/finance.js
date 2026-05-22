@@ -459,80 +459,78 @@ function notificarCobroWA(idVenta) {
 }
 
 function compartirBalanceWA(idVenta) {
-    var d = window.D.deudores.find(x => x.idVenta === idVenta);
-    if (!d) return alert("Error: Deuda no encontrada en memoria.");
-    
-    var msg = `👑 *KING'S SHOP* 👑\n\n`;
-    msg += `Hola 👋.\n\n`;
-    msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
-    
-    if ((d.deudaInicial || 0) > 0) {
-        msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${window.COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
-        msg += `⏳ *Saldo Total Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        msg += `Una vez cubiertas las iniciales, te enviaremos el extracto de tus cuotas. 🤝`;
-    } else {
-        var valCuotaReal = parseFloat(d.valCuota) || 0;
-        var numCuotas = parseInt(d.cuotas) || 1;
-        var totalVenta = parseFloat(d.total) || 0;
-        var inicialVenta = parseFloat(d.inicial) || 0;
-        var saldoOriginal = totalVenta - inicialVenta;
-        var ultimaCuotaReal = window.calcUltimaCuota(totalVenta, inicialVenta, valCuotaReal, numCuotas);
-        
-        // 🟢 FIX: Filtro robusto multinivel (Busca por ID exacto inyectado por el backend o coincidencia de texto)
-        var abonosCliente = (window.D.historial || []).filter(h => {
-            var matchId = (h.idVenta === idVenta || h.ID_Venta === idVenta || h.id_venta === idVenta);
-            var matchDesc = h.desc && (h.desc.includes(idVenta) || (h.tipo && h.tipo.includes('abono') && h.desc.toLowerCase().includes(d.cliente.toLowerCase())));
-            return matchId || matchDesc;
-        });
+    var d = window.D.deudores.find(x => x.idVenta === idVenta);
+    if (!d) return alert("Error: Deuda no encontrada en memoria.");
+    
+    var msg = `👑 *KING'S SHOP* 👑\n\n`;
+    msg += `Hola 👋.\n\n`;
+    msg += `Te compartimos el estado de tu crédito por el *${d.producto}* 📦:\n\n`;
+    
+    if ((d.deudaInicial || 0) > 0) {
+        msg += `⚠️ *Aviso:* Aún tienes un saldo pendiente de ${window.COP.format(d.deudaInicial)} correspondiente a la Cuota Inicial.\n\n`;
+        msg += `⏳ *Saldo Total Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        msg += `Una vez cubiertas las iniciales, te enviaremos el extracto de tus cuotas. 🤝`;
+    } else {
+        var valCuotaReal = parseFloat(d.valCuota) || 0;
+        var numCuotas = parseInt(d.cuotas) || 1;
+        var totalVenta = parseFloat(d.total) || 0;
+        var inicialVenta = parseFloat(d.inicial) || 0;
+        var saldoOriginal = totalVenta - inicialVenta;
+        var ultimaCuotaReal = window.calcUltimaCuota(totalVenta, inicialVenta, valCuotaReal, numCuotas);
+        
+        var abonosCliente = (window.D.historial || []).filter(h => {
+            var matchId = (h.idTransaccion === idVenta || h.idVenta === idVenta || h.ID_Venta === idVenta);
+            var matchDesc = h.desc && (h.desc.includes(idVenta) || (h.tipo && h.tipo.includes('abono') && h.desc.toLowerCase().includes(d.cliente.toLowerCase())));
+            return matchId || matchDesc;
+        });
 
-        var historialTxt = "";
-        
-        if (inicialVenta > 0 || abonosCliente.length > 0) {
-            historialTxt += `\n📝 *Historial de Pagos:*\n`;
-            if (inicialVenta > 0) {
-                // Previene duplicar la inicial si el backend ya la integró al historial
-                var inicialEnHistorial = abonosCliente.some(ab => parseFloat(ab.monto) === inicialVenta && ab.desc && ab.desc.toLowerCase().includes('inicial'));
-                if (!inicialEnHistorial) {
-                    historialTxt += `🔸 Cuota Inicial: ${window.COP.format(inicialVenta)}\n`;
-                }
-            }
-            if (abonosCliente.length > 0) {
-                var abonosCopia = [...abonosCliente].reverse();
-                abonosCopia.forEach(ab => {
-                    historialTxt += `🔸 ${ab.fecha}: ${window.COP.format(ab.monto)}\n`;
-                });
-            }
-            historialTxt += `\n`;
-        }
+        var historialTxt = "";
+        
+        if (inicialVenta > 0 || abonosCliente.length > 0) {
+            historialTxt += `\n📝 *Últimos Pagos Registrados:*\n`;
+            if (inicialVenta > 0) {
+                var inicialEnHistorial = abonosCliente.some(ab => parseFloat(ab.monto) === inicialVenta && ab.desc && ab.desc.toLowerCase().includes('inicial'));
+                if (!inicialEnHistorial) {
+                    historialTxt += `🔸 Cuota Inicial: ${window.COP.format(inicialVenta)}\n`;
+                }
+            }
+            if (abonosCliente.length > 0) {
+                var abonosCopia = [...abonosCliente].reverse();
+                abonosCopia.forEach(ab => {
+                    historialTxt += `🔸 ${ab.fecha}: ${window.COP.format(ab.monto)}\n`;
+                });
+            }
+            historialTxt += `\n`;
+        }
 
-        if (valCuotaReal > 0 && numCuotas > 1) {
-            var totalAbonado = totalVenta - d.saldo;
-            if (totalAbonado < 0) totalAbonado = 0;
-            
-            var abonadoACuotas = saldoOriginal - d.saldo;
-            if (abonadoACuotas < 0) abonadoACuotas = 0;
-            var cuotasCubiertas = (abonadoACuotas / valCuotaReal).toFixed(1);
-            if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
+        if (valCuotaReal > 0 && numCuotas > 1) {
+            var totalAbonado = totalVenta - d.saldo;
+            if (totalAbonado < 0) totalAbonado = 0;
+            
+            var abonadoACuotas = saldoOriginal - d.saldo;
+            if (abonadoACuotas < 0) abonadoACuotas = 0;
+            var cuotasCubiertas = (abonadoACuotas / valCuotaReal).toFixed(1);
+            if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
 
-            msg += `💰 *Valor Total:* ${window.COP.format(totalVenta)}\n`;
-            msg += `💳 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
-            
-            if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
-                 msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
-            }
-            
-            msg += `✅ *Total Abonado:* ${window.COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
-            msg += historialTxt;
-            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        } else {
-            msg += historialTxt;
-            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
-        }
-        msg += `Cualquier duda estamos a tu disposición. 🤝`;
-    }
-    
-    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
-    window.open(url, '_blank');
+            msg += `💰 *Valor Total:* ${window.COP.format(totalVenta)}\n`;
+            msg += `💳 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
+            
+            if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
+                 msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
+            }
+            
+            msg += `✅ *Total Abonado:* ${window.COP.format(totalAbonado)} (Aprox. ${cuotasCubiertas} cuotas cubiertas)\n`;
+            msg += historialTxt;
+            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        } else {
+            msg += historialTxt;
+            msg += `⏳ *Saldo Pendiente:* ${window.COP.format(d.saldo)}\n\n`;
+        }
+        msg += `Cualquier duda estamos a tu disposición. 🤝`;
+    }
+    
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
 }
 
 function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
