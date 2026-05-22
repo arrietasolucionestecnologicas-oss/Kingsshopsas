@@ -1,9 +1,9 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v86 - UPDATE FORCE
+ * 👑 KINGSHOP SERVICE WORKER v87 - UPDATE FORCE
  * - Versión crítica: Rutas corregidas para caché modular ES6.
  */
 
-const CACHE_NAME = 'kingshop-v86-cache';
+const CACHE_NAME = 'kingshop-v87-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
