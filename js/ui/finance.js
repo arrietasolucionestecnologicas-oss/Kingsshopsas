@@ -473,28 +473,41 @@ function compartirBalanceWA(idVenta) {
     } else {
         var valCuotaReal = parseFloat(d.valCuota) || 0;
         var numCuotas = parseInt(d.cuotas) || 1;
-        var saldoOriginal = (parseFloat(d.total) || 0) - (parseFloat(d.inicial) || 0);
-        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
+        var totalVenta = parseFloat(d.total) || 0;
+        var inicialVenta = parseFloat(d.inicial) || 0;
+        var saldoOriginal = totalVenta - inicialVenta;
+        var ultimaCuotaReal = window.calcUltimaCuota(totalVenta, inicialVenta, valCuotaReal, numCuotas);
         
         var abonosCliente = (window.D.historial || []).filter(h => h.tipo === 'abono' && h.desc.toLowerCase().includes(d.cliente.toLowerCase()));
         var historialTxt = "";
-        if (abonosCliente.length > 0) {
-            var abonosCopia = [...abonosCliente].reverse();
+        
+        if (inicialVenta > 0 || abonosCliente.length > 0) {
             historialTxt += `\n📝 *Historial de Pagos:*\n`;
-            abonosCopia.forEach(ab => {
-                historialTxt += `🔸 ${ab.fecha}: ${window.COP.format(ab.monto)}\n`;
-            });
+            if (inicialVenta > 0) {
+                historialTxt += `🔸 Cuota Inicial: ${window.COP.format(inicialVenta)}\n`;
+            }
+            if (abonosCliente.length > 0) {
+                var abonosCopia = [...abonosCliente].reverse();
+                abonosCopia.forEach(ab => {
+                    historialTxt += `🔸 ${ab.fecha}: ${window.COP.format(ab.monto)}\n`;
+                });
+            }
             historialTxt += `\n`;
         }
 
         if (valCuotaReal > 0 && numCuotas > 1) {
-            var totalAbonado = saldoOriginal - d.saldo;
+            // FIX: Total abonado incluye la inicial
+            var totalAbonado = totalVenta - d.saldo;
             if (totalAbonado < 0) totalAbonado = 0;
             
-            var cuotasCubiertas = (totalAbonado / valCuotaReal).toFixed(1);
+            // Cuotas cubiertas se calculan solo sobre lo abonado a la deuda financiada
+            var abonadoACuotas = saldoOriginal - d.saldo;
+            if (abonadoACuotas < 0) abonadoACuotas = 0;
+            var cuotasCubiertas = (abonadoACuotas / valCuotaReal).toFixed(1);
             if (cuotasCubiertas.endsWith('.0')) cuotasCubiertas = parseInt(cuotasCubiertas);
 
-            msg += `💰 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
+            msg += `💰 *Valor Total:* ${window.COP.format(totalVenta)}\n`;
+            msg += `💳 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
             
             if (Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) {
                  msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
