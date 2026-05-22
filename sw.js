@@ -3,7 +3,7 @@
  * - Versión crítica: Rutas corregidas para caché modular ES6.
  */
 
-const CACHE_NAME = 'kingshop-v87-cache';
+const CACHE_NAME = 'kingshop-v88-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
