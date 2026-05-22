@@ -541,13 +541,11 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
 
     var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
-    // FIX 1: Priorizar fecha cruda ISO para cálculos matemáticos
     window.refFechaLimiteOriginal = dObj ? (dObj.fechaLimiteRaw || dObj.fechaLimite) : null;
+    window.refInicialOriginal = dObj ? (parseFloat(dObj.inicial) || 0) : 0;
     window.refDescProntoPago  = 0;
 
-    // FIX 2: Separar la cuota inicial para conocer las cuotas reales pagadas
-    var inicial = dObj ? (parseFloat(dObj.inicial) || 0) : 0;
-    var montoFinanciado = window.refTotalOriginal - inicial;
+    var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
     var montoCuotasPagado = montoFinanciado - window.refSaldoActual;
     var cuotasPagadas = (window.refValCuota > 0) ? Math.floor(montoCuotasPagado / window.refValCuota) : 0;
     
@@ -566,6 +564,9 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     var dd   = String(today.getDate()).padStart(2, '0');
     document.getElementById('ref-fecha').value = `${yyyy}-${mm}-${dd}`;
 
+    // Reset factor a 0.8 por defecto al abrir
+    window.refFactorIncentivo = 0.8;
+
     calcRefinanciamiento();
     if(window.myModalRefinanciar) window.myModalRefinanciar.show();
 }
@@ -577,12 +578,14 @@ function calcRefinanciamiento() {
     var restantes  = window.refCuotasRestantes || 1;
     var nuevaFecha = document.getElementById('ref-fecha').value;
 
+    var elFactor = document.getElementById('ref-factor-incentivo');
+    if (elFactor) window.refFactorIncentivo = parseFloat(elFactor.value) || 0;
+
     var cuotasExtra = cuotas - restantes;
     var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
 
     window.refDescProntoPago = 0;
     if(window.refFechaLimiteOriginal && nuevaFecha) {
-        // FIX 3: Convertir fecha DD/MM/YYYY a YYYY-MM-DD si es necesario
         var fOrigStr = window.refFechaLimiteOriginal;
         if(fOrigStr.includes('/')) {
             var parts = fOrigStr.split('/');
@@ -596,7 +599,9 @@ function calcRefinanciamiento() {
             var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
             if(diffDias >= 10) { 
                 var mesesAdelanto = diffDias / 30;
-                window.refDescProntoPago = saldo * (tasa / 100) * mesesAdelanto;
+                var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
+                var interesMensualProyectado = montoFinanciado * (tasa / 100);
+                window.refDescProntoPago = interesMensualProyectado * mesesAdelanto * window.refFactorIncentivo;
             }
         }
     }
@@ -624,14 +629,18 @@ function calcRefinanciamiento() {
             html += `<div class="text-success mt-1 small">✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
         }
 
-        if(window.refDescProntoPago > 0) {
+        if(window.refDescProntoPago > 0 || aplicarProntoPago) {
             html += `
             <div class="mt-2 p-2 border border-success rounded bg-light">
-                <div class="form-check form-switch">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="small fw-bold text-success mb-0">🎯 Factor Multiplicador:</label>
+                    <input type="number" id="ref-factor-incentivo" class="form-control form-control-sm border-success text-success fw-bold text-end" style="width: 70px;" value="${window.refFactorIncentivo}" step="0.1" min="0" oninput="window.calcRefinanciamiento()">
+                </div>
+                <div class="form-check form-switch mt-2">
                     <input class="form-check-input" type="checkbox" id="chk-pronto-pago" onchange="window.calcRefinanciamiento()" ${aplicarProntoPago ? 'checked' : ''}>
                     <label class="form-check-label small fw-bold text-success" for="chk-pronto-pago">
                         💡 Aplicar Dto. Pronto Pago: -${window.COP.format(window.refDescProntoPago)}<br>
-                        <small class="text-muted">(Ahorro por adelantar fecha)</small>
+                        <small class="text-muted">(Basado en base inicial)</small>
                     </label>
                 </div>
             </div>`;
@@ -645,7 +654,6 @@ function calcRefinanciamiento() {
     window.refCargoCalculado = cargoTotal;
     window.refTasaUsada      = tasa;
 }
-
 function procesarRefinanciamiento() {
     const unlock = window.lockBtn();
 
