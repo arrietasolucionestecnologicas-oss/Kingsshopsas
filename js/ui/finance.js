@@ -1,5 +1,5 @@
 /* ARCHIVO: js/ui/finance.js - Motor Financiero KING'S SHOP */
-
+var _procesandoAbono = false;
 function renderFin() { 
     var s = document.getElementById('ab-cli'); 
     s.innerHTML = '<option value="">Seleccione...</option>'; 
@@ -758,80 +758,100 @@ function castigarDeuda(id, nombre) {
 }
 
 function doAbono() {
+    // ── Capa 1: mutex de módulo ────────────────────────────────────
+    // Persiste en memoria JS aunque renderCartera/renderFin
+    // reconstruyan el DOM y creen un botón nuevo habilitado.
+    if (_procesandoAbono) {
+        alert('⏳ Ya hay un abono en proceso. Espera la confirmación del servidor antes de reintentar.');
+        return;
+    }
+    _procesandoAbono = true;
+    // ──────────────────────────────────────────────────────────────
+
     const unlock = window.lockBtn();
 
+    // Función interna que libera ambas capas de bloqueo.
+    // Llamar siempre —y solo— desde .then() y .catch().
+    const liberar = function() {
+        _procesandoAbono = false;
+        unlock();
+    };
+
     var id = document.getElementById('ab-cli').value;
-    if(!id) { unlock(); return alert("Seleccione un cliente"); }
-    
-    var txt = document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text;
-    var cli = txt.split(' - ')[0].trim();
-    var monto = document.getElementById('ab-monto').value;
-    var fechaVal = document.getElementById('ab-fecha').value;
-    
-    var abonoNum = parseFloat(monto) || 0;
-    if(abonoNum <= 0) { unlock(); return alert("Verifique el monto ingresado"); }
-
-    // 🟢 FIX: Snapshot de Memoria para Rollback Completo
-    var snapSaldo = window.D.metricas ? window.D.metricas.saldo : 0;
-    var snapHist = window.D.historial ? [...window.D.historial] : [];
-    var snapDeudores = window.D.deudores ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
-
-    if(window.D.metricas) window.D.metricas.saldo += abonoNum;
-    
-    var dIndex = window.D.deudores.findIndex(x => x.idVenta === id);
-    if(dIndex > -1) {
-        window.D.deudores[dIndex].saldo -= abonoNum;
-        if(window.D.deudores[dIndex].saldo < 0) window.D.deudores[dIndex].saldo = 0;
-        if(window.D.deudores[dIndex].saldo <= 100) {
-            window.D.deudores[dIndex].estado = 'Pagado';
-        }
+    if (!id) {
+        liberar();
+        return alert("Seleccione un cliente");
     }
-    
-    window.D.historial.unshift({ 
-        desc: "Abono: " + cli, 
-        tipo: "abono", 
-        monto: abonoNum, 
-        fecha: fechaVal || new Date().toISOString().split('T')[0], 
-        saldo: window.D.metricas ? window.D.metricas.saldo : 0 
+
+    var txt      = document.getElementById('ab-cli').options[document.getElementById('ab-cli').selectedIndex].text;
+    var cli      = txt.split(' - ')[0].trim();
+    var monto    = document.getElementById('ab-monto').value;
+    var fechaVal = document.getElementById('ab-fecha').value;
+
+    var abonoNum = parseFloat(monto) || 0;
+    if (abonoNum <= 0) {
+        liberar();
+        return alert("Verifique el monto ingresado");
+    }
+
+    var snapSaldo    = window.D.metricas ? window.D.metricas.saldo : 0;
+    var snapHist     = window.D.historial ? [...window.D.historial] : [];
+    var snapDeudores = window.D.deudores  ? JSON.parse(JSON.stringify(window.D.deudores)) : [];
+
+    if (window.D.metricas) window.D.metricas.saldo += abonoNum;
+
+    var dIndex = window.D.deudores.findIndex(x => x.idVenta === id);
+    if (dIndex > -1) {
+        window.D.deudores[dIndex].saldo -= abonoNum;
+        if (window.D.deudores[dIndex].saldo < 0)   window.D.deudores[dIndex].saldo = 0;
+        if (window.D.deudores[dIndex].saldo <= 100) window.D.deudores[dIndex].estado = 'Pagado';
+    }
+
+    window.D.historial.unshift({
+        desc  : "Abono: " + cli,
+        tipo  : "abono",
+        monto : abonoNum,
+        fecha : fechaVal || new Date().toISOString().split('T')[0],
+        saldo : window.D.metricas ? window.D.metricas.saldo : 0
     });
-    
-    // 🟢 FIX: Re-indexación dinámica
+
     window.D.historial.forEach((item, i) => item._originalIndex = i);
-    
+
     document.getElementById('ab-monto').value = '';
     renderCartera();
     renderFin();
-    
+
     var bCaja = document.getElementById('bal-caja');
-    if(bCaja && window.D.metricas) bCaja.innerText = window.COP.format(window.D.metricas.saldo||0);
-    
-    if(window.showToast) window.showToast("Abono registrado", "success");
-    
+    if (bCaja && window.D.metricas) bCaja.innerText = window.COP.format(window.D.metricas.saldo || 0);
+
+    if (window.showToast) window.showToast("⏳ Registrando abono...", "info");
+
     window.callAPI('registrarAbono', {idVenta: id, monto: monto, cliente: cli, fecha: fechaVal})
         .then(r => {
-            if(!r.exito) {
-                // Rollback
-                if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            if (!r.exito) {
+                if (window.D.metricas) window.D.metricas.saldo = snapSaldo;
                 window.D.historial = snapHist;
-                window.D.deudores = snapDeudores;
+                window.D.deudores  = snapDeudores;
                 renderCartera();
                 renderFin();
                 var bC = document.getElementById('bal-caja');
-                if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+                if (bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo || 0);
                 alert("Error al registrar abono: " + r.error);
+            } else {
+                if (window.showToast) window.showToast("✅ Abono registrado", "success");
             }
-            unlock();
-        }).catch(e => {
-            // Rollback
-            if(window.D.metricas) window.D.metricas.saldo = snapSaldo;
+            liberar();
+        })
+        .catch(e => {
+            if (window.D.metricas) window.D.metricas.saldo = snapSaldo;
             window.D.historial = snapHist;
-            window.D.deudores = snapDeudores;
+            window.D.deudores  = snapDeudores;
             renderCartera();
             renderFin();
             var bC = document.getElementById('bal-caja');
-            if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
+            if (bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo || 0);
             alert("Error de red al registrar abono.");
-            unlock();
+            liberar();
         });
 }
 
