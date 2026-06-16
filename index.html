@@ -15,14 +15,14 @@
   <style>
     /* --- TEMA PREMIUM: BLACK & GOLD --- */
     :root { 
-        --primary: #000000;      /* Negro Puro */
-        --gold: #d4af37;         /* Dorado Premium */
-        --gold-hover: #b59020;   /* Dorado Oscuro */
-        --light: #f8f9fa;        /* Gris suave */
-        --dark: #212529;         /* Texto oscuro */
+        --primary: #000000;
+        --gold: #d4af37;
+        --gold-hover: #b59020;
+        --light: #f8f9fa;
+        --dark: #212529;
         --bg: #f4f4f9;
-        --s: #2ecc71; /* Verde éxito */
-        --d: #e74c3c; /* Rojo error */
+        --s: #2ecc71;
+        --d: #e74c3c;
     }
 
     body { 
@@ -33,7 +33,6 @@
         color: var(--dark); 
     }
 
-    /* HEADER */
     .header { 
         background-color: var(--primary); 
         color: white; 
@@ -46,7 +45,6 @@
         border-bottom: 2px solid var(--gold);
     }
 
-    /* INDICADOR OFFLINE */
     #offline-indicator {
         background-color: #ffc107;
         color: #000;
@@ -57,13 +55,11 @@
         display: none;
     }
 
-    /* LAYOUT VENTAS */
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
     .list-column { flex: 1; min-width: 0; }
     .panel-column { width: 350px; position: sticky; top: 10px; display: none; } 
     @media (min-width: 992px) { .panel-column { display: block; } }
 
-    /* --- ESTILO VENTA: LISTA COMPACTA (POS) --- */
     .pos-row-lite {
         background: white;
         padding: 12px 15px;
@@ -83,7 +79,6 @@
     .pos-row-lite .meta { font-size: 0.75rem; color: #888; }
     .pos-row-lite .price { font-weight: 700; font-size: 1.1rem; color: var(--gold-hover); text-align: right; white-space: nowrap; }
     
-    /* --- ESTILO CATÁLOGO: GRID (STOCK) --- */
     .catalog-grid {
         display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
     }
@@ -132,11 +127,9 @@
     }
     .btn-copy-mini:hover { background: var(--primary); color: var(--gold); border-color: var(--primary); }
 
-    /* PANEL COTIZADOR */
     .cotizador-panel { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
     .input-line { border:none; border-bottom: 2px solid #eee; width:100%; text-align:center; font-weight:bold; outline:none; color: var(--primary); }
 
-    /* PANEL MOVIL */
     .mobile-panel { position: fixed; bottom: 0; left: 0; width: 100%; background: white; z-index: 5000; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 30px rgba(0,0,0,0.3); transform: translateY(110%); transition: transform 0.3s; max-height: 85vh; overflow-y: auto; }
     .mobile-panel.visible { transform: translateY(0); }
 
@@ -151,7 +144,6 @@
     }
     .card-balance h1 { color: white; }
 
-    /* SCROLL HORIZONTAL */
     .scroll-menu {
         display: flex;
         overflow-x: auto;
@@ -200,7 +192,6 @@
     .card-debt { border-left: 4px solid var(--d); position: relative; }
     .card-debt .badge-debt { background: var(--d); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
 
-    /* OVERRIDES BOOTSTRAP */
     .btn-primary, .btn-dark { background-color: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .btn-primary:hover, .btn-dark:hover { background-color: #333 !important; border-color: #333 !important; color: var(--gold) !important; }
     
@@ -218,7 +209,6 @@
 
     #modalEditItem { z-index: 6000 !important; }
 
-    /* MODAL RADIOGRAFÍA FINANCIERA */
     .rad-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px dashed var(--gold); }
     .rad-label { color: #888; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 2px; display: block; font-weight:bold; }
     .rad-val { font-size: 1.1rem; font-weight: bold; color: var(--primary); }
@@ -466,10 +456,23 @@
        <div class="text-end mb-2">
           <a href="#" onclick="window.toggleDatosFormales(); return false;" class="small text-muted" style="text-decoration: none;">⚙️ Añadir datos formales (NIT, Tel)</a>
        </div>
+
+       <!-- ═══════════════════════════════════════════════════════════ -->
+       <!-- CAMBIO 1: Se agrega mb-2 a #c-tel y se añade campo #c-imei -->
+       <!-- ═══════════════════════════════════════════════════════════ -->
        <div id="box-datos-formales" style="display:none; background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #ddd;">
           <input id="c-nit" class="form-control form-control-sm mb-2" placeholder="NIT / Cédula">
-          <input id="c-tel" class="form-control form-control-sm" placeholder="Teléfono / WhatsApp">
+          <input id="c-tel" class="form-control form-control-sm mb-2" placeholder="Teléfono / WhatsApp">
+          <input id="c-imei"
+                 type="text"
+                 class="form-control form-control-sm"
+                 placeholder="IMEI del dispositivo (solo celulares)"
+                 maxlength="17"
+                 autocomplete="off"
+                 inputmode="numeric"
+                 style="font-family: monospace; letter-spacing: 1px;">
        </div>
+       <!-- ═══════════════════════════════════════════════════════════ -->
 
        <select id="c-metodo" class="form-select mb-2" onchange="window.toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
        <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Monto Inicial Personalizado" disabled style="display:none; background:#e9ecef;">
@@ -521,11 +524,26 @@
                 <span class="small fw-bold text-muted" id="rad-fecha">00/00/0000</span>
             </div>
 
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!-- CAMBIO 2: Se añade #rad-imei-row después de #rad-prod     -->
+            <!-- ══════════════════════════════════════════════════════════ -->
             <div class="rad-box">
                 <span class="rad-label">Cliente / Beneficiario</span>
                 <div class="rad-val" id="rad-cliente" style="color: var(--gold-hover) !important;">...</div>
                 <div class="small mt-1 fw-bold text-muted" id="rad-prod">...</div>
+                <div class="d-flex justify-content-between align-items-center mt-2"
+                     id="rad-imei-row"
+                     style="display:none;">
+                    <small class="fw-bold text-muted">
+                        <i class="fas fa-mobile-alt"></i> IMEI:
+                    </small>
+                    <span id="rad-imei"
+                          class="badge bg-dark"
+                          style="font-family: monospace; letter-spacing: 1px; font-size: 0.75rem;">
+                    </span>
+                </div>
             </div>
+            <!-- ══════════════════════════════════════════════════════════ -->
 
             <div class="row g-2 mb-3">
                 <div class="col-6">
@@ -852,7 +870,7 @@
     </div>
   </div>
 
-<div class="modal fade" id="modalRefinanciar" tabindex="-1">
+  <div class="modal fade" id="modalRefinanciar" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -860,15 +878,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-
                 <label class="small fw-bold text-muted">Cliente</label>
                 <input id="ref-cliente" class="form-control mb-2 bg-light" readonly>
-
                 <label class="small fw-bold text-muted">Saldo Actual</label>
                 <input id="ref-saldo-actual" class="form-control mb-2 bg-light text-danger fw-bold" readonly>
-
                 <small class="text-muted d-block mb-3" id="ref-cuotas-orig"></small>
-
                 <div class="row g-2 mb-2">
                     <div class="col-6">
                         <label class="small fw-bold">Tasa interés por cuota extra (%)</label>
@@ -879,12 +893,9 @@
                         <input type="number" id="ref-cuotas" class="form-control" value="1" min="1" oninput="window.calcRefinanciamiento()">
                     </div>
                 </div>
-
                 <div id="ref-aviso-cargo" class="alert alert-warning py-2 px-3 mb-2" style="display:none; font-size:0.85rem;"></div>
-
                 <label class="small fw-bold">Nueva Fecha de Pago</label>
                 <input type="date" id="ref-fecha" class="form-control mb-3 border-primary">
-
                 <div class="alert alert-light border border-primary text-center">
                     <small class="d-block text-muted">Proyección Nuevo Acuerdo:</small>
                     <div class="d-flex justify-content-between mt-2">
@@ -894,17 +905,14 @@
                         <span>Nueva Cuota:</span><strong id="ref-nueva-cuota" class="text-primary">$0 / mes</strong>
                     </div>
                 </div>
-
                 <div class="d-flex gap-2 mt-3">
                     <button class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
                     <button class="btn btn-primary w-50 fw-bold" onclick="window.procesarRefinanciamiento()">Guardar Acuerdo</button>
                 </div>
-
             </div>
         </div>
     </div>
-</div>
-
+  </div>
 
   <div class="modal fade" id="modalLoginApp" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -925,56 +933,58 @@
   <datalist id="list-prods-all"></datalist>
   <datalist id="g-vinculo-list"></datalist>
   <datalist id="list-clientes"></datalist>
+
   <div class="modal fade" id="modalEditItem" tabindex="-1" style="z-index: 6000 !important;">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title fw-bold" style="color: var(--primary);">✏️ Editar Ítem del Carrito</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="edit-item-id">
-        <div class="mb-2">
-          <label class="small fw-bold text-muted">Nombre del Ítem</label>
-          <input type="text" id="edit-item-nombre" class="form-control fw-bold" style="color: var(--primary);">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold" style="color: var(--primary);">✏️ Editar Ítem del Carrito</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="row g-2 mb-2">
-          <div class="col-6">
-            <label class="small fw-bold text-muted">Costo Base ($)</label>
-            <input type="number" id="edit-item-costo" class="form-control" oninput="window.calcEditorItem()">
+        <div class="modal-body">
+          <input type="hidden" id="edit-item-id">
+          <div class="mb-2">
+            <label class="small fw-bold text-muted">Nombre del Ítem</label>
+            <input type="text" id="edit-item-nombre" class="form-control fw-bold" style="color: var(--primary);">
           </div>
-          <div class="col-6">
-            <label class="small fw-bold text-muted">Margen (%)</label>
-            <input type="number" id="edit-item-margen" class="form-control" oninput="window.calcEditorItem()">
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="small fw-bold text-muted">Costo Base ($)</label>
+              <input type="number" id="edit-item-costo" class="form-control" oninput="window.calcEditorItem()">
+            </div>
+            <div class="col-6">
+              <label class="small fw-bold text-muted">Margen (%)</label>
+              <input type="number" id="edit-item-margen" class="form-control" oninput="window.calcEditorItem()">
+            </div>
           </div>
-        </div>
-        <div class="mb-2">
-          <label class="small fw-bold text-muted">Descuento Individual (%)</label>
-          <input type="number" id="edit-item-desc" class="form-control text-danger" value="0" oninput="window.calcEditorItem()">
-        </div>
-        <div class="mb-3">
-          <label class="small fw-bold text-muted">Precio Final Pactado ($) <span class="text-muted fw-normal">(opcional — sobreescribe margen)</span></label>
-          <div class="input-group">
-            <input type="number" id="edit-item-precio-pactado" class="form-control border-warning" placeholder="Ej: 150000" oninput="window.calcEditorItem()">
-            <button class="btn btn-warning fw-bold" onclick="window.aplicarPrecioPactado()">Aplicar</button>
+          <div class="mb-2">
+            <label class="small fw-bold text-muted">Descuento Individual (%)</label>
+            <input type="number" id="edit-item-desc" class="form-control text-danger" value="0" oninput="window.calcEditorItem()">
           </div>
-        </div>
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" id="edit-item-iva" onchange="window.calcEditorItem()">
-          <label class="form-check-label small fw-bold" for="edit-item-iva">Aplicar IVA 19% a este ítem</label>
-        </div>
-        <div class="alert alert-light border text-center py-2 mb-3" style="border-color: var(--gold) !important;">
-          <small class="text-muted">Precio unitario resultante:</small><br>
-          <strong id="edit-item-total" class="fs-5" style="color: var(--primary);">$0</strong>
-        </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary w-50 fw-bold" onclick="window.guardarEditorItem()">Guardar Cambios</button>
+          <div class="mb-3">
+            <label class="small fw-bold text-muted">Precio Final Pactado ($) <span class="text-muted fw-normal">(opcional — sobreescribe margen)</span></label>
+            <div class="input-group">
+              <input type="number" id="edit-item-precio-pactado" class="form-control border-warning" placeholder="Ej: 150000" oninput="window.calcEditorItem()">
+              <button class="btn btn-warning fw-bold" onclick="window.aplicarPrecioPactado()">Aplicar</button>
+            </div>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="edit-item-iva" onchange="window.calcEditorItem()">
+            <label class="form-check-label small fw-bold" for="edit-item-iva">Aplicar IVA 19% a este ítem</label>
+          </div>
+          <div class="alert alert-light border text-center py-2 mb-3" style="border-color: var(--gold) !important;">
+            <small class="text-muted">Precio unitario resultante:</small><br>
+            <strong id="edit-item-total" class="fs-5" style="color: var(--primary);">$0</strong>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary w-50" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary w-50 fw-bold" onclick="window.guardarEditorItem()">Guardar Cambios</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script>
