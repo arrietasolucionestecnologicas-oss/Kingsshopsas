@@ -367,83 +367,85 @@ function toggleIni() {
     updateCartUI(true); 
 }
 
-function clearCart() { 
-    window.CART = []; 
+function clearCart() {
+    window.CART = [];
     window.usuarioForzoInicial = false;
-    
+
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
-        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = 'Contado';
-        if(parent.querySelector('#c-inicial')) { 
-            parent.querySelector('#c-inicial').value = ''; 
-            parent.querySelector('#c-inicial').style.background = '#fff'; 
+        if(parent.querySelector('#c-metodo'))    parent.querySelector('#c-metodo').value = 'Contado';
+        if(parent.querySelector('#c-inicial')) {
+            parent.querySelector('#c-inicial').value = '';
+            parent.querySelector('#c-inicial').style.background = '#fff';
             parent.querySelector('#c-inicial').placeholder = 'Monto Inicial Personalizado';
         }
-        if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = '0';
-        if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = '';
-        if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = false;
-        if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = 'Mensual';
-        if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = '';
+        if(parent.querySelector('#c-desc'))              parent.querySelector('#c-desc').value = '0';
+        if(parent.querySelector('#c-concepto'))          parent.querySelector('#c-concepto').value = '';
+        if(parent.querySelector('#c-vip'))               parent.querySelector('#c-vip').checked = false;
+        if(parent.querySelector('#c-frecuencia'))        parent.querySelector('#c-frecuencia').value = 'Mensual';
+        if(parent.querySelector('#c-primer-pago'))       parent.querySelector('#c-primer-pago').value = '';
         if(parent.querySelector('#c-incluir-politicas')) parent.querySelector('#c-incluir-politicas').checked = false;
+        if(parent.querySelector('#c-imei'))              parent.querySelector('#c-imei').value = '';
         parent.removeAttribute('data-cotizacion-id');
     });
-    renderPos(); 
-    updateCartUI(); 
+
+    renderPos();
+    updateCartUI();
 }
 
 function guardarCotizacionActual() {
     var desktopCart = document.getElementById('desktop-cart-container');
-    var mobileCart = document.getElementById('mobile-cart');
-    
+    var mobileCart  = document.getElementById('mobile-cart');
+
     var cliDesktop = desktopCart ? desktopCart.querySelector('#c-cliente').value : "";
-    var cliMobile = mobileCart ? mobileCart.querySelector('#c-cliente').value : "";
+    var cliMobile  = mobileCart  ? mobileCart.querySelector('#c-cliente').value  : "";
     var cli = cliDesktop || cliMobile;
-    
+
     if(!cli) return alert("Falta Cliente");
-    
+
     var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
     if(!parent) return;
     if(window.CART.length === 0 && !parent.querySelector('#c-concepto').value && window.calculatedValues.total <= 0) return alert("El carrito está vacío");
 
     var paquete = {
-        id: parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now()),
-        fecha: parent.querySelector('#c-fecha').value || new Date().toISOString().split('T')[0],
-        cliente: cli,
-        nit: parent.querySelector('#c-nit') ? parent.querySelector('#c-nit').value : '',
-        tel: parent.querySelector('#c-tel') ? parent.querySelector('#c-tel').value : '',
-        metodo: parent.querySelector('#c-metodo').value,
-        cuotas: parent.querySelector('#c-cuotas').value,
-        iva: parent.querySelector('#c-iva').checked,
-        manual: parent.querySelector('#c-manual').checked,
-        util: parent.querySelector('#c-util').value,
-        desc: parent.querySelector('#c-desc').value,
-        int: parent.querySelector('#c-int').value,
-        target: parent.querySelector('#c-target').value,
-        concepto: parent.querySelector('#c-concepto').value,
-        eximir: parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
+        id       : parent.getAttribute('data-cotizacion-id') || ('COT-' + Date.now()),
+        fecha    : parent.querySelector('#c-fecha').value || new Date().toISOString().split('T')[0],
+        cliente  : cli,
+        nit      : parent.querySelector('#c-nit')  ? parent.querySelector('#c-nit').value  : '',
+        tel      : parent.querySelector('#c-tel')  ? parent.querySelector('#c-tel').value  : '',
+        metodo   : parent.querySelector('#c-metodo').value,
+        cuotas   : parent.querySelector('#c-cuotas').value,
+        iva      : parent.querySelector('#c-iva').checked,
+        manual   : parent.querySelector('#c-manual').checked,
+        util     : parent.querySelector('#c-util').value,
+        desc     : parent.querySelector('#c-desc').value,
+        int      : parent.querySelector('#c-int').value,
+        target   : parent.querySelector('#c-target').value,
+        concepto : parent.querySelector('#c-concepto').value,
+        eximir   : parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false,
         politicas: parent.querySelector('#c-incluir-politicas') ? parent.querySelector('#c-incluir-politicas').checked : false,
-        inicialPersonalizada: window.usuarioForzoInicial,
-        inicialValor: window.calculatedValues.inicial,
-        valorCuota: window.calculatedValues.valorCuota,
-        ultimaCuota: window.calculatedValues.ultimaCuota,
-        frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
-        primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
-        cart: JSON.parse(JSON.stringify(window.CART)),
-        total: window.calculatedValues.total
+        inicialPersonalizada : window.usuarioForzoInicial,
+        inicialValor  : window.calculatedValues.inicial,
+        valorCuota    : window.calculatedValues.valorCuota,
+        ultimaCuota   : window.calculatedValues.ultimaCuota,
+        frecuencia    : parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
+        primerPago    : parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
+        imei          : parent.querySelector('#c-imei') ? parent.querySelector('#c-imei').value.trim() : "",
+        cart  : JSON.parse(JSON.stringify(window.CART)),
+        total : window.calculatedValues.total
     };
 
     var idx = window.D.cotizaciones.findIndex(x => x.id === paquete.id);
-    if(idx > -1) { 
-        window.D.cotizaciones[idx] = paquete; 
-    } else { 
-        window.D.cotizaciones.unshift(paquete); 
+    if(idx > -1) {
+        window.D.cotizaciones[idx] = paquete;
+    } else {
+        window.D.cotizaciones.unshift(paquete);
     }
 
     if(window.showToast) window.showToast("Cotización guardada", "success");
     clearCart();
     window.callAPI('guardarCotizacion', paquete);
-}
-
+}    
 function abrirModalCotizaciones() { 
     renderCotizaciones(); 
     if(window.myModalCotizaciones) window.myModalCotizaciones.show(); 
@@ -480,43 +482,44 @@ function renderCotizaciones() {
 }
 
 function cargarCotizacion(id) {
-    var cot = window.D.cotizaciones.find(x => x.id === id); 
+    var cot = window.D.cotizaciones.find(x => x.id === id);
     if(!cot) return;
-    
-    window.CART = JSON.parse(JSON.stringify(cot.cart)); 
+
+    window.CART = JSON.parse(JSON.stringify(cot.cart));
     window.usuarioForzoInicial = cot.inicialPersonalizada || false;
-    
+
     [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')].forEach(parent => {
         if(!parent) return;
-        
-        if(parent.querySelector('#c-cliente')) parent.querySelector('#c-cliente').value = cot.cliente || '';
-        if(parent.querySelector('#c-nit')) parent.querySelector('#c-nit').value = cot.nit || '';
-        if(parent.querySelector('#c-tel')) parent.querySelector('#c-tel').value = cot.tel || '';
-        if(parent.querySelector('#c-fecha')) parent.querySelector('#c-fecha').value = cot.fecha || '';
-        if(parent.querySelector('#c-metodo')) parent.querySelector('#c-metodo').value = cot.metodo || 'Contado';
-        if(parent.querySelector('#c-cuotas')) parent.querySelector('#c-cuotas').value = cot.cuotas || 1;
-        if(parent.querySelector('#c-iva')) parent.querySelector('#c-iva').checked = cot.iva || false;
-        if(parent.querySelector('#c-manual')) parent.querySelector('#c-manual').checked = cot.manual || false;
-        if(parent.querySelector('#c-util')) parent.querySelector('#c-util').value = cot.util || 30;
-        if(parent.querySelector('#c-desc')) parent.querySelector('#c-desc').value = cot.desc || 0;
-        if(parent.querySelector('#c-int')) parent.querySelector('#c-int').value = cot.int || 5;
-        if(parent.querySelector('#c-target')) parent.querySelector('#c-target').value = cot.target || '';
-        if(parent.querySelector('#c-concepto')) parent.querySelector('#c-concepto').value = cot.concepto || '';
-        if(parent.querySelector('#c-vip')) parent.querySelector('#c-vip').checked = cot.eximir || false;
-        if(parent.querySelector('#c-incluir-politicas')) parent.querySelector('#c-incluir-politicas').checked = cot.politicas || false;
-        if(parent.querySelector('#c-frecuencia')) parent.querySelector('#c-frecuencia').value = cot.frecuencia || 'Mensual';
-        if(parent.querySelector('#c-primer-pago')) parent.querySelector('#c-primer-pago').value = cot.primerPago || '';
-        
+
+        if(parent.querySelector('#c-cliente'))          parent.querySelector('#c-cliente').value          = cot.cliente   || '';
+        if(parent.querySelector('#c-nit'))              parent.querySelector('#c-nit').value              = cot.nit       || '';
+        if(parent.querySelector('#c-tel'))              parent.querySelector('#c-tel').value              = cot.tel       || '';
+        if(parent.querySelector('#c-fecha'))            parent.querySelector('#c-fecha').value            = cot.fecha     || '';
+        if(parent.querySelector('#c-metodo'))           parent.querySelector('#c-metodo').value           = cot.metodo    || 'Contado';
+        if(parent.querySelector('#c-cuotas'))           parent.querySelector('#c-cuotas').value           = cot.cuotas    || 1;
+        if(parent.querySelector('#c-iva'))              parent.querySelector('#c-iva').checked             = cot.iva       || false;
+        if(parent.querySelector('#c-manual'))           parent.querySelector('#c-manual').checked          = cot.manual    || false;
+        if(parent.querySelector('#c-util'))             parent.querySelector('#c-util').value             = cot.util      || 30;
+        if(parent.querySelector('#c-desc'))             parent.querySelector('#c-desc').value             = cot.desc      || 0;
+        if(parent.querySelector('#c-int'))              parent.querySelector('#c-int').value              = cot.int       || 5;
+        if(parent.querySelector('#c-target'))           parent.querySelector('#c-target').value           = cot.target    || '';
+        if(parent.querySelector('#c-concepto'))         parent.querySelector('#c-concepto').value         = cot.concepto  || '';
+        if(parent.querySelector('#c-vip'))              parent.querySelector('#c-vip').checked             = cot.eximir    || false;
+        if(parent.querySelector('#c-incluir-politicas'))parent.querySelector('#c-incluir-politicas').checked = cot.politicas || false;
+        if(parent.querySelector('#c-frecuencia'))       parent.querySelector('#c-frecuencia').value       = cot.frecuencia || 'Mensual';
+        if(parent.querySelector('#c-primer-pago'))      parent.querySelector('#c-primer-pago').value      = cot.primerPago || '';
+        if(parent.querySelector('#c-imei'))             parent.querySelector('#c-imei').value             = cot.imei      || '';
+
         if(parent.querySelector('#c-inicial') && window.usuarioForzoInicial) {
             parent.querySelector('#c-inicial').value = cot.inicialValor || 0;
         }
-        
+
         parent.setAttribute('data-cotizacion-id', id);
     });
-    
+
     if(window.myModalCotizaciones) window.myModalCotizaciones.hide();
     if(window.showToast) window.showToast("Cotización cargada", "info");
-    
+
     updateCartUI(true);
 }
 
@@ -553,35 +556,38 @@ function finalizarVenta() {
        return el ? el.value : "";
    };
 
-   var cli = getVal('#c-cliente'); 
+   var cli = getVal('#c-cliente');
    if(!cli) return alert("Falta Cliente");
-   
+
    if(window.calculatedValues.total <= 0) return alert("Precio 0 no permitido");
 
-   var nit = getVal('#c-nit');
-   var tel = getVal('#c-tel');
+   var nit      = getVal('#c-nit');
+   var tel      = getVal('#c-tel');
    var concepto = getVal('#c-concepto');
    var fechaVal = getVal('#c-fecha');
-   
+   var imei     = parent.querySelector('#c-imei') ? parent.querySelector('#c-imei').value.trim() : "";
+
    var itemsData = [];
    if(window.CART.length > 0) {
-       window.CART.forEach(p => { 
+       window.CART.forEach(p => {
            for (var i = 0; i < (p.cantidad || 1); i++) {
-               itemsData.push({ 
-                   nombre: p.nombre, 
-                   cat: p.cat, 
-                   costo: p.costo, 
-                   precioVenta: p.precioUnitarioFinal || 0 
-               }); 
+               itemsData.push({
+                   nombre: p.nombre,
+                   cat: p.cat,
+                   costo: p.costo,
+                   precioVenta: p.precioUnitarioFinal || 0
+               });
            }
        });
    } else {
-       var costoManual = window.calculatedValues.base === 0 ? Math.round(window.calculatedValues.total / 1.3) : window.calculatedValues.base;
-       itemsData.push({ 
-           nombre: concepto || "Venta Manual", 
-           cat: "General", 
-           costo: costoManual, 
-           precioVenta: window.calculatedValues.total 
+       var costoManual = window.calculatedValues.base === 0
+         ? Math.round(window.calculatedValues.total / 1.3)
+         : window.calculatedValues.base;
+       itemsData.push({
+           nombre: concepto || "Venta Manual",
+           cat: "General",
+           costo: costoManual,
+           precioVenta: window.calculatedValues.total
        });
    }
 
@@ -590,60 +596,53 @@ function finalizarVenta() {
        var sumaItemsBase = itemsData.reduce((a, b) => a + b.precioVenta, 0);
        var difInteres = window.calculatedValues.total - sumaItemsBase;
        if (difInteres > 0.01 && itemsData.length > 0) {
-           itemsData.forEach(item => { 
+           itemsData.forEach(item => {
                var peso = sumaItemsBase > 0 ? (item.precioVenta / sumaItemsBase) : (1 / itemsData.length);
-               item.precioVenta = Math.round(item.precioVenta + (difInteres * peso)); 
+               item.precioVenta = Math.round(item.precioVenta + (difInteres * peso));
            });
        }
    }
-   
-   var isEximir = parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false;
-   var cotId = parent.getAttribute('data-cotizacion-id');
 
-   var d = { 
-       items: itemsData, 
-       cliente: cli, 
-       nit: nit,
-       telefono: tel,
-       metodo: metodo, 
-       inicial: (metodo === 'Crédito') ? window.calculatedValues.inicial : 0, 
-       inicialPersonalizada: window.usuarioForzoInicial, 
-       eximirInicial: isEximir, 
-       vendedor: window.currentUserAlias, 
-       fechaPersonalizada: fechaVal, 
-       cuotas: parseInt(parent.querySelector('#c-cuotas').value) || 1, 
-       idCotizacion: cotId,
-       frecuencia: parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
-       primerPago: parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "" 
+   var isEximir = parent.querySelector('#c-vip') ? parent.querySelector('#c-vip').checked : false;
+   var cotId    = parent.getAttribute('data-cotizacion-id');
+
+   var d = {
+       items            : itemsData,
+       cliente          : cli,
+       nit              : nit,
+       telefono         : tel,
+       metodo           : metodo,
+       inicial          : (metodo === 'Crédito') ? window.calculatedValues.inicial : 0,
+       inicialPersonalizada : window.usuarioForzoInicial,
+       eximirInicial    : isEximir,
+       vendedor         : window.currentUserAlias,
+       fechaPersonalizada : fechaVal,
+       cuotas           : parseInt(parent.querySelector('#c-cuotas').value) || 1,
+       idCotizacion     : cotId,
+       frecuencia       : parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual",
+       primerPago       : parent.querySelector('#c-primer-pago') ? parent.querySelector('#c-primer-pago').value : "",
+       imei             : imei
    };
-   
-   var btn = parent.querySelector('#btn-vender-main'); 
-   if(btn) { 
-       btn.innerText = "Procesando..."; 
-       btn.disabled = true; 
-   }
-   
-   window.callAPI('procesarVentaCarrito', d).then(r => { 
-       if(btn) { 
-           btn.innerText = "✅ VENDER / FACTURAR"; 
-           btn.disabled = false; 
-       }
-       if(r.exito) { 
+
+   var btn = parent.querySelector('#btn-vender-main');
+   if(btn) { btn.innerText = "Procesando..."; btn.disabled = true; }
+
+   window.callAPI('procesarVentaCarrito', d).then(r => {
+       if(btn) { btn.innerText = "✅ VENDER / FACTURAR"; btn.disabled = false; }
+       if(r.exito) {
            if(r.offline) {
-               alert("Venta guardada OFFLINE. Se subirá cuando haya internet."); 
+               alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
            } else {
-               if(window.showToast) window.showToast("¡Venta Registrada con Éxito!", "success"); 
+               if(window.showToast) window.showToast("¡Venta Registrada con Éxito!", "success");
            }
-           
            if(cotId) {
                window.D.cotizaciones = window.D.cotizaciones.filter(x => x.id !== cotId);
            }
-           
-           clearCart(); 
-           if(window.loadData && !r.offline) window.loadData(true); 
-       } else { 
-           alert(r.error); 
-       } 
+           clearCart();
+           if(window.loadData && !r.offline) window.loadData(true);
+       } else {
+           alert(r.error);
+       }
    });
 }
 
