@@ -1127,45 +1127,57 @@ function comprarPedido(id, nombreProd) {
 
 function abrirRadiografia(idVenta) {
     var v = window.D.deudores.find(x => x.idVenta === idVenta) || window.D.ultimasVentas.find(x => x.id === idVenta);
-    
+
     if(!v) return alert("Detalle no disponible en memoria rápida.");
-    
+
     var safeNum = function(val) {
         if (val === undefined || val === null || val === '') return 0;
         var parsed = parseFloat(String(val).replace(/[^0-9.-]+/g, ''));
         return isNaN(parsed) ? 0 : parsed;
     };
-    
-    document.getElementById('rad-id').innerText = v.idVenta || v.id;
-    document.getElementById('rad-fecha').innerText = v.fechaStr || "Sin fecha";
-    document.getElementById('rad-cliente').innerText = v.cliente || "Cliente";
-    document.getElementById('rad-prod').innerText = v.producto || "Producto";
-    
-    document.getElementById('rad-total').innerText = window.COP.format(safeNum(v.total));
-    document.getElementById('rad-metodo').innerText = (v.metodo || "Crédito").toUpperCase();
-    document.getElementById('rad-costo').innerText = window.COP.format(safeNum(v.costo));
+
+    document.getElementById('rad-id').innerText      = v.idVenta || v.id;
+    document.getElementById('rad-fecha').innerText   = v.fechaStr || "Sin fecha";
+    document.getElementById('rad-cliente').innerText = v.cliente  || "Cliente";
+    document.getElementById('rad-prod').innerText    = v.producto || "Producto";
+
+    document.getElementById('rad-total').innerText    = window.COP.format(safeNum(v.total));
+    document.getElementById('rad-metodo').innerText   = (v.metodo || "Crédito").toUpperCase();
+    document.getElementById('rad-costo').innerText    = window.COP.format(safeNum(v.costo));
     document.getElementById('rad-ganancia').innerText = window.COP.format(safeNum(v.ganancia));
-    
+
     document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
     document.getElementById('rad-vendedor').innerText = v.vendedor || "Sistema";
-    
+
+    // ── IMEI ─────────────────────────────────────────────────────
+    var imeiRow = document.getElementById('rad-imei-row');
+    var imeiEl  = document.getElementById('rad-imei');
+    if (imeiEl) {
+        if (v.imei && String(v.imei).trim() !== "") {
+            imeiEl.innerText = String(v.imei).trim();
+            if (imeiRow) imeiRow.style.display = 'flex';
+        } else {
+            if (imeiRow) imeiRow.style.display = 'none';
+        }
+    }
+    // ─────────────────────────────────────────────────────────────
+
     var boxDeuda = document.getElementById('box-deuda');
     if (v.estado === 'Pagado') {
         boxDeuda.style.borderColor = '#2ecc71';
-        document.getElementById('rad-saldo').innerText = 'PAZ Y SALVO';
-        document.getElementById('rad-saldo').className = 'rad-val text-success';
-        document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(safeNum(v.inicial))}`;
+        document.getElementById('rad-saldo').innerText   = 'PAZ Y SALVO';
+        document.getElementById('rad-saldo').className   = 'rad-val text-success';
+        document.getElementById('rad-plan').innerText    = `Inicial: ${window.COP.format(safeNum(v.inicial))}`;
     } else {
         boxDeuda.style.borderColor = '#e74c3c';
-        document.getElementById('rad-saldo').innerText = window.COP.format(safeNum(v.saldo));
-        document.getElementById('rad-saldo').className = 'rad-val text-danger';
-        
-        var cuotas = parseInt(v.cuotas) || 1;
+        document.getElementById('rad-saldo').innerText   = window.COP.format(safeNum(v.saldo));
+        document.getElementById('rad-saldo').className   = 'rad-val text-danger';
+
+        var cuotas   = parseInt(v.cuotas) || 1;
         var valCuota = safeNum(v.valCuota);
-        
-        // 🟢 FIX CUOTA RESIDUAL EN RADIOGRAFÍA (USANDO UTILS)
+
         var ultimaCuota = window.calcUltimaCuota(safeNum(v.total), safeNum(v.inicial), valCuota, cuotas);
-        
+
         var cuotaTxt = "";
         if (cuotas > 1) {
             if (Math.abs(ultimaCuota - valCuota) > 1 && ultimaCuota > 0) {
@@ -1176,10 +1188,10 @@ function abrirRadiografia(idVenta) {
         } else {
             cuotaTxt = `Pago único pendiente`;
         }
-        
+
         document.getElementById('rad-plan').innerText = `Inicial: ${window.COP.format(safeNum(v.inicial))} | ${cuotaTxt}`;
     }
-    
+
     if(window.myModalRadiografia) window.myModalRadiografia.show();
 }
 
