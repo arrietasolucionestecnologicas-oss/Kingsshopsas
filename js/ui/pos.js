@@ -765,28 +765,28 @@ window.calcCart = function() {
         return el.value;
     };
 
-    var cuotas = parseInt(getVal('#c-cuotas', 1)) || 1;
-    var metodo = getVal('#c-metodo', 'Contado');
-    var conIvaGlobal = getVal('#c-iva', false);
-    var isManual = getVal('#c-manual', false);
-    var utilGlobal = parseFloat(getVal('#c-util', 30)) || 0; 
-    var descuentoGlobalPrc = parseFloat(getVal('#c-desc', 0)) || 0; 
-    var tasaMensual = parseFloat(getVal('#c-int', 5)) || 0; 
-    var targetValStr = getVal('#c-target', "");
-    var targetVal = parseFloat(targetValStr);
-    var tieneTarget = !isNaN(targetVal) && targetVal > 0;
-    var isEximir = getVal('#c-vip', false);
-   
-    var baseParaCalculo = 0; 
-    var totalFinal = 0; 
-    var descuentoDineroTotal = 0; 
+    var cuotas             = parseInt(getVal('#c-cuotas', 1)) || 1;
+    var metodo             = getVal('#c-metodo', 'Contado');
+    var conIvaGlobal       = getVal('#c-iva', false);
+    var isManual           = getVal('#c-manual', false);
+    var utilGlobal         = parseFloat(getVal('#c-util', 30)) || 0;
+    var descuentoGlobalPrc = parseFloat(getVal('#c-desc', 0)) || 0;
+    var tasaMensual        = parseFloat(getVal('#c-int', 5)) || 0;
+    var targetValStr       = getVal('#c-target', "");
+    var targetVal          = parseFloat(targetValStr);
+    var tieneTarget        = !isNaN(targetVal) && targetVal > 0;
+    var isEximir           = getVal('#c-vip', false);
+
+    var baseParaCalculo    = 0;
+    var totalFinal         = 0;
+    var descuentoDineroTotal = 0;
 
     if (window.CART && window.CART.length > 0) {
         window.CART.forEach(item => {
-            let c = item.costo || 0; 
+            let c = item.costo || 0;
             let q = item.cantidad || 1;
             let precioLista = 0;
-            
+
             if (c > 0) {
                 let m = item.modificadoManualmente ? item.margenIndividual : utilGlobal;
                 precioLista = c * (1 + m / 100);
@@ -796,40 +796,42 @@ window.calcCart = function() {
 
             let dPrc = descuentoGlobalPrc > 0 ? descuentoGlobalPrc : (item.descuentoIndividual || 0);
             let descuentoDinero = tieneTarget ? 0 : precioLista * (dPrc / 100);
-            
+
             descuentoDineroTotal += (descuentoDinero * q);
-            
+
             let px = Math.max(0, precioLista - descuentoDinero);
             if (item.conIva || conIvaGlobal) px *= 1.19;
-            
+
             item.precioUnitarioFinal = px;
-            
+
             let baseCostoEstimado = c > 0 ? c : (precioLista / 1.3);
             baseParaCalculo += (baseCostoEstimado * q);
-            totalFinal += (px * q);
+            totalFinal      += (px * q);
         });
     } else {
         var resContInput = activeParent.querySelector('#res-cont-input');
-        var manualVal = resContInput ? parseFloat(resContInput.value) : 0;
-        baseParaCalculo = isNaN(manualVal) ? 0 : manualVal;
-        
+        var manualVal    = resContInput ? parseFloat(resContInput.value) : 0;
+        baseParaCalculo  = isNaN(manualVal) ? 0 : manualVal;
+
         let precioListaBruto = baseParaCalculo * (1 + utilGlobal / 100);
         descuentoDineroTotal = tieneTarget ? 0 : precioListaBruto * (descuentoGlobalPrc / 100);
-        
+
         totalFinal = Math.max(0, precioListaBruto - descuentoDineroTotal);
-        if (conIvaGlobal) totalFinal *= 1.19; 
+        if (conIvaGlobal) totalFinal *= 1.19;
     }
 
     if (tieneTarget) {
-        totalFinal = targetVal;
+        totalFinal           = targetVal;
         descuentoDineroTotal = 0;
-        
-        if(activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
-        
+
+        if (activeParent.querySelector('#c-desc')) activeParent.querySelector('#c-desc').value = 0;
+
         if (window.CART && window.CART.length > 0) {
             let totalPrevio = window.CART.reduce((acc, b) => acc + ((b.precioUnitarioFinal || 0) * b.cantidad), 0);
             window.CART.forEach(item => {
-                let peso = totalPrevio > 0 ? ((item.precioUnitarioFinal || 0) * item.cantidad) / totalPrevio : 1 / window.CART.length;
+                let peso = totalPrevio > 0
+                    ? ((item.precioUnitarioFinal || 0) * item.cantidad) / totalPrevio
+                    : 1 / window.CART.length;
                 item.precioUnitarioFinal = (targetVal * peso) / item.cantidad;
             });
         }
@@ -838,49 +840,60 @@ window.calcCart = function() {
     totalFinal = Math.round(totalFinal / 100) * 100;
 
     if (metodo === "Crédito") {
-        var iniTemp = Math.round((totalFinal * 0.30) / 100) * 100;
+        var iniTemp   = Math.round((totalFinal * 0.30) / 100) * 100;
         var saldoTemp = Math.max(0, totalFinal - iniTemp);
-        var interesTotal = saldoTemp * (tasaMensual / 100) * cuotas;
+
+        // ── FIX QUINCENAL: tasa por periodo ──────────────────────────
+        // Quincenal = 15 días = medio mes.
+        // Usar la misma tasa mensual inflaría el costo al doble.
+        // Se divide entre 2 para que el costo financiero sea proporcional
+        // al tiempo real de cada periodo de pago.
+        var frecuenciaActual = getVal('#c-frecuencia') || "Mensual";
+        var tasaPorPeriodo   = frecuenciaActual === "Quincenal"
+            ? (tasaMensual / 2) / 100
+            : tasaMensual / 100;
+        // ─────────────────────────────────────────────────────────────
+
+        var interesTotal = saldoTemp * tasaPorPeriodo * cuotas;
         totalFinal = totalFinal + interesTotal;
         totalFinal = Math.round(totalFinal / 100) * 100;
     }
 
-    var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
-    var inpInicial = activeParent.querySelector('#c-inicial');
+    var metaInicial  = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
+    var inpInicial   = activeParent.querySelector('#c-inicial');
     var isTypingInicial = (document.activeElement && document.activeElement === inpInicial);
-    
+
     var inicial = 0;
     if (isTypingInicial) {
-        if (inpInicial && inpInicial.value === "") { 
-            window.usuarioForzoInicial = false; 
-            inicial = isEximir ? 0 : metaInicial; 
-        } else if (inpInicial) { 
-            window.usuarioForzoInicial = true; 
-            inicial = parseFloat(inpInicial.value) || 0; 
+        if (inpInicial && inpInicial.value === "") {
+            window.usuarioForzoInicial = false;
+            inicial = isEximir ? 0 : metaInicial;
+        } else if (inpInicial) {
+            window.usuarioForzoInicial = true;
+            inicial = parseFloat(inpInicial.value) || 0;
         }
-    } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") { 
-        inicial = parseFloat(inpInicial.value) || 0; 
-    } else { 
-        window.usuarioForzoInicial = false; 
-        inicial = isEximir ? 0 : metaInicial; 
+    } else if (window.usuarioForzoInicial && inpInicial && inpInicial.value !== "") {
+        inicial = parseFloat(inpInicial.value) || 0;
+    } else {
+        window.usuarioForzoInicial = false;
+        inicial = isEximir ? 0 : metaInicial;
     }
-   
+
     var faltanteInicial = Math.max(0, metaInicial - inicial);
-    
-    var valorCuota = 0;
+
+    var valorCuota  = 0;
     var ultimaCuota = 0;
-    
-    // 🟢 FIX MEDIO: Bucle seguro para Cuota Residual
-    if(metodo === "Crédito") {
+
+    if (metodo === "Crédito") {
         var saldo = Math.max(0, totalFinal - inicial);
-        
+
         if (cuotas === 1) {
-            valorCuota = saldo;
+            valorCuota  = saldo;
             ultimaCuota = saldo;
         } else {
-            valorCuota = Math.round((saldo / cuotas) / 100) * 100;
+            valorCuota  = Math.round((saldo / cuotas) / 100) * 100;
             ultimaCuota = saldo - (valorCuota * (cuotas - 1));
-            
+
             while (ultimaCuota <= 0 && valorCuota >= 100) {
                 valorCuota -= 100;
                 ultimaCuota = saldo - (valorCuota * (cuotas - 1));
@@ -889,17 +902,20 @@ window.calcCart = function() {
     }
 
     if (!window.calculatedValues) window.calculatedValues = {};
-    window.calculatedValues.inicial = inicial;
-    window.calculatedValues.base = baseParaCalculo; 
-    window.calculatedValues.total = totalFinal;
-    window.calculatedValues.descuento = descuentoDineroTotal;
+    window.calculatedValues.inicial    = inicial;
+    window.calculatedValues.base       = baseParaCalculo;
+    window.calculatedValues.total      = totalFinal;
+    window.calculatedValues.descuento  = descuentoDineroTotal;
     window.calculatedValues.valorCuota = valorCuota;
     window.calculatedValues.ultimaCuota = ultimaCuota;
 
-    var panels = [document.getElementById('desktop-cart-container'), document.getElementById('mobile-cart')];
-   
+    var panels = [
+        document.getElementById('desktop-cart-container'),
+        document.getElementById('mobile-cart')
+    ];
+
     panels.forEach(parent => {
-        if(!parent) return;
+        if (!parent) return;
 
         if (parent !== activeParent) {
             const syncVal = (selector, val) => {
@@ -909,22 +925,22 @@ window.calcCart = function() {
                     else el.value = val;
                 }
             };
-            syncVal('#c-cuotas', cuotas);
-            syncVal('#c-metodo', metodo);
-            syncVal('#c-iva', conIvaGlobal);
-            syncVal('#c-manual', isManual);
-            syncVal('#c-util', utilGlobal);
-            syncVal('#c-desc', descuentoGlobalPrc);
-            syncVal('#c-int', tasaMensual);
-            syncVal('#c-target', isNaN(targetVal) ? '' : targetVal);
-            syncVal('#c-cliente', getVal('#c-cliente', ""));
-            syncVal('#c-nit', getVal('#c-nit', ""));
-            syncVal('#c-tel', getVal('#c-tel', ""));
-            syncVal('#c-incluir-desc', getVal('#c-incluir-desc', false));
-            syncVal('#c-incluir-politicas', getVal('#c-incluir-politicas', false));
-            syncVal('#c-vip', isEximir);
-            syncVal('#c-frecuencia', getVal('#c-frecuencia', "Mensual"));
-            syncVal('#c-primer-pago', getVal('#c-primer-pago', ""));
+            syncVal('#c-cuotas',           cuotas);
+            syncVal('#c-metodo',           metodo);
+            syncVal('#c-iva',              conIvaGlobal);
+            syncVal('#c-manual',           isManual);
+            syncVal('#c-util',             utilGlobal);
+            syncVal('#c-desc',             descuentoGlobalPrc);
+            syncVal('#c-int',              tasaMensual);
+            syncVal('#c-target',           isNaN(targetVal) ? '' : targetVal);
+            syncVal('#c-cliente',          getVal('#c-cliente', ""));
+            syncVal('#c-nit',              getVal('#c-nit', ""));
+            syncVal('#c-tel',              getVal('#c-tel', ""));
+            syncVal('#c-incluir-desc',     getVal('#c-incluir-desc', false));
+            syncVal('#c-incluir-politicas',getVal('#c-incluir-politicas', false));
+            syncVal('#c-vip',              isEximir);
+            syncVal('#c-frecuencia',       getVal('#c-frecuencia', "Mensual"));
+            syncVal('#c-primer-pago',      getVal('#c-primer-pago', ""));
         }
 
         if (window.CART && window.CART.length > 0) {
@@ -932,7 +948,9 @@ window.calcCart = function() {
             if (listContainer) {
                 var html = '';
                 window.CART.forEach(x => {
-                    var isLocked = x.modificadoManualmente ? `<i class="fas fa-lock" style="font-size:0.6rem; color:var(--gold);"></i>` : '';
+                    var isLocked = x.modificadoManualmente
+                        ? `<i class="fas fa-lock" style="font-size:0.6rem; color:var(--gold);"></i>`
+                        : '';
                     html += `
                     <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
                         <div class="lh-1" style="flex:1;">
@@ -952,16 +970,16 @@ window.calcCart = function() {
             }
         }
 
-        var rowDesc = parent.querySelector('#row-descuento');
+        var rowDesc    = parent.querySelector('#row-descuento');
         var resDescVal = parent.querySelector('#res-desc-val');
-        
-        if(descuentoDineroTotal > 0 && !tieneTarget) {
-            if(rowDesc) { 
-                rowDesc.style.display = 'block'; 
-                if(resDescVal) resDescVal.innerText = "- " + window.COP.format(descuentoDineroTotal); 
+
+        if (descuentoDineroTotal > 0 && !tieneTarget) {
+            if (rowDesc) {
+                rowDesc.style.display = 'block';
+                if (resDescVal) resDescVal.innerText = "- " + window.COP.format(descuentoDineroTotal);
             }
         } else {
-            if(rowDesc) rowDesc.style.display = 'none';
+            if (rowDesc) rowDesc.style.display = 'none';
         }
 
         var pInpInicial = parent.querySelector('#c-inicial');
@@ -969,61 +987,73 @@ window.calcCart = function() {
             if (window.usuarioForzoInicial) {
                 pInpInicial.value = inicial;
             } else {
-                pInpInicial.value = ""; 
+                pInpInicial.value = "";
                 pInpInicial.placeholder = `Sugerido (30%): ${window.COP.format(inicial)}`;
             }
         }
 
-        var rowCred = parent.querySelectorAll('#row-cred'); 
-        var totalText = parent.querySelectorAll('#res-cont');
-        var inputTotal = parent.querySelector('#res-cont-input');
+        var rowCred      = parent.querySelectorAll('#row-cred');
+        var totalText    = parent.querySelectorAll('#res-cont');
+        var inputTotal   = parent.querySelector('#res-cont-input');
         var boxPoliticas = parent.querySelector('#box-politicas');
 
-        if(metodo === "Crédito") {
+        if (metodo === "Crédito") {
             totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
-            if(window.CART && window.CART.length === 0) { 
-                if(inputTotal) inputTotal.style.display = 'inline-block'; 
-            } else { 
-                if(inputTotal) inputTotal.style.display = 'none'; 
-            }
-            
-            var alertaFaltante = faltanteInicial > 0 ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>` : "";
 
-            rowCred.forEach(e => { 
-                e.style.display = 'block'; 
-                if(e.querySelector('#res-ini')) e.querySelector('#res-ini').innerHTML = `${window.COP.format(inicial)} ${alertaFaltante}`; 
-                if(e.querySelector('#res-cuota-val')) e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota); 
-                
-                var fTexto = activeParent.querySelector('#c-frecuencia') ? activeParent.querySelector('#c-frecuencia').value : "Mensual";
-                
+            if (window.CART && window.CART.length === 0) {
+                if (inputTotal) inputTotal.style.display = 'inline-block';
+            } else {
+                if (inputTotal) inputTotal.style.display = 'none';
+            }
+
+            var alertaFaltante = faltanteInicial > 0
+                ? `<br><small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Faltante: ${window.COP.format(faltanteInicial)}</small>`
+                : "";
+
+            rowCred.forEach(e => {
+                e.style.display = 'block';
+                if (e.querySelector('#res-ini'))
+                    e.querySelector('#res-ini').innerHTML = `${window.COP.format(inicial)} ${alertaFaltante}`;
+                if (e.querySelector('#res-cuota-val'))
+                    e.querySelector('#res-cuota-val').innerText = window.COP.format(valorCuota);
+
+                var fTexto = activeParent.querySelector('#c-frecuencia')
+                    ? activeParent.querySelector('#c-frecuencia').value
+                    : "Mensual";
+
                 var txtCuotas = "";
-                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) > 1 && ultimaCuota > 0) {
+                // ── FIX UMBRAL: >= 1 en lugar de > 1 ─────────────────────
+                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) >= 1 && ultimaCuota > 0) {
                     txtCuotas = `x ${cuotas - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
                 } else {
                     txtCuotas = `x ${cuotas} Cuota(s) (${fTexto})`;
                 }
-                
-                if(e.querySelector('#res-cuota-txt')) e.querySelector('#res-cuota-txt').innerText = txtCuotas; 
+                // ─────────────────────────────────────────────────────────
+
+                if (e.querySelector('#res-cuota-txt'))
+                    e.querySelector('#res-cuota-txt').innerText = txtCuotas;
             });
-            
-            if (pInpInicial) { 
-                pInpInicial.style.display = 'block'; 
-                pInpInicial.disabled = false; 
-                pInpInicial.style.background = faltanteInicial > 0 ? '#fff3cd' : '#fff'; 
+
+            if (pInpInicial) {
+                pInpInicial.style.display = 'block';
+                pInpInicial.disabled      = false;
+                pInpInicial.style.background = faltanteInicial > 0 ? '#fff3cd' : '#fff';
             }
             if (boxPoliticas) boxPoliticas.style.display = 'block';
-        } else { 
+
+        } else {
             totalText.forEach(e => { e.innerText = window.COP.format(totalFinal); e.style.display = 'block'; });
+
             if (window.CART && window.CART.length === 0) {
-                if(inputTotal) inputTotal.style.display = 'inline-block';
-                if(isManual) totalText.forEach(e => e.style.display = 'none');
-            } else { 
-                if(inputTotal) inputTotal.style.display = 'none'; 
+                if (inputTotal) inputTotal.style.display = 'inline-block';
+                if (isManual) totalText.forEach(e => e.style.display = 'none');
+            } else {
+                if (inputTotal) inputTotal.style.display = 'none';
             }
-            
-            rowCred.forEach(e => e.style.display = 'none'); 
-            if(pInpInicial) pInpInicial.style.display = 'none'; 
-            if(boxPoliticas) boxPoliticas.style.display = 'none';
+
+            rowCred.forEach(e => e.style.display = 'none');
+            if (pInpInicial) pInpInicial.style.display = 'none';
+            if (boxPoliticas) boxPoliticas.style.display = 'none';
         }
     });
 };
