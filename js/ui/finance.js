@@ -328,25 +328,26 @@ function verificarBanco() {
 }
 
 function renderCartera() {
-    var c = document.getElementById('cartera-list');
+    var c   = document.getElementById('cartera-list');
     var bal = document.getElementById('bal-cartera');
     if(!c) return;
-    
+
     c.innerHTML = '';
-    
-    var activos = (window.D.deudores || []).filter(d => d.estado !== 'Castigado');
+
+    var activos    = (window.D.deudores || []).filter(d => d.estado !== 'Castigado');
     var castigados = (window.D.deudores || []).filter(d => d.estado === 'Castigado');
-    
     var totalDeuda = activos.reduce((acc, d) => acc + d.saldo, 0);
-    
-    if(activos.length === 0) {
+
+    if (activos.length === 0) {
         c.innerHTML = '<div class="text-center text-muted p-5">👏 Excelente, no hay deudas pendientes.</div>';
     } else {
         activos.forEach(d => {
-            var fechaTxt = d.fechaLimite ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>` : '<small class="text-muted">Sin fecha</small>';
+            var fechaTxt = d.fechaLimite
+                ? `<small class="text-muted"><i class="far fa-calendar-alt"></i> Vence: ${d.fechaLimite}</small>`
+                : '<small class="text-muted">Sin fecha</small>';
             var planDetalle = "";
             var badgeAdelanto = "";
-            
+
             if (d.fechaLimiteRaw && (d.deudaInicial || 0) <= 0 && d.saldo > 0) {
                 var fl = new Date(d.fechaLimiteRaw);
                 var hoy = new Date();
@@ -357,26 +358,62 @@ function renderCartera() {
             }
 
             if ((d.deudaInicial || 0) > 0) {
-                planDetalle = `<div class="mt-2 p-2 bg-warning border rounded text-dark" style="font-size:0.85rem;"><div class="d-flex justify-content-between fw-bold"><span><i class="fas fa-exclamation-triangle"></i> Faltante Inicial:</span><span>${window.COP.format(d.deudaInicial)}</span></div></div>`;
+                planDetalle = `<div class="mt-2 p-2 bg-warning border rounded text-dark" style="font-size:0.85rem;">
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span><i class="fas fa-exclamation-triangle"></i> Faltante Inicial:</span>
+                        <span>${window.COP.format(d.deudaInicial)}</span>
+                    </div></div>`;
             } else {
                 var valCuotaReal = parseFloat(d.valCuota) || 0;
-                var numCuotas = parseInt(d.cuotas) || 1;
-                
-                // 🟢 FIX CUOTA RESIDUAL EN CARTERA (USANDO UTILS)
-                var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
-                
-                if(valCuotaReal > 0) {
-                    var cuotasRestantes = (d.saldo / valCuotaReal).toFixed(1);
-                    if(cuotasRestantes.endsWith('.0')) cuotasRestantes = parseInt(cuotasRestantes);
-                    
-                    var cuotaMuestra = (numCuotas > 1 && Math.abs(ultimaCuotaReal - valCuotaReal) > 1 && ultimaCuotaReal > 0) 
-                                       ? `${window.COP.format(valCuotaReal)} <br><small class="text-muted">(Última: ${window.COP.format(ultimaCuotaReal)})</small>` 
-                                       : window.COP.format(valCuotaReal);
+                var numCuotas    = parseInt(d.cuotas) || 1;
 
-                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between"><span>Cuota Fija:</span><strong class="text-end">${cuotaMuestra}</strong></div><div class="d-flex justify-content-between text-danger fw-bold mt-1"><span>Restan:</span><span>${cuotasRestantes} Cuotas</span></div></div>`;
+                // Última cuota teórica del plan original (absorbe redondeo)
+                var ultimaCuotaReal = window.calcUltimaCuota(
+                    parseFloat(d.total)   || 0,
+                    parseFloat(d.inicial) || 0,
+                    valCuotaReal,
+                    numCuotas
+                );
+
+                if (valCuotaReal > 0) {
+                    // ── FIX B+C: usar cuotas RESTANTES, no las originales ─────────
+                    var cuotasRestantesNum = parseFloat((d.saldo / valCuotaReal).toFixed(1));
+                    var cuotasRestantesDisplay = Number.isInteger(cuotasRestantesNum)
+                        ? parseInt(cuotasRestantesNum)
+                        : cuotasRestantesNum;
+
+                    var cuotaMuestra;
+                    if (cuotasRestantesNum <= 1) {
+                        // Última cuota: cobrar exactamente lo que queda
+                        cuotaMuestra = window.COP.format(d.saldo);
+                    } else if (Math.abs(ultimaCuotaReal - valCuotaReal) >= 1 && ultimaCuotaReal > 0) {
+                        // Hay varias cuotas y la última difiere de las regulares
+                        cuotaMuestra = `${window.COP.format(valCuotaReal)} <br>
+                            <small class="text-muted">(Última: ${window.COP.format(ultimaCuotaReal)})</small>`;
+                    } else {
+                        cuotaMuestra = window.COP.format(valCuotaReal);
+                    }
+                    // ─────────────────────────────────────────────────────────────
+
+                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
+                        <div class="d-flex justify-content-between">
+                            <span>${cuotasRestantesNum <= 1 ? 'Cuota Final:' : 'Cuota Fija:'}</span>
+                            <strong class="text-end">${cuotaMuestra}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between text-danger fw-bold mt-1">
+                            <span>Restan:</span>
+                            <span>${cuotasRestantesDisplay} Cuota(s)</span>
+                        </div></div>`;
+
                 } else if (numCuotas > 1 && d.saldo > 0) {
-                    var cuotaEstimada = d.saldo / numCuotas; 
-                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;"><div class="d-flex justify-content-between text-muted"><span>Plan Original:</span><span>${numCuotas} Cuotas</span></div><div class="d-flex justify-content-between text-danger fw-bold"><span>Cuota Aprox:</span><span>${window.COP.format(cuotaEstimada)} (Est)</span></div></div>`;
+                    var cuotaEstimada = d.saldo / numCuotas;
+                    planDetalle = `<div class="mt-2 p-2 bg-light border rounded" style="font-size:0.85rem;">
+                        <div class="d-flex justify-content-between text-muted">
+                            <span>Plan Original:</span><span>${numCuotas} Cuotas</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-danger fw-bold">
+                            <span>Cuota Aprox:</span><span>${window.COP.format(cuotaEstimada)} (Est)</span>
+                        </div></div>`;
                 }
             }
 
@@ -405,59 +442,70 @@ function renderCartera() {
             </div>`;
         });
     }
-    
+
     if (castigados.length > 0) {
         c.innerHTML += `<hr class="my-4"><h6 class="text-muted mb-3"><i class="fas fa-skull-crossbones"></i> Cartera Castigada (${castigados.length})</h6>`;
         castigados.forEach(d => {
-             c.innerHTML += `
-             <div class="card-k bg-light opacity-75">
+            c.innerHTML += `
+            <div class="card-k bg-light opacity-75">
                 <div class="d-flex justify-content-between">
                     <div><strong>${d.cliente}</strong><br><small>${d.producto}</small></div>
-                    <div class="text-end text-muted fw-bold">${window.COP.format(d.saldo)}<br><small class="badge bg-secondary">Castigado</small></div>
+                    <div class="text-end text-muted fw-bold">${window.COP.format(d.saldo)}<br>
+                        <small class="badge bg-secondary">Castigado</small>
+                    </div>
                 </div>
-             </div>`;
+            </div>`;
         });
     }
-    
+
     if(bal) bal.innerText = window.COP.format(totalDeuda);
 }
-
 function notificarCobroWA(idVenta) {
     var d = window.D.deudores.find(x => x.idVenta === idVenta);
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
-    
+
     var msg = `👑 *KING'S SHOP* 👑\n\n`;
     msg += `Hola 👋 espero que estés muy bien! 🌟\n\n`;
-    
+
     if ((d.deudaInicial || 0) > 0) {
         msg += `Pasamos por aquí para recordarte el saldo pendiente de la *Cuota Inicial* de tu compra:\n\n`;
         msg += `📦 *Producto:* ${d.producto}\n`;
         msg += `⚠️ *Faltante Inicial:* ${window.COP.format(d.deudaInicial)}\n\n`;
         msg += `Quedamos muy atentos a tu comprobante de pago para formalizar tu plan. ¡Gracias por tu confianza! 🤝`;
     } else {
-        var valCuotaReal = parseFloat(d.valCuota) || 0;
-        var fechaTxt = d.fechaLimite || "Pago Inmediato";
-        var numCuotas = parseInt(d.cuotas) || 1;
-        var ultimaCuotaReal = window.calcUltimaCuota(parseFloat(d.total)||0, parseFloat(d.inicial)||0, valCuotaReal, numCuotas);
-        var montoCobrar = valCuotaReal;
+        var valCuotaReal  = parseFloat(d.valCuota) || 0;
+        var fechaTxt      = d.fechaLimite || "Pago Inmediato";
+        var numCuotas     = parseInt(d.cuotas) || 1;
+        var ultimaCuotaReal = window.calcUltimaCuota(
+            parseFloat(d.total)   || 0,
+            parseFloat(d.inicial) || 0,
+            valCuotaReal,
+            numCuotas
+        );
 
-        // 🟢 FIX CUOTA RESIDUAL EN COBRO WA
-        if (d.saldo <= (ultimaCuotaReal + 100) && d.saldo > 0 && numCuotas > 1) {
-            montoCobrar = Math.min(d.saldo, ultimaCuotaReal); 
+        // ── FIX F: usar cuotasRestantesNum para detectar última cuota ─────
+        var cuotasRestantesNum = valCuotaReal > 0
+            ? parseFloat((d.saldo / valCuotaReal).toFixed(1))
+            : 1;
+
+        var montoCobrar;
+        if (cuotasRestantesNum <= 1) {
+            // Última cuota: cobrar exactamente lo que queda
+            montoCobrar = d.saldo;
         } else {
             montoCobrar = Math.min(valCuotaReal, d.saldo);
         }
-        
+        // ─────────────────────────────────────────────────────────────────
+
         msg += `Pasamos por aquí para recordarte el pago de tu *${d.producto}* 📦.\n\n`;
         msg += `💳 *${montoCobrar < d.saldo ? "Próxima Cuota" : "Saldo Total"}:* ${window.COP.format(montoCobrar)}\n`;
         msg += `📅 *Fecha de Corte:* ${fechaTxt}\n\n`;
         msg += `Quedamos muy atentos a tus comprobantes. ¡Gracias por tu confianza! 🤝`;
     }
-    
+
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
-
 function compartirBalanceWA(idVenta) {
     var d = window.D.deudores.find(x => x.idVenta === idVenta);
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
