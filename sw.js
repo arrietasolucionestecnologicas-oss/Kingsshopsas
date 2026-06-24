@@ -3,7 +3,7 @@
  * FIX CRÍTICO 9: utils.js añadido al caché
  * FIX BAJO 6   : install con Promise.allSettled (fallo parcial no bloquea)
  */
-const CACHE_NAME = 'kingshop-v89-cache';
+const CACHE_NAME = 'kingshop-v90-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
