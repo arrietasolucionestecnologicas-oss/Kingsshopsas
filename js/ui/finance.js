@@ -563,7 +563,7 @@ function compartirBalanceWA(idVenta) {
             msg += `💰 *Valor Total:* ${window.COP.format(totalVenta)}\n`;
             msg += `💳 *Financiado:* ${window.COP.format(saldoOriginal)} (${numCuotas} Cuotas)\n`;
             
-            if Math.abs(ultimaCuotaReal - valCuotaReal) >= 1 && ultimaCuotaReal > 0) {
+            if (Math.abs(ultimaCuotaReal - valCuotaReal) >= 1 && ultimaCuotaReal > 0) {
                  msg += `📌 *Plan Original:* ${numCuotas - 1} cuotas de ${window.COP.format(valCuotaReal)} y 1 de ${window.COP.format(ultimaCuotaReal)}\n`;
             }
             
