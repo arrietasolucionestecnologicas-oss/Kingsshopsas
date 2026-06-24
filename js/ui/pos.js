@@ -1,5 +1,6 @@
 /* ARCHIVO: js/ui/pos.js - Motor POS KING'S SHOP SAS */
-
+// ── FIX MEDIO 1: Mutex para prevenir doble-submit de venta ────
+var _procesandoVenta = false;
 window.ACTIVE_PANEL = 'desktop'; 
 
 function renderPos() {
@@ -548,9 +549,11 @@ function toggleDatosFormales() {
 }
 
 function finalizarVenta() {
-   var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
-   if(!parent) return;
+   if (_procesandoVenta) return;
+   _procesandoVenta = true;
 
+   var parent = document.getElementById(window.ACTIVE_PANEL === 'mobile' ? 'mobile-cart' : 'desktop-cart-container');
+   if(!parent) { _procesandoVenta = false; return; }
    const getVal = (id) => {
        var el = parent.querySelector(id);
        return el ? el.value : "";
