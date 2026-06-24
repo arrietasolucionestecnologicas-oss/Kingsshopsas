@@ -11,7 +11,7 @@ window.myModalEditItem = window.myModalCotizaciones = window.myModalLogin = wind
 
 window.prodEdit = window.pedEditId = window.movEditObj = window.refEditId = null;
 window.refSaldoActual = 0;
-window.calculatedValues = { total: 0, inicial: 0, base: 0, descuento: 0 };
+window.calculatedValues = { total: 0, inicial: 0, base: 0, descuento: 0, valorCuota: 0, ultimaCuota: 0 };
 window.currentUserAlias = "Anonimo";
 window.usuarioForzoInicial = false;
 
