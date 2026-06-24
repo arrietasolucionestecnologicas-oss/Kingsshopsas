@@ -146,6 +146,7 @@ window.calcUltimaCuota = function(total, inicial, valCuota, numCuotas) {
     return (total - inicial) - (valCuota * (numCuotas - 1));
 };
 
+// DESPUÉS — corregido:
 window.lockBtn = function() {
     var btn = document.activeElement;
     if(btn && btn.tagName === 'BUTTON') { 
@@ -158,7 +159,9 @@ window.lockBtn = function() {
         };
     }
     return function() {};
-    // ── FIX MEDIO 3+10: Escape HTML para prevenir XSS ────────────
+};  // ← llave de cierre que faltaba
+
+// ── FIX MEDIO 3+10: Escape HTML para prevenir XSS ────────────
 window.escHtml = function(str) {
     return String(str || '')
         .replace(/&/g, '&amp;')
