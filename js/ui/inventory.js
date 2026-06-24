@@ -154,7 +154,7 @@ function renderWeb() {
                 <div class="d-flex gap-2 align-items-center">
                     ${img}
                     <div>
-                        <strong>${p.nombre}</strong><br>
+                        <strong>${window.escHtml(p.nombre)}</strong><br>
                         <small class="badge bg-primary">${p.catWeb}</small> 
                         <small class="text-muted">| ${window.COP.format(p.publico)}</small>
                     </div>
@@ -229,7 +229,7 @@ function renderInv() {
             <div class="btn-edit-float" onclick="window.prepararEdicion('${p.id}')"><i class="fas fa-pencil-alt"></i></div>
         </div>
         <div class="cat-body">
-            <div class="cat-title text-truncate" style="white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${p.nombre}</div>
+            <div class="cat-title text-truncate" style="white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">${window.escHtml(p.nombre)}</div>
             <div class="cat-price">${precioDisplay}</div>
             <small class="text-muted" style="font-size:0.7rem;">Costo: ${window.COP.format(p.costo)}</small>
         </div>
@@ -266,7 +266,14 @@ function previewFile() {
 
 function compressImage(file, maxWidth = 800, quality = 0.7) {
     return new Promise((resolve, reject) => {
+        // ── FIX MEDIO 8: rechazar archivos > 15MB ────────────
+        if (file.size > 15 * 1024 * 1024) {
+            reject(new Error('Imagen demasiado grande (máx 15MB). Usa una foto más pequeña.'));
+            return;
+        }
+        // ─────────────────────────────────────────────────────
         const reader = new FileReader();
+        // ... resto igual sin cambios
         reader.readAsDataURL(file);
         reader.onload = event => {
             const img = new Image();
@@ -350,12 +357,19 @@ function guardarCambiosAvanzado() {
     });
 }
 
-function eliminarProductoActual() { 
-    if(confirm("Eliminar?")) { 
-        window.callAPI('eliminarProductoBackend', {id: window.prodEdit.id}).then(r => {
-            if(r.exito) location.reload();
-        }); 
-    } 
+function eliminarProductoActual() {
+    if(confirm("Eliminar?")) {
+        if(window.myModalEdit) window.myModalEdit.hide();
+        window.callAPI('eliminarProductoBackend', { id: window.prodEdit.id, aliasOperador: window.currentUserAlias }).then(r => {
+            if(r.exito) {
+                window.D.inv = window.D.inv.filter(x => x.id !== window.prodEdit.id);
+                if(window.renderInv) window.renderInv();
+                if(window.showToast) window.showToast("Producto eliminado", "success");
+            } else {
+                alert("Error al eliminar: " + r.error);
+            }
+        });
+    }
 }
 
 function generarIDAuto() { 
@@ -431,10 +445,17 @@ function procesarWA() {
     btn.innerText = "Procesando..."; 
     btn.disabled = true; 
     
-    window.callAPI('procesarImportacionDirecta', {prov: p, cat: c, txt: t}).then(r => {
-        alert(r.mensaje || r.error);
-        location.reload();
-    }); 
+  window.callAPI('procesarImportacionDirecta', {prov: p, cat: c, txt: t}).then(r => {
+        if(r.exito) {
+            if(window.showToast) window.showToast(r.mensaje || "Importación completada", "success");
+            if(window.loadData) window.loadData(true);
+        } else {
+            alert(r.error || "Error en importación");
+        }
+        btn.innerText = "Procesar Texto";
+        btn.disabled  = false;
+        if(window.myModalWA) window.myModalWA.hide();
+    });
 }
 
 // Exportaciones Globales
