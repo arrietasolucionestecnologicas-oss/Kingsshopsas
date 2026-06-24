@@ -15,7 +15,6 @@
     .btn-close-dash { background: #e94560; border: none; padding: 8px 20px; color: white; border-radius: 30px; font-weight: bold; font-size: 0.85rem; transition: 0.3s; text-decoration: none; }
     .btn-close-dash:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(233, 69, 96, 0.4); color:white; }
     
-    /* Selector de Mes */
     .filter-group { background: #16213e; margin: 20px; padding: 15px; border-radius: 10px; display: flex; gap: 15px; border: 1px solid #0f3460; align-items: center; flex-wrap: wrap; justify-content: center; }
     .custom-month-input { background: #0f3460; border: 1px solid #4ecca3; color: white; padding: 8px 15px; border-radius: 8px; font-weight: bold; outline: none; }
     .custom-month-input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
@@ -27,8 +26,6 @@
     .kpi-icon { position: absolute; right: -10px; top: -10px; font-size: 4rem; opacity: 0.05; transform: rotate(15deg); }
     .kpi-label { font-size: 0.8rem; text-transform: uppercase; color: #4ecca3; letter-spacing: 1px; margin-bottom: 5px; }
     .kpi-value { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
-    
-    /* CORRECCIÓN DE COLORES TEXT-MUTED */
     .text-muted { color: #aab2bd !important; }
     .kpi-sub { font-size: 0.85rem; margin-top: 8px; color: #aab2bd; }
     
@@ -43,7 +40,6 @@
     .text-pos { color: #4ecca3 !important; } .text-neg { color: #ff4d4d !important; } .text-warn { color: #fca311 !important; }
     #loader { position: fixed; inset: 0; background: rgba(26, 26, 46, 0.95); z-index: 999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
 
-    /* HISTORIAL Y BUSCADOR */
     .search-hist { background: #0f3460; border: 1px solid #4ecca3; color: white; padding: 8px 15px; border-radius: 8px; width: 100%; outline: none; margin-bottom: 15px; }
     .search-hist::placeholder { color: #aab2bd; }
     
@@ -55,7 +51,6 @@
     .bg-pend { background: rgba(255, 77, 77, 0.2); color: #ff4d4d; border: 1px solid #ff4d4d; }
     .bg-pag { background: rgba(78, 204, 163, 0.2); color: #4ecca3; border: 1px solid #4ecca3; }
 
-    /* MODAL RADIOGRAFÍA FINANCIERA */
     .modal-content { background-color: #16213e; color: white; border: 1px solid #4ecca3; border-radius: 15px; }
     .modal-header { border-bottom: 1px solid #0f3460; }
     .modal-title { color: #4ecca3; font-weight: bold; }
@@ -86,7 +81,7 @@
 
     <div class="row g-3 mb-4">
       <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #4ecca3;"><i class="fas fa-dollar-sign kpi-icon"></i><div class="kpi-label">Ventas Brutas</div><div class="kpi-value" id="k-ventas">...</div><div class="kpi-sub text-pos"><i class="fas fa-check-circle"></i> Ingresos Totales</div></div></div>
-      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #fca311;"><i class="fas fa-chart-pie kpi-icon"></i><div class="kpi-label">Margen Real</div><div class="kpi-value" id="k-margen">...%</div><div class="kpi-sub fw-bold" id="k-util-monto">Util: $0</div></div></div>
+      <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #fca311;"><i class="fas fa-chart-pie kpi-icon"></i><div class="kpi-label">Margen Real</div><div class="kpi-value" id="k-margen">...%</div><div class="kpi-sub fw-bold" id="k-util-monto">Util. Neta: $0</div></div></div>
       <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #ff4d4d;"><i class="fas fa-hand-holding-usd kpi-icon"></i><div class="kpi-label">Cartera (Deuda)</div><div class="kpi-value text-neg" id="k-deuda">...</div><div class="kpi-sub">Global Pendiente</div></div></div>
       <div class="col-md-3"><div class="kpi-card" style="border-left: 4px solid #3a86ff;"><i class="fas fa-receipt kpi-icon"></i><div class="kpi-label">Ticket Promedio</div><div class="kpi-value" id="k-ticket">...</div><div class="kpi-sub">Por transacción</div></div></div>
     </div>
@@ -132,13 +127,11 @@
                 <span class="small" id="rad-id" style="color: #aab2bd;">VEN-0000</span>
                 <span class="small" id="rad-fecha" style="color: #aab2bd;">00/00/0000</span>
             </div>
-
             <div class="rad-box">
                 <span class="rad-label">Cliente / Beneficiario</span>
                 <div class="rad-val text-info" id="rad-cliente">...</div>
                 <div class="small mt-1" id="rad-prod" style="color: #aab2bd;">...</div>
             </div>
-
             <div class="row g-2 mb-3">
                 <div class="col-6">
                     <div class="rad-box mb-0 h-100" style="border-color: #fca311;">
@@ -155,7 +148,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="rad-box" style="background: rgba(255, 77, 77, 0.05); border-color: #ff4d4d;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="rad-label text-neg mb-0"><i class="fas fa-lock"></i> Datos Confidenciales</span>
@@ -172,7 +164,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="text-center mt-3">
                 <small style="color: #aab2bd;">Vendedor Responsable: <strong class="text-white" id="rad-vendedor">...</strong></small>
             </div>
@@ -183,142 +174,228 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbzWEqQQTow3irxkTU4Y3CVJshtfjo1s2m1dwSicRihQ42_fArC6L9MAuQoUPUfzzXYS/exec";
 
-    var chartFlow, chartGastos, chartCats;
+    // ── FIX MEDIO: escape HTML para prevenir XSS ──────────────────
+    function escHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    var chartFlow, chartGastos;
     var dataHistorial = [];
     var modalRad;
 
-    window.onload = function() { 
+    window.onload = function() {
         modalRad = new bootstrap.Modal(document.getElementById('modalRadiografia'));
         var hoy = new Date();
-        var mm = String(hoy.getMonth() + 1).padStart(2, '0');
+        var mm   = String(hoy.getMonth() + 1).padStart(2, '0');
         var yyyy = hoy.getFullYear();
-        document.getElementById('input-mes').value = `${yyyy}-${mm}`;
-        loadCustomMonth(); 
+        document.getElementById('input-mes').value = yyyy + '-' + mm;
+        loadCustomMonth();
     };
 
-    async function callAPI(action, data = null) {
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: action, data: data })
-        });
-        const result = await response.json();
-        return result;
-      } catch (e) {
-        alert("Error de conexión: " + e.toString());
-        return { exito: false, error: e.toString() };
-      }
+    // ── FIX MEDIO: añadir aliasOperador al payload ────────────────
+    async function callAPI(action, data) {
+        data = data || {};
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action         : action,
+                    data           : data,
+                    aliasOperador  : localStorage.getItem('kingshop_alias') || 'Dashboard'
+                })
+            });
+            return await response.json();
+        } catch(e) {
+            alert("Error de conexión: " + e.toString());
+            return { exito: false, error: e.toString() };
+        }
     }
 
     function loadCustomMonth() {
         var val = document.getElementById('input-mes').value;
-        if(!val) return;
+        if (!val) return;
         var parts = val.split('-');
         var payload = {
-            anio: parseInt(parts[0]),
-            mes: parseInt(parts[1]) - 1 
+            anio : parseInt(parts[0]),
+            mes  : parseInt(parts[1]) - 1
         };
         document.getElementById('loader').style.display = 'flex';
         callAPI('getDashboardData', payload).then(renderData);
     }
 
     function renderData(data) {
-      document.getElementById('loader').style.display = 'none';
-      document.getElementById('k-ventas').innerText = fmt(data.kpis.ventas);
-      document.getElementById('k-margen').innerText = data.kpis.margen + "%";
-      document.getElementById('k-util-monto').innerText = "Util: " + fmt(data.kpis.utilidad);
-      document.getElementById('k-util-monto').className = data.kpis.utilidad >= 0 ? "kpi-sub text-pos fw-bold" : "kpi-sub text-neg fw-bold";
-      document.getElementById('k-deuda').innerText = fmt(data.kpis.deuda);
-      document.getElementById('k-ticket').innerText = fmt(data.kpis.ticket);
-      renderFlowChart(data.charts.flujoVentas, data.charts.flujoGastos);
-      renderGastosChart(data.charts.gastosLabels, data.charts.gastosData);
-      var htmlCli = "";
-      data.listas.clientes.forEach((c, i) => { htmlCli += `<tr><td><span class="badge-rank">#${i+1}</span> ${c.k}</td><td class="text-end fw-bold text-pos">${fmt(c.v)}</td></tr>`; });
-      document.getElementById('list-clientes').innerHTML = htmlCli || "<tr><td class='text-center' style='color: #aab2bd;'>Sin datos</td></tr>";
-      var htmlSleep = "";
-      data.listas.dormidos.forEach(p => { htmlSleep += `<tr><td>${p.nombre}</td><td class="text-end small" style="color: #4ecca3; font-weight: bold;">Costo: ${fmt(p.costo)}</td></tr>`; });
-      document.getElementById('list-dormidos').innerHTML = htmlSleep || "<tr><td class='text-center' style='color: #aab2bd;'>¡Todo se vendió!</td></tr>";
-      dataHistorial = data.historialOperaciones || [];
-      document.getElementById('count-hist').innerText = dataHistorial.length;
-      renderHistorialTable(dataHistorial);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('k-ventas').innerText  = fmt(data.kpis.ventas);
+        document.getElementById('k-margen').innerText  = data.kpis.margen + "%";
+
+        // ── FIX BAJO: label "Util. Neta" en lugar de "Util" ──────
+        document.getElementById('k-util-monto').innerText   = "Util. Neta: " + fmt(data.kpis.utilidad);
+        document.getElementById('k-util-monto').className   = data.kpis.utilidad >= 0
+            ? "kpi-sub text-pos fw-bold"
+            : "kpi-sub text-neg fw-bold";
+
+        document.getElementById('k-deuda').innerText  = fmt(data.kpis.deuda);
+        document.getElementById('k-ticket').innerText = fmt(data.kpis.ticket);
+
+        renderFlowChart(data.charts.flujoVentas, data.charts.flujoGastos);
+        renderGastosChart(data.charts.gastosLabels, data.charts.gastosData);
+
+        // ── FIX MEDIO: escHtml en top clientes ───────────────────
+        var htmlCli = "";
+        data.listas.clientes.forEach(function(c, i) {
+            htmlCli += '<tr><td><span class="badge-rank">#' + (i+1) + '</span> ' +
+                       escHtml(c.k) + '</td><td class="text-end fw-bold text-pos">' +
+                       fmt(c.v) + '</td></tr>';
+        });
+        document.getElementById('list-clientes').innerHTML =
+            htmlCli || "<tr><td class='text-center' style='color:#aab2bd;'>Sin datos</td></tr>";
+
+        // ── FIX MEDIO: escHtml en productos dormidos ──────────────
+        var htmlSleep = "";
+        data.listas.dormidos.forEach(function(p) {
+            htmlSleep += '<tr><td>' + escHtml(p.nombre) +
+                         '</td><td class="text-end small" style="color:#4ecca3; font-weight:bold;">Costo: ' +
+                         fmt(p.costo) + '</td></tr>';
+        });
+        document.getElementById('list-dormidos').innerHTML =
+            htmlSleep || "<tr><td class='text-center' style='color:#aab2bd;'>¡Todo se vendió!</td></tr>";
+
+        dataHistorial = data.historialOperaciones || [];
+        document.getElementById('count-hist').innerText = dataHistorial.length;
+        renderHistorialTable(dataHistorial);
     }
 
+    // ── FIX BAJO: usar v.id en lugar de index para abrirRadiografia ──
     function renderHistorialTable(lista) {
         var c = document.getElementById('hist-container');
         c.innerHTML = '';
-        if(lista.length === 0) {
-            c.innerHTML = '<div class="text-center mt-5" style="color: #aab2bd;">No hay ventas registradas en este mes.</div>';
+        if (lista.length === 0) {
+            c.innerHTML = '<div class="text-center mt-5" style="color:#aab2bd;">No hay ventas registradas en este mes.</div>';
             return;
         }
-        lista.forEach((v, index) => {
+        lista.forEach(function(v) {
             var isPagado = (v.estado === 'Pagado');
-            var badge = isPagado ? `<span class="h-badge bg-pag">PAGADO</span>` : `<span class="h-badge bg-pend">DEBE ${fmt(v.saldo)}</span>`;
-            c.innerHTML += `
-            <div class="hist-row" onclick="abrirRadiografia(${index})">
-                <div>
-                    <div class="h-cliente">${v.cliente}</div>
-                    <div class="h-prod">${v.producto}</div>
-                    <small style="font-size:0.7rem; color: #aab2bd;">${v.fechaStr} | ${v.id}</small>
-                </div>
-                <div class="text-end">
-                    <div class="fw-bold" style="color:#fca311;">${fmt(v.total)}</div>
-                    <div class="mt-1">${badge}</div>
-                </div>
-            </div>`;
+            var badge    = isPagado
+                ? '<span class="h-badge bg-pag">PAGADO</span>'
+                : '<span class="h-badge bg-pend">DEBE ' + fmt(v.saldo) + '</span>';
+
+            // ── FIX MEDIO: escHtml en renders + id en lugar de index
+            c.innerHTML +=
+                '<div class="hist-row" onclick="abrirRadiografia(\'' + escHtml(v.id) + '\')">' +
+                    '<div>' +
+                        '<div class="h-cliente">'  + escHtml(v.cliente)  + '</div>' +
+                        '<div class="h-prod">'     + escHtml(v.producto) + '</div>' +
+                        '<small style="font-size:0.7rem; color:#aab2bd;">' +
+                            escHtml(v.fechaStr) + ' | ' + escHtml(v.id) +
+                        '</small>' +
+                    '</div>' +
+                    '<div class="text-end">' +
+                        '<div class="fw-bold" style="color:#fca311;">' + fmt(v.total) + '</div>' +
+                        '<div class="mt-1">' + badge + '</div>' +
+                    '</div>' +
+                '</div>';
         });
     }
 
     function filterHistorial() {
         var q = document.getElementById('hist-search').value.toLowerCase().trim();
-        if(!q) { renderHistorialTable(dataHistorial); return; }
-        var filtrados = dataHistorial.filter(v => v.cliente.toLowerCase().includes(q) || v.producto.toLowerCase().includes(q) || v.id.toLowerCase().includes(q));
+        if (!q) { renderHistorialTable(dataHistorial); return; }
+        var filtrados = dataHistorial.filter(function(v) {
+            return v.cliente.toLowerCase().includes(q) ||
+                   v.producto.toLowerCase().includes(q) ||
+                   v.id.toLowerCase().includes(q);
+        });
         renderHistorialTable(filtrados);
     }
 
-    function abrirRadiografia(index) {
-        var v = dataHistorial[index];
-        if(!v) return;
-        document.getElementById('rad-id').innerText = v.id;
-        document.getElementById('rad-fecha').innerText = v.fechaStr;
+    // ── FIX BAJO: recibe id en lugar de index ─────────────────────
+    function abrirRadiografia(idVenta) {
+        var v = dataHistorial.find(function(x) { return x.id === idVenta; });
+        if (!v) return;
+
+        document.getElementById('rad-id').innerText      = v.id;
+        document.getElementById('rad-fecha').innerText   = v.fechaStr;
         document.getElementById('rad-cliente').innerText = v.cliente;
-        document.getElementById('rad-prod').innerText = v.producto;
-        document.getElementById('rad-total').innerText = fmt(v.total);
-        document.getElementById('rad-metodo').innerText = v.metodo.toUpperCase();
-        document.getElementById('rad-costo').innerText = fmt(v.costo);
-        document.getElementById('rad-ganancia').innerText = fmt(v.ganancia);
-        document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
-        document.getElementById('rad-vendedor').innerText = v.vendedor;
+        document.getElementById('rad-prod').innerText    = v.producto;
+        document.getElementById('rad-total').innerText   = fmt(v.total);
+        document.getElementById('rad-metodo').innerText  = v.metodo.toUpperCase();
+        document.getElementById('rad-costo').innerText   = fmt(v.costo);
+        document.getElementById('rad-ganancia').innerText= fmt(v.ganancia);
+        document.getElementById('rad-vendedor').innerText= v.vendedor;
+        document.querySelectorAll('.rad-secret').forEach(function(e) { e.classList.remove('revealed'); });
+
         var boxDeuda = document.getElementById('box-deuda');
         if (v.estado === 'Pagado') {
             boxDeuda.style.borderColor = '#4ecca3';
-            document.getElementById('rad-saldo').innerText = 'PAZ Y SALVO';
-            document.getElementById('rad-saldo').className = 'rad-val text-pos';
-            document.getElementById('rad-plan').innerText = `Inicial: ${fmt(v.inicial)}`;
+            document.getElementById('rad-saldo').innerText   = 'PAZ Y SALVO';
+            document.getElementById('rad-saldo').className   = 'rad-val text-pos';
+            document.getElementById('rad-plan').innerText    = 'Inicial: ' + fmt(v.inicial);
         } else {
             boxDeuda.style.borderColor = '#ff4d4d';
-            document.getElementById('rad-saldo').innerText = fmt(v.saldo);
-            document.getElementById('rad-saldo').className = 'rad-val text-neg';
-            var cuotaTxt = v.cuotas > 1 ? `${v.cuotas} cuotas de ${fmt(v.valCuota)}` : `Pago único pendiente`;
-            document.getElementById('rad-plan').innerText = `Inicial: ${fmt(v.inicial)} | ${cuotaTxt}`;
+            document.getElementById('rad-saldo').innerText   = fmt(v.saldo);
+            document.getElementById('rad-saldo').className   = 'rad-val text-neg';
+            var cuotaTxt = v.cuotas > 1
+                ? v.cuotas + ' cuotas de ' + fmt(v.valCuota)
+                : 'Pago único pendiente';
+            document.getElementById('rad-plan').innerText = 'Inicial: ' + fmt(v.inicial) + ' | ' + cuotaTxt;
         }
         modalRad.show();
     }
 
     function revelarSecretos() {
-        document.querySelectorAll('.rad-secret').forEach(e => e.classList.toggle('revealed'));
+        document.querySelectorAll('.rad-secret').forEach(function(e) { e.classList.toggle('revealed'); });
     }
 
     function renderFlowChart(vData, gData) {
-      var ctx = document.getElementById('chart-flow').getContext('2d'); if(chartFlow) chartFlow.destroy();
-      chartFlow = new Chart(ctx, { type: 'line', data: { labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'], datasets: [ { label: 'Ingresos', data: vData, borderColor: '#4ecca3', backgroundColor: 'rgba(78, 204, 163, 0.1)', tension: 0.4, fill: true }, { label: 'Gastos', data: gData, borderColor: '#ff4d4d', backgroundColor: 'rgba(0,0,0,0)', tension: 0.4, borderDash: [5, 5] } ] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { grid: { color: '#1f2940' }, ticks: { color: '#8892b0' } }, x: { grid: { display: false }, ticks: { color: '#8892b0' } } } } });
+        var ctx = document.getElementById('chart-flow').getContext('2d');
+        if (chartFlow) chartFlow.destroy();
+        chartFlow = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+                datasets: [
+                    { label: 'Ingresos', data: vData, borderColor: '#4ecca3', backgroundColor: 'rgba(78,204,163,0.1)', tension: 0.4, fill: true },
+                    { label: 'Gastos',   data: gData, borderColor: '#ff4d4d', backgroundColor: 'rgba(0,0,0,0)',        tension: 0.4, borderDash: [5,5] }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#ccc' } } },
+                scales: {
+                    y: { grid: { color: '#1f2940' }, ticks: { color: '#8892b0' } },
+                    x: { grid: { display: false  }, ticks: { color: '#8892b0' } }
+                }
+            }
+        });
     }
 
     function renderGastosChart(labels, values) {
-      var ctx = document.getElementById('chart-gastos').getContext('2d'); if(chartGastos) chartGastos.destroy();
-      if(values.length === 0) { document.getElementById('gastos-summary').innerText = "Sin gastos registrados."; return; } else { document.getElementById('gastos-summary').innerText = ""; }
-      chartGastos = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: values, backgroundColor: ['#ff4d4d', '#fca311', '#3a86ff', '#8338ec', '#ff006e'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#ccc', boxWidth: 10 } } }, cutout: '70%' } });
+        var ctx = document.getElementById('chart-gastos').getContext('2d');
+        if (chartGastos) chartGastos.destroy();
+        if (values.length === 0) {
+            document.getElementById('gastos-summary').innerText = "Sin gastos registrados.";
+            return;
+        }
+        document.getElementById('gastos-summary').innerText = "";
+        chartGastos = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{ data: values, backgroundColor: ['#ff4d4d','#fca311','#3a86ff','#8338ec','#ff006e'], borderWidth: 0 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'right', labels: { color: '#ccc', boxWidth: 10 } } },
+                cutout: '70%'
+            }
+        });
     }
 
     function fmt(n) { return "$" + Number(n).toLocaleString('es-CO'); }
