@@ -158,4 +158,12 @@ window.lockBtn = function() {
         };
     }
     return function() {};
+    // ── FIX MEDIO 3+10: Escape HTML para prevenir XSS ────────────
+window.escHtml = function(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 };
