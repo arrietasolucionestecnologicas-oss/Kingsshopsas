@@ -1,15 +1,16 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v87 - UPDATE FORCE
- * - Versión crítica: Rutas corregidas para caché modular ES6.
+ * 👑 KINGSHOP SERVICE WORKER v89
+ * FIX CRÍTICO 9: utils.js añadido al caché
+ * FIX BAJO 6   : install con Promise.allSettled (fallo parcial no bloquea)
  */
-
-const CACHE_NAME = 'kingshop-v88-cache';
+const CACHE_NAME = 'kingshop-v89-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './js/app.js',
   './js/state.js',
   './js/api.js',
+  './js/utils.js',          // ← FIX CRÍTICO 9
   './js/ui/pos.js',
   './js/ui/finance.js',
   './js/ui/inventory.js',
@@ -22,47 +23,44 @@ const ASSETS_TO_CACHE = [
   'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
-// 1. INSTALACIÓN
+// 1. INSTALACIÓN — fallo parcial no bloquea (FIX BAJO 6)
 self.addEventListener('install', event => {
-  self.skipWaiting(); // Fuerza al SW a tomar el control de inmediato
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS_TO_CACHE))
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(url =>
+          cache.add(url).catch(e => console.warn('[SW] Cache miss:', url, e.message))
+        )
+      );
+    })
   );
 });
 
-// 2. ACTIVACIÓN: Borrar cachés viejas
+// 2. ACTIVACIÓN — borrar cachés obsoletas
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(keys.map(key => {
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => {
         if (key !== CACHE_NAME) {
-            console.log('Borrando caché obsoleta:', key);
-            return caches.delete(key);
+          console.log('[SW] Borrando caché obsoleta:', key);
+          return caches.delete(key);
         }
-      }));
-    }).then(() => self.clients.claim())
+      }))
+    ).then(() => self.clients.claim())
   );
 });
 
-// 3. INTERCEPTOR: Network First para archivos críticos
+// 3. INTERCEPTOR — Network First para JS/HTML, Cache First para assets
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com')) return;
-
-  // HTML y JS: Siempre intentar red primero (Garantiza tener la última versión si hay internet)
   if (event.request.mode === 'navigate' || event.request.url.includes('.js')) {
-      event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request);
-        })
-      );
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
   } else {
-      // Imágenes y librerías externas: Cache First
-      event.respondWith(
-        caches.match(event.request)
-          .then(response => {
-            return response || fetch(event.request);
-          })
-      );
+    event.respondWith(
+      caches.match(event.request).then(response => response || fetch(event.request))
+    );
   }
 });
