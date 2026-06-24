@@ -630,8 +630,12 @@ function finalizarVenta() {
    var btn = parent.querySelector('#btn-vender-main');
    if(btn) { btn.innerText = "Procesando..."; btn.disabled = true; }
 
-   window.callAPI('procesarVentaCarrito', d).then(r => {
-       if(btn) { btn.innerText = "✅ VENDER / FACTURAR"; btn.disabled = false; }
+  window.callAPI('procesarVentaCarrito', d).then(r => {
+       _procesandoVenta = false;
+       if(btn) { 
+           btn.innerText = "✅ VENDER / FACTURAR"; 
+           btn.disabled = false; 
+       }
        if(r.exito) {
            if(r.offline) {
                alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
