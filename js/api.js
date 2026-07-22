@@ -43,6 +43,9 @@ window.sincronizarCola = sincronizarCola;
 export async function callAPI(action, data = null) {
   if (data && typeof data === 'object') {
       data.aliasOperador = window.currentUserAlias; 
+      if (!data.opId) {
+          data.opId = (crypto.randomUUID ? crypto.randomUUID() : ('op-' + Date.now() + '-' + Math.random().toString(36).slice(2)));
+      }
   }
 
   if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
