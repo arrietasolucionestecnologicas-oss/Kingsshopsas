@@ -14,7 +14,7 @@
 
   <style>
     /* --- TEMA PREMIUM: BLACK & GOLD --- */
-    :root { 
+    :root {
         --primary: #000000;
         --gold: #d4af37;
         --gold-hover: #b59020;
@@ -25,23 +25,26 @@
         --d: #e74c3c;
     }
 
-    body { 
-        background: var(--bg); 
-        padding-bottom: 90px; 
-        font-family: 'Montserrat', sans-serif; 
-        overflow-x: hidden; 
-        color: var(--dark); 
+    body {
+        background: var(--bg);
+        padding-bottom: 90px;
+        font-family: 'Montserrat', sans-serif;
+        overflow-x: hidden;
+        color: var(--dark);
     }
 
-    .header { 
-        background-color: var(--primary); 
-        color: white; 
-        padding: 15px 20px; 
-        border-radius: 0 0 20px 20px; 
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4); 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
+    .header {
+        background-color: var(--primary);
+        color: white;
+        padding: 15px 20px;
+        /* Android (Capacitor 8) dibuja edge-to-edge con status bar transparente:
+           sin esto, el header queda tapado por el reloj/batería del sistema. */
+        padding-top: calc(15px + env(safe-area-inset-top, 0px));
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         border-bottom: 2px solid var(--gold);
     }
 
@@ -57,7 +60,7 @@
 
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
     .list-column { flex: 1; min-width: 0; }
-    .panel-column { width: 350px; position: sticky; top: 10px; display: none; } 
+    .panel-column { width: 350px; position: sticky; top: 10px; display: none; }
     @media (min-width: 992px) { .panel-column { display: block; } }
 
     .pos-row-lite {
@@ -73,12 +76,12 @@
     }
     .pos-row-lite:hover { transform: translateX(3px); border-left-color: var(--gold); }
     .pos-row-lite.active { border-left-color: var(--gold); background: #fffcf5; border-right: 1px solid var(--gold); }
-    
+
     .pos-row-lite .info { flex: 1; min-width: 0; padding-right: 10px; }
     .pos-row-lite .name { font-weight: 700; color: var(--primary); font-size: 0.95rem; margin-bottom: 2px; }
     .pos-row-lite .meta { font-size: 0.75rem; color: #888; }
     .pos-row-lite .price { font-weight: 700; font-size: 1.1rem; color: var(--gold-hover); text-align: right; white-space: nowrap; }
-    
+
     .catalog-grid {
         display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
     }
@@ -101,7 +104,7 @@
         overflow: hidden; border-bottom: 1px solid #eee; position: relative;
     }
     .cat-img-box img { width: 100%; height: 100%; object-fit: cover; }
-    
+
     .btn-edit-float {
         position: absolute; top: 5px; right: 5px;
         background: rgba(255,255,255,0.95); border-radius: 50%;
@@ -114,9 +117,9 @@
     .cat-body { padding: 10px; flex: 1; display: flex; flex-direction: column; }
     .cat-title { font-weight: 700; font-size: 0.85rem; line-height: 1.2; margin-bottom: 5px; color: var(--primary); height: 34px; overflow: hidden; }
     .cat-price { color: var(--gold-hover); font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; }
-    
-    .cat-actions { 
-        background: #fcfcfc; padding: 5px; 
+
+    .cat-actions {
+        background: #fcfcfc; padding: 5px;
         display: flex; justify-content: space-around; gap: 2px;
         border-top: 1px solid #eee;
     }
@@ -134,13 +137,13 @@
     .mobile-panel.visible { transform: translateY(0); }
 
     .card-k { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: none; }
-    
-    .card-balance { 
-        padding: 25px; color: var(--gold); 
-        border-radius: 20px; text-align: center; 
-        background: linear-gradient(135deg, #1a1a1a, #000000); 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4); 
-        margin-bottom: 15px; border: 1px solid var(--gold); 
+
+    .card-balance {
+        padding: 25px; color: var(--gold);
+        border-radius: 20px; text-align: center;
+        background: linear-gradient(135deg, #1a1a1a, #000000);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        margin-bottom: 15px; border: 1px solid var(--gold);
     }
     .card-balance h1 { color: white; }
 
@@ -151,19 +154,19 @@
         padding-bottom: 5px;
         margin-bottom: 15px;
         white-space: nowrap;
-        -webkit-overflow-scrolling: touch; 
+        -webkit-overflow-scrolling: touch;
     }
     .scroll-menu::-webkit-scrollbar { display: none; }
     .scroll-menu > * { flex: 0 0 auto; }
 
-    .nav-btm { 
-        position: fixed; bottom: 0; width: 100%; background: white; 
-        display: flex; justify-content: space-between; 
-        padding: 8px 10px; border-top: 1px solid #eee; z-index: 1000; 
+    .nav-btm {
+        position: fixed; bottom: 0; width: 100%; background: white;
+        display: flex; justify-content: space-between;
+        padding: 8px 10px; border-top: 1px solid #eee; z-index: 1000;
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     }
-    .nav-btn { 
-        background: none; border: none; color: #aaa; 
+    .nav-btn {
+        background: none; border: none; color: #aaa;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         font-size: 0.7rem; flex: 1; transition: 0.2s;
     }
@@ -182,7 +185,27 @@
     .btn-bi { background: rgba(255,255,255,0.1); border:1px solid rgba(212, 175, 55, 0.5); color:var(--gold); border-radius: 8px; padding: 5px 10px; font-size: 0.8rem; text-decoration: none; transition: 0.2s; }
     .btn-bi:hover { background: var(--gold); color: var(--primary); border-color: var(--gold); }
 
-    #toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; }
+    #toast-container { position: fixed; top: calc(20px + env(safe-area-inset-top, 0px)); right: 20px; z-index: 10000; }
+
+    /* Autocompletado progresivo de cliente (reemplaza el <datalist> nativo,
+       que en Android mostraba TODOS los clientes tapando la pantalla). */
+    .cliente-sugerencias {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 3000;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+    .cliente-sugerencias .item { padding: 8px 12px; font-size: 0.9rem; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    .cliente-sugerencias .item:last-child { border-bottom: none; }
+    .cliente-sugerencias .item:hover, .cliente-sugerencias .item:active { background: var(--light); }
 
     .prov-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     .prov-item:last-child { border-bottom: none; }
@@ -194,16 +217,16 @@
 
     .btn-primary, .btn-dark { background-color: var(--primary) !important; border-color: var(--primary) !important; color: white !important; }
     .btn-primary:hover, .btn-dark:hover { background-color: #333 !important; border-color: #333 !important; color: var(--gold) !important; }
-    
+
     .btn-info { background-color: var(--gold) !important; border-color: var(--gold) !important; color: var(--primary) !important; font-weight: bold; }
     .btn-info:hover { background-color: var(--gold-hover) !important; border-color: var(--gold-hover) !important; }
 
     .text-primary { color: var(--primary) !important; }
-    .text-success { color: #198754 !important; } 
-    
+    .text-success { color: #198754 !important; }
+
     #btn-float-cart { background-color: var(--gold); color: var(--primary); border: none; }
     .form-control:focus { box-shadow: 0 0 0 2px var(--gold) !important; border-color: var(--gold) !important; }
-    
+
     .nav-pills .nav-link.active { background-color: var(--primary) !important; color: var(--gold) !important; }
     .nav-pills .nav-link { color: var(--primary) !important; }
 
@@ -219,7 +242,7 @@
 <body>
 
   <div id="loader"><div class="spinner-border text-warning" role="status" style="color: #d4af37 !important;"></div><div class="mt-3 text-muted fw-bold">Conectando al Servidor Central...</div></div>
-  
+
   <div id="toast-container"></div>
 
   <div class="header">
@@ -227,10 +250,10 @@
     <div class="d-flex gap-2">
         <button class="btn-bi" onclick="window.abrirModalCRM()" style="cursor: pointer;"><i class="fas fa-robot"></i> CRM</button>
         <a class="btn-bi" href="dashboard.html"><i class="bi bi-graph-up-arrow"></i> Reportes</a>
-        <button class="btn btn-light shadow-sm rounded-circle" style="width:45px; height:45px; color: var(--primary);" onclick="window.verBancos()" title="Ver Cuentas Bancarias"><i class="bi bi-bank2 fs-5"></i></button>
+        <button class="btn-bi" onclick="window.verBancos()" style="cursor: pointer;" title="Copiar los datos bancarios para enviárselos al cliente"><i class="bi bi-bank2"></i> Copiar Datos</button>
     </div>
   </div>
-  
+
   <div id="offline-indicator">⚠️ Modo Sin Conexión - Operando Localmente</div>
 
   <div class="container-fluid px-3">
@@ -239,12 +262,12 @@
         <div class="list-column">
            <button class="btn btn-outline-info w-100 mb-2 fw-bold" onclick="window.abrirModalCotizaciones()"><i class="fas fa-folder-open"></i> VER COTIZACIONES GUARDADAS</button>
            <button class="btn btn-warning w-100 mb-2 fw-bold" onclick="window.agregarItemManual()"><i class="fas fa-plus"></i> AGREGAR ÍTEM MANUAL (NO CATALOGADO)</button>
-           
+
            <div class="bg-white p-2 rounded mb-3 shadow-sm d-flex align-items-center border" style="border-color: #eee;">
                <i class="fas fa-search text-muted ms-2 me-2"></i>
                <input type="text" id="pos-search" class="form-control border-0 shadow-none" placeholder="Buscar producto en inventario..." onkeyup="window.renderPos()" style="font-weight:bold;">
            </div>
-           
+
            <div id="pos-placeholder" class="text-center text-muted py-5">
                <i class="fas fa-keyboard fs-1 mb-2 opacity-50" style="color: var(--gold);"></i>
                <p>Inicie la búsqueda para agregar<br>productos al carrito de venta.</p>
@@ -286,6 +309,7 @@
             <h1 class="fw-bold display-4 my-1" id="bal-cartera">...</h1>
         </div>
         <h6 class="fw-bold text-muted mb-3">Cartera de Clientes Activa</h6>
+        <input type="text" id="search-cobranza" class="form-control mb-3" placeholder="Buscar cliente o documento...">
         <div id="cartera-list"></div>
     </div>
 
@@ -300,7 +324,7 @@
           <small class="opacity-75">Flujo de Caja Disponible (Sistema)</small>
           <h1 class="fw-bold display-4 my-1" id="bal-caja">...</h1>
       </div>
-      
+
       <div class="card-k mb-3" style="border: 2px dashed var(--gold);">
           <div class="d-flex justify-content-between align-items-center mb-2">
               <h6 class="fw-bold m-0"><i class="fas fa-check-double"></i> Conciliación de Caja (Auditoría)</h6>
@@ -334,7 +358,7 @@
                <button class="btn btn-success w-100" onclick="window.doAbono()">CONFIRMAR RECAUDO</button>
             </div>
          </div>
-         
+
          <div class="tab-pane fade" id="f-ingreso">
             <div class="card-k">
                <h6 class="fw-bold" style="color: var(--primary);">Entrada de Dinero Extraordinaria</h6>
@@ -345,7 +369,7 @@
                    <option value="Inyeccion Capital">Aporte de Capital</option>
                    <option value="Otros">Otros Ingresos</option>
                </select>
-               
+
                <div id="box-prestamo" style="display:none; background:#fffcf5; padding:10px; border-radius:8px; border:1px solid var(--gold); margin-bottom:10px;">
                    <label class="small fw-bold text-danger">¿A quién le debes este dinero? (Acreedor) *</label>
                    <input type="text" id="inc-acreedor" class="form-control mb-2" placeholder="Ej: Banco, Inversionista">
@@ -364,19 +388,19 @@
                <input type="text" id="g-desc" class="form-control mb-2" placeholder="Concepto del Egreso">
                <select id="g-cat" class="form-select mb-2"><option>Transporte / Logística</option><option>Alimentación</option><option>Costo Mercancia (Inventario)</option><option>Servicios Públicos</option><option>Nómina</option><option>Otros Gastos</option></select>
                <input type="number" id="g-monto" class="form-control mb-2" placeholder="Valor Pagado">
-               
+
                <label class="small text-muted fw-bold mt-2">Vincular a Operación (Corrección de Costos):</label>
                <input list="g-vinculo-list" id="g-vinculo" class="form-control mb-2 border-warning" style="border: 1px solid #ffc107;" placeholder="🔍 Escribe para buscar (Venta o Producto)...">
-               
+
                <small class="d-block mb-3 text-muted" style="font-size: 0.75rem;">
                    * Si vinculas a una <b>Venta</b>, se recalculará su utilidad real.<br>
                    * Si vinculas a un <b>Producto</b>, se actualizará su costo base en inventario.
                </small>
-               
+
                <button class="btn btn-danger w-100" onclick="window.doGasto()">REGISTRAR EGRESO</button>
             </div>
          </div>
-         
+
          <div class="tab-pane fade" id="f-hist">
              <div class="card-k">
                  <input type="text" id="hist-search" class="form-control mb-3" placeholder="🔍 Buscar movimiento por nombre..." onkeyup="window.renderFin()">
@@ -408,23 +432,23 @@
             <button class="btn btn-sm btn-outline-danger" onclick="window.clearCart()">🗑️ Vaciar</button>
          </div>
        </div>
-       
+
        <input id="c-concepto" class="form-control mb-2 fw-bold" placeholder="📝 Descripción del ítem no catalogado..." style="display:none; border-left:4px solid var(--gold);">
 
-       <div class="d-flex justify-content-between gap-2 mb-2" style="display:none !important;"> 
+       <div class="d-flex justify-content-between gap-2 mb-2" style="display:none !important;">
          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-iva" onchange="window.calcCart()"><label class="form-check-label small fw-bold" for="c-iva">Aplicar IVA 19%</label></div>
          <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="c-manual" onchange="window.toggleManual()"><label class="form-check-label small fw-bold" for="c-manual">Precio Base Manual</label></div>
        </div>
-       
+
        <div id="cart-items-list" class="mb-3 mt-2" style="max-height:150px; overflow-y:auto;">No hay ítems seleccionados...</div>
-       
+
        <div class="row g-2 mb-3">
          <div class="col-3 text-center"><small>Margen %</small><input id="c-util" type="number" class="input-line" value="30" oninput="window.calcCart()"></div>
          <div class="col-3 text-center"><small>Desc. %</small><input id="c-desc" type="number" class="input-line text-danger" value="0" oninput="window.calcCart()"></div>
          <div class="col-3 text-center"><small>Tasa Int.%</small><input id="c-int" type="number" class="input-line" value="5" oninput="window.calcCart()"></div>
          <div class="col-3 text-center"><small>Plazo (M)</small><input id="c-cuotas" type="number" class="input-line" value="1" oninput="window.calcCart()"></div>
        </div>
-       
+
        <label class="small fw-bold text-muted mt-2">Fecha de Registro:</label>
        <input type="date" id="c-fecha" class="form-control mb-3" style="border-color: var(--gold);" onchange="window.updatePrimerPago(); window.calcCart();">
 
@@ -432,7 +456,7 @@
           <div id="row-descuento" style="display:none; color: #e74c3c; font-size: 0.85rem; margin-bottom: 5px;">
               <div class="d-flex justify-content-between"><span>Descuento Aplicado:</span><strong id="res-desc-val">-$0</strong></div>
           </div>
-          
+
           <div class="d-flex justify-content-between align-items-center">
              <span>Valor Total Venta:</span>
              <div class="text-end">
@@ -444,15 +468,21 @@
              <div class="d-flex justify-content-between" style="color: var(--primary);"><span>Cuota Inicial (30%):</span><strong id="res-ini">$0</strong></div>
              <div class="d-flex justify-content-between mt-1" style="color: var(--gold-hover);"><span>Saldo a Financiar:</span><strong id="res-cuota-val">$0</strong> <small id="res-cuota-txt">/ mes</small></div>
           </div>
-          
+
           <div class="mt-2 text-end" style="border-top: 1px dotted #ccc; padding-top:5px;">
              <small class="text-muted" style="font-size:0.7rem;">Anular intereses (Precio Fijo Manual)</small>
              <input id="c-target" type="number" class="form-control form-control-sm fw-bold text-end" style="border-color: var(--gold); background: #fffffa;" placeholder="💲 Precio Final Pactado" oninput="window.calcCart()">
           </div>
        </div>
-       
-       <input id="c-cliente" list="list-clientes" class="form-control mb-2" placeholder="Nombre del Cliente / Razón Social" onchange="window.autocompletarCliente(this.value)">
-       
+
+       <div class="position-relative mb-2">
+           <input id="c-cliente" class="form-control" autocomplete="off" placeholder="Nombre del Cliente / Razón Social"
+                  oninput="window.filtrarClienteSugerido(this)"
+                  onblur="window.ocultarSugerenciasCliente(this)"
+                  onchange="window.autocompletarCliente(this.value)">
+           <div class="cliente-sugerencias" style="display:none;"></div>
+       </div>
+
        <div class="text-end mb-2">
           <a href="#" onclick="window.toggleDatosFormales(); return false;" class="small text-muted" style="text-decoration: none;">⚙️ Añadir datos formales (NIT, Tel)</a>
        </div>
@@ -476,7 +506,7 @@
 
        <select id="c-metodo" class="form-select mb-2" onchange="window.toggleIni()"><option value="Contado">Pago de Contado</option><option value="Crédito">Venta a Crédito</option></select>
        <input id="c-inicial" type="number" class="form-control mb-3" placeholder="Monto Inicial Personalizado" disabled style="display:none; background:#e9ecef;">
-       
+
        <div id="box-credito-detalles" style="display:none; background:#fffcf5; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid var(--gold);">
           <label class="small fw-bold text-primary">Frecuencia de Pago:</label>
           <select id="c-frecuencia" class="form-select form-select-sm mb-2" style="border-color: var(--gold);" onchange="window.updatePrimerPago()">
@@ -491,7 +521,7 @@
            <input class="form-check-input" type="checkbox" id="c-vip" onchange="window.calcCart()">
            <label class="form-check-label small fw-bold" for="c-vip" style="color: var(--gold-hover);">⭐ Eximir Cuota Inicial (Cliente VIP / Familia)</label>
        </div>
-       
+
        <div class="form-check form-switch mb-2 border p-2 rounded" style="background-color: #f8f9fa; border-color: #eee;">
            <input class="form-check-input" type="checkbox" id="c-incluir-desc">
            <label class="form-check-label small fw-bold text-muted" for="c-incluir-desc" style="margin-top: 2px;"><i class="fas fa-list text-secondary"></i> Incluir Descripción en Cotización</label>
@@ -582,7 +612,7 @@
             <div class="text-center mt-3">
                 <small class="fw-bold text-muted">Vendedor: <strong class="text-dark" id="rad-vendedor">...</strong></small>
             </div>
-            
+
             <button class="btn btn-outline-danger w-100 mt-4 fw-bold" onclick="window.anularVentaDesdeRadiografia()">🚫 ANULAR VENTA</button>
         </div>
       </div>
@@ -602,11 +632,15 @@
             <input type="text" id="manual-item-nombre" class="form-control fw-bold" placeholder="Ej: Instalación, Envío, Software...">
           </div>
           <div class="row g-2 mb-4">
-            <div class="col-6">
+            <div class="col-4">
               <label class="small fw-bold text-muted">Costo Base ($)</label>
-              <input type="number" id="manual-item-costo" class="form-control" placeholder="Opcional (0)">
+              <input type="number" id="manual-item-costo" class="form-control" placeholder="Opcional (0)" oninput="window.calcularItemManual()">
             </div>
-            <div class="col-6">
+            <div class="col-4">
+              <label class="small fw-bold text-muted">Margen (%)</label>
+              <input type="number" id="manual-item-margen" class="form-control" placeholder="Ej: 30" oninput="window.calcularItemManual()">
+            </div>
+            <div class="col-4">
               <label class="small fw-bold text-danger">Precio Venta ($) *</label>
               <input type="number" id="manual-item-precio" class="form-control border-danger fw-bold text-danger" placeholder="Ej: 150000">
             </div>
@@ -932,7 +966,6 @@
   <datalist id="list-provs-all"></datalist>
   <datalist id="list-prods-all"></datalist>
   <datalist id="g-vinculo-list"></datalist>
-  <datalist id="list-clientes"></datalist>
 
   <div class="modal fade" id="modalEditItem" tabindex="-1" style="z-index: 6000 !important;">
     <div class="modal-dialog modal-dialog-centered">

@@ -28,6 +28,53 @@ window.embellecerDescripcion = function(texto) {
     return bonitas;
 };
 
+// ── Compartir nativo en Android (Capacitor) ────────────────────────────────
+// navigator.share/navigator.canShare (Web Share API) NO están implementados
+// en el WebView nativo de Android que usa Capacitor — por eso siempre caía
+// en "tu navegador no soporta esto". La forma correcta de compartir archivos
+// a WhatsApp desde una app empaquetada es el plugin nativo @capacitor/share
+// (+ @capacitor/filesystem para materializar la imagen como archivo real en
+// disco antes de compartirla). Este proyecto no usa bundler, así que los
+// plugins se consumen vía window.Capacitor.Plugins — el shell nativo lo
+// inyecta automáticamente en runtime — en vez de "import '@capacitor/share'"
+// (un specifier de módulo "bare" que el navegador no puede resolver sin un
+// bundler).
+window.esPlataformaNativa_ = function() {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+};
+
+window.fileABase64_ = function(file) {
+    return new Promise((resolve, reject) => {
+        var reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]); // sin el prefijo "data:...;base64,"
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
+window.compartirNativoCapacitor_ = async function(title, text, file) {
+    var Plugins = window.Capacitor && window.Capacitor.Plugins;
+    if (!Plugins || !Plugins.Share) return false;
+
+    var shareOptions = { title: title, text: text, dialogTitle: title };
+
+    if (file) {
+        try {
+            var base64Data = await window.fileABase64_(file);
+            var fileName = 'kingshop_share_' + Date.now() + '.jpg';
+            await Plugins.Filesystem.writeFile({ path: fileName, data: base64Data, directory: 'CACHE' });
+            var uriResult = await Plugins.Filesystem.getUri({ path: fileName, directory: 'CACHE' });
+            shareOptions.files = [uriResult.uri];
+        } catch (e) {
+            console.warn("No se pudo adjuntar el archivo al compartir nativo, se comparte solo texto:", e);
+        }
+    }
+
+    await Plugins.Share.share(shareOptions);
+    return true;
+};
+// ─────────────────────────────────────────────────────────────────────────
+
 window.getFileFromUrlAsync = async function(url, defaultName) {
     try {
         if (url.startsWith('data:image')) {
@@ -99,43 +146,44 @@ window.shareProductNative = async function(id) {
         }
         shareText += `🤝 _Quedamos a su entera disposición._`;
         
-        var shareData = { 
-            title: nombre, 
-            text: shareText 
-        };
-
-        var hasImage = false;
         var fixedUrl = window.fixDriveLink(p.foto);
-        
+        var file = null;
         if (fixedUrl && fixedUrl.length > 5) {
             var cleanName = p.nombre.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            var file = await window.getFileFromUrlAsync(fixedUrl, cleanName);
-            if (file) {
-                shareData.files = [file];
-                hasImage = true;
-            }
+            file = await window.getFileFromUrlAsync(fixedUrl, cleanName);
         }
-        
+
         if(loader) loader.style.display = 'none';
 
-        if (navigator.canShare && navigator.share) {
-            if (hasImage && !navigator.canShare({ files: shareData.files })) {
-                console.warn("El dispositivo no soporta compartir archivos, se enviará solo texto.");
-                delete shareData.files;
+        // 1) App empaquetada en Android/iOS (Capacitor): plugin nativo — el
+        // único camino que realmente soporta adjuntar el archivo (la Web
+        // Share API no existe en el WebView nativo de Capacitor).
+        if (window.esPlataformaNativa_ && window.esPlataformaNativa_()) {
+            var okNativo = await window.compartirNativoCapacitor_(nombre, shareText, file);
+            if (okNativo) {
+                if(window.showToast) window.showToast("¡Compartido con éxito!", "success");
+                return;
             }
-            
+        }
+        // 2) Navegador real (desktop/móvil fuera de Capacitor) con Web Share API.
+        else if (navigator.canShare && navigator.share) {
+            var shareData = { title: nombre, text: shareText };
+            if (file) {
+                if (navigator.canShare({ files: [file] })) shareData.files = [file];
+                else console.warn("El navegador no soporta compartir archivos, se enviará solo texto.");
+            }
             await navigator.share(shareData);
             if(window.showToast) window.showToast("¡Compartido con éxito!", "success");
-        } else {
-            alert("Tu navegador no soporta compartir nativamente. Abriendo WhatsApp clásico.");
-            window.shareProdWhatsApp(id);
+            return;
         }
+
+        // 3) Último recurso: WhatsApp clásico (solo texto), sin alertas alarmantes.
+        window.shareProdWhatsApp(id);
     } catch(error) {
         if(loader) loader.style.display = 'none';
-        
+
         if (error.name !== 'AbortError') {
-            alert("No se pudo compartir el archivo nativamente. Abriendo texto clásico.");
-            window.shareProdWhatsApp(id); 
+            window.shareProdWhatsApp(id);
         } else {
             if(window.showToast) window.showToast("Compartir cancelado por el usuario", "info");
         }

@@ -254,6 +254,54 @@ window.onload = function() {
         });
     }
 
+    // Buscador reactivo de Cobranza/Cartera: filtra visualmente las tarjetas
+    // de deudores ya renderizadas (display:none), sin re-consultar datos.
+    window.filtrarCobranza = function() {
+        var input = document.getElementById('search-cobranza');
+        var q = input ? input.value.trim().toLowerCase() : '';
+        document.querySelectorAll('#cartera-list [data-search]').forEach(function(card) {
+            var match = !q || card.getAttribute('data-search').indexOf(q) !== -1;
+            card.style.display = match ? '' : 'none';
+        });
+    };
+    var elSearchCobranza = document.getElementById('search-cobranza');
+    if (elSearchCobranza) {
+        elSearchCobranza.addEventListener('input', window.filtrarCobranza);
+    }
+
+    // Botón/gesto de retroceso de Android: sin esto, Capacitor usa su
+    // comportamiento por defecto (history.back() o, como esta SPA nunca hace
+    // pushState, cerrar la app de una vez) sin importar en qué pantalla o
+    // modal esté el operador. Prioridad: (1) cerrar modal abierto, (2) cerrar
+    // carrito móvil, (3) volver a la vista principal (pos), (4) minimizar
+    // la app (no matarla) si ya está en home sin nada abierto.
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+        var AppPlugin = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+        if (AppPlugin) {
+            AppPlugin.addListener('backButton', function() {
+                var modalAbierto = document.querySelector('.modal.show');
+                if (modalAbierto && window.bootstrap) {
+                    var instancia = bootstrap.Modal.getInstance(modalAbierto);
+                    if (instancia) { instancia.hide(); return; }
+                }
+
+                var mobileCart = document.getElementById('mobile-cart');
+                if (mobileCart && mobileCart.classList.contains('visible')) {
+                    mobileCart.classList.remove('visible');
+                    return;
+                }
+
+                var vistaActual = localStorage.getItem('lastView') || 'pos';
+                if (vistaActual !== 'pos') {
+                    var btnPos = document.querySelector(".nav-btn[onclick*=\"'pos'\"]");
+                    if (btnPos && window.nav) { window.nav('pos', btnPos); return; }
+                }
+
+                AppPlugin.minimizeApp();
+            });
+        }
+    }
+
     var lastView = localStorage.getItem('lastView') || 'pos';
     var btn = document.querySelector(`.nav-btn[onclick*="'${lastView}'"]`);
     if(btn && window.nav) window.nav(lastView, btn);

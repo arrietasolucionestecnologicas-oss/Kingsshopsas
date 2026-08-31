@@ -417,8 +417,9 @@ function renderCartera() {
                 }
             }
 
+            var searchKey = (String(d.cliente || '') + ' ' + String(d.telefono || '') + ' ' + String(d.idVenta || '')).toLowerCase();
             c.innerHTML += `
-            <div class="card-k card-debt">
+            <div class="card-k card-debt" data-search="${searchKey}">
                 <div class="d-flex justify-content-between align-items-start">
                     <div style="min-width: 0; flex: 1; padding-right: 10px;">
                         <h6 class="fw-bold mb-1 text-truncate">${d.cliente}</h6>
@@ -435,6 +436,7 @@ function renderCartera() {
                 <div class="mt-2 d-flex gap-2 flex-wrap justify-content-end border-top pt-2">
                     <button class="btn btn-xs btn-outline-dark flex-fill fw-bold" onclick="window.abrirRadiografia('${d.idVenta}')" title="Ver Radiografía Financiera"><i class="fas fa-microscope"></i> Detalles</button>
                     <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
+                    <button class="btn btn-xs btn-outline-warning flex-fill fw-bold" onclick="window.solicitarAbonoWA('${d.idVenta}')" title="Solicitar Abono (datos de pago)"><i class="fab fa-whatsapp"></i> Solicitar Abono</button>
                     <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
                     <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0})" title="Refinanciar Deuda">🔄 Refinanc.</button>
                 </div>
@@ -459,6 +461,11 @@ function renderCartera() {
     }
 
     if(bal) bal.innerText = window.COP.format(totalDeuda);
+
+    // Reaplica el filtro de búsqueda vigente (renderCartera reconstruye todo
+    // el listado en cada refresco de datos, así que el filtro debe re-correr
+    // sobre las tarjetas recién creadas).
+    if (window.filtrarCobranza) window.filtrarCobranza();
 }
 function notificarCobroWA(idVenta) {
     var d = window.D.deudores.find(x => x.idVenta === idVenta);
@@ -506,6 +513,21 @@ function notificarCobroWA(idVenta) {
     var url = "https://wa.me/?text=" + encodeURIComponent(msg);
     window.open(url, '_blank');
 }
+
+// Fase 8: bifurcación deliberada de notificarCobroWA() — mensaje puramente
+// transaccional (saldo + cuenta), sin el tono comercial de "Cobrar Cuota".
+// Plantilla exacta pedida, sin texto adicional.
+function solicitarAbonoWA(idVenta) {
+    var d = window.D.deudores.find(x => x.idVenta === idVenta);
+    if (!d) return alert("Error: Deuda no encontrada en memoria.");
+
+    var cuenta = (window.D && window.D.cuentaBancaria) ? window.D.cuentaBancaria : "Pendiente de configurar";
+    var msg = `Datos para su abono - Saldo pendiente: ${window.COP.format(d.saldo)}. Cuenta autorizada: ${cuenta}.`;
+
+    var url = "https://wa.me/?text=" + encodeURIComponent(msg);
+    window.open(url, '_blank');
+}
+
 function compartirBalanceWA(idVenta) {
     var d = window.D.deudores.find(x => x.idVenta === idVenta);
     if (!d) return alert("Error: Deuda no encontrada en memoria.");
@@ -1510,21 +1532,34 @@ function enviarSeguimientoWA(index, btnEl) {
 }
 
 function verBancos() {
-    const msg = `👑 ¡Hola! Gracias por elegir KINGS SHOP SAS 🛒\n\nPara procesar tu pedido, por favor realiza el pago mediante transferencia. Aquí tienes nuestros datos bancarios:\n\n🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat. Esto nos permite verificar el pago y programar tu envío de inmediato. 📦🚀\n\nQuedamos atentos a tu confirmación. ¡Gracias por tu confianza! 🤝`;
-    
+    const datosBanco = `🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1`;
+
+    // Antes había un solo mensaje ("...para procesar tu pedido...") que solo
+    // tenía sentido para una compra nueva. Se usaba también al pedir abonos
+    // de cuotas ya existentes, donde esa frase no aplica — de ahí la
+    // confusión reportada. Ahora se elige explícitamente el contexto.
+    const msgPagoInicial = `👑 ¡Hola! Gracias por elegir KINGS SHOP SAS 🛒\n\nPara procesar tu pedido, por favor realiza el pago mediante transferencia. Aquí tienes nuestros datos bancarios:\n\n${datosBanco}\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat. Esto nos permite verificar el pago y programar tu envío de inmediato. 📦🚀\n\nQuedamos atentos a tu confirmación. ¡Gracias por tu confianza! 🤝`;
+
+    const msgAbono = `👑 KINGS SHOP SAS 🛒\n\nAquí tienes nuestros datos bancarios para realizar tu abono:\n\n${datosBanco}\n\n📲 Importante: Una vez realizada la transacción, por favor envíanos una foto o captura del comprobante por este chat para registrar tu abono. 📦\n\n¡Gracias por tu confianza! 🤝`;
+
     Swal.fire({
-        title: 'Datos Bancarios',
-        text: '¿Copiar plantilla de pago al portapapeles?',
-        icon: 'info',
+        title: 'Copiar Datos de Pago',
+        text: '¿Este mensaje es para un pago inicial (pedido nuevo) o para un abono de una cuota existente?',
+        icon: 'question',
+        showDenyButton: true,
         showCancelButton: true,
-        confirmButtonText: 'Sí, Copiar',
+        confirmButtonText: '🆕 Pago Inicial',
+        denyButtonText: '💳 Abono',
         cancelButtonText: 'Cancelar'
     }).then((result) => {
-        if (result.isConfirmed) {
-            navigator.clipboard.writeText(msg).then(() => {
-                if(window.showToast) window.showToast("Datos de pago copiados al portapapeles", "success");
-            });
-        }
+        var msg = null;
+        if (result.isConfirmed) msg = msgPagoInicial;
+        else if (result.isDenied) msg = msgAbono;
+        if (!msg) return;
+
+        navigator.clipboard.writeText(msg).then(() => {
+            if(window.showToast) window.showToast("Datos de pago copiados al portapapeles", "success");
+        });
     });
 }
 
@@ -1538,6 +1573,7 @@ window.updateGastosSelect = updateGastosSelect;
 window.verificarBanco = verificarBanco;
 window.renderCartera = renderCartera;
 window.notificarCobroWA = notificarCobroWA;
+window.solicitarAbonoWA = solicitarAbonoWA;
 window.compartirBalanceWA = compartirBalanceWA;
 window.abrirModalRefinanciar = abrirModalRefinanciar;
 window.calcRefinanciamiento = calcRefinanciamiento;
