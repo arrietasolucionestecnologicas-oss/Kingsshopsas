@@ -909,6 +909,13 @@ function doAbono() {
                 alert("Error al registrar abono: " + r.error);
             } else {
                 if (window.showToast) window.showToast("✅ Abono registrado", "success");
+                // FIX FALTANTE INICIAL DESACTUALIZADO: la actualización optimista de
+                // arriba solo resta `saldo` — nunca toca `deudaInicial`, aunque el
+                // backend (registrarAbono) sí la descuenta en la hoja real. Sin este
+                // refresco, el "Faltante Inicial" se quedaba congelado en pantalla
+                // para siempre después del primer abono, sin importar cuántos pagos
+                // más se registraran. loadData(true) trae el dato real del servidor.
+                if (window.loadData) window.loadData(true);
             }
             liberar();
         })
