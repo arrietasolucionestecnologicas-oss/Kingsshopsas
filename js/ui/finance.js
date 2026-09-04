@@ -103,15 +103,23 @@ function guardarEdicionMovimiento() {
     renderFin();
     if(window.showToast) window.showToast("Movimiento actualizado (Guardando...)", "success");
     
-    window.callAPI('editarMovimiento', payload).then(r => { 
+    window.callAPI('editarMovimiento', payload).then(r => {
         unlock();
-        if(!r.exito) { 
+        if(!r.exito) {
             // 🟢 FIX: Rollback en caso de error
             window.movEditObj.fecha = originalClone.fecha;
             window.movEditObj.monto = originalClone.monto;
             renderFin();
-            alert("Error al editar: " + r.error); 
-        } 
+            alert("Error al editar: " + r.error);
+        } else {
+            // FIX: editarMovimiento() en el backend puede propagar el cambio al
+            // saldo/deudaInicial/fecha de cobro de la venta vinculada (patrón
+            // Nota Crédito) — la actualización optimista de arriba solo tocó
+            // el propio movimiento de caja, no esos campos derivados en
+            // window.D.deudores. Sin este refresco quedarían desactualizados
+            // en Cobranza y en el notificador de WhatsApp.
+            if (window.loadData) window.loadData(true);
+        }
     }).catch(e => {
         unlock();
         window.movEditObj.fecha = originalClone.fecha;
@@ -200,6 +208,15 @@ function doIngresoExtra() {
                 var bC = document.getElementById('bal-caja');
                 if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
                 alert("Error al registrar ingreso: " + r.error);
+            } else if (cat === 'Prestamo') {
+                // FIX: el pasivo optimista se agregó con un ID generado en el
+                // cliente ("PAS-" + Date.now()); el backend genera su PROPIO ID
+                // al guardar en la hoja PASIVOS. Si no coinciden, un abono
+                // posterior a ese pasivo (abonarPasivo) buscaría un ID que no
+                // existe en el servidor hasta refrescar. Solo hace falta
+                // recargar cuando se creó un pasivo — un ingreso normal no
+                // tiene este riesgo.
+                if (window.loadData) window.loadData(true);
             }
             unlock();
         }).catch(e => {
@@ -278,6 +295,13 @@ function doGasto() {
             var bC = document.getElementById('bal-caja');
             if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
             alert("Error al registrar gasto: " + r.error);
+        } else if (vinculoClean) {
+            // FIX: si el gasto se vincula a una venta ("VEN-..."), el backend
+            // recalcula el costo/ganancia de esa venta — datos que viven en
+            // window.D.deudores/ultimasVentas y que la actualización optimista
+            // de arriba no toca. Solo refrescamos cuando hay vínculo, para no
+            // pagar el costo de red en el caso normal (gasto sin vincular).
+            if (window.loadData) window.loadData(true);
         }
         unlock();
     }).catch(e => {
@@ -604,187 +628,196 @@ function compartirBalanceWA(idVenta) {
 }
 
 function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
-    window.refEditId          = id;
-    window.refSaldoActual     = parseFloat(saldo)          || 0;
-    window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
-    window.refValCuota        = parseFloat(valCuota)       || 0;
-    window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
+    window.refEditId          = id;
+    window.refSaldoActual     = parseFloat(saldo)          || 0;
+    window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
+    window.refValCuota        = parseFloat(valCuota)       || 0;
+    window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
 
-    var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
-    window.refFechaLimiteOriginal = dObj ? (dObj.fechaLimiteRaw || dObj.fechaLimite) : null;
-    window.refInicialOriginal = dObj ? (parseFloat(dObj.inicial) || 0) : 0;
-    window.refDescProntoPago  = 0;
+    var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
+    window.refFechaLimiteOriginal = dObj ? (dObj.fechaLimiteRaw || dObj.fechaLimite) : null;
+    window.refInicialOriginal = dObj ? (parseFloat(dObj.inicial) || 0) : 0;
+    window.refDescProntoPago  = 0;
 
-    var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
-    var montoCuotasPagado = montoFinanciado - window.refSaldoActual;
-    var cuotasPagadas = (window.refValCuota > 0) ? Math.floor(montoCuotasPagado / window.refValCuota) : 0;
-    
-    window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
+    var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
+    var montoCuotasPagado = montoFinanciado - window.refSaldoActual;
+    var cuotasPagadas = (window.refValCuota > 0) ? Math.floor(montoCuotasPagado / window.refValCuota) : 0;
+    
+    window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
 
-    document.getElementById('ref-cliente').value       = cliente;
-    document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
-    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
-    document.getElementById('ref-tasa').value          = "5";
-    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
+    document.getElementById('ref-cliente').value       = cliente;
+    document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
+    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
+    document.getElementById('ref-tasa').value          = "5";
+    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
 
-    var today = new Date();
-    today.setMonth(today.getMonth() + 1);
-    var yyyy = today.getFullYear();
-    var mm   = String(today.getMonth() + 1).padStart(2, '0');
-    var dd   = String(today.getDate()).padStart(2, '0');
-    
-    var inputFecha = document.getElementById('ref-fecha');
-    inputFecha.value = `${yyyy}-${mm}-${dd}`;
-    
-    // FIX TÉCNICO: Inyectar Listeners para recálculo en vivo
-    inputFecha.addEventListener('change', window.calcRefinanciamiento);
-    inputFecha.addEventListener('input', window.calcRefinanciamiento);
-    
-    // Asegurar que cuotas y tasa también recalculen en vivo
-    document.getElementById('ref-cuotas').addEventListener('input', window.calcRefinanciamiento);
-    document.getElementById('ref-tasa').addEventListener('input', window.calcRefinanciamiento);
+    var today = new Date();
+    today.setMonth(today.getMonth() + 1);
+    var yyyy = today.getFullYear();
+    var mm   = String(today.getMonth() + 1).padStart(2, '0');
+    var dd   = String(today.getDate()).padStart(2, '0');
+    
+    var inputFecha = document.getElementById('ref-fecha');
+    inputFecha.value = `${yyyy}-${mm}-${dd}`;
+    
+    // FIX TÉCNICO: Inyectar Listeners para recálculo en vivo
+    inputFecha.addEventListener('change', window.calcRefinanciamiento);
+    inputFecha.addEventListener('input', window.calcRefinanciamiento);
+    
+    // Asegurar que cuotas y tasa también recalculen en vivo
+    document.getElementById('ref-cuotas').addEventListener('input', window.calcRefinanciamiento);
+    document.getElementById('ref-tasa').addEventListener('input', window.calcRefinanciamiento);
 
-    window.refFactorIncentivo = 0.8;
+    window.refFactorIncentivo = 0.8;
 
-    calcRefinanciamiento();
-    if(window.myModalRefinanciar) window.myModalRefinanciar.show();
+    calcRefinanciamiento();
+    if(window.myModalRefinanciar) window.myModalRefinanciar.show();
 }
 
 function calcRefinanciamiento() {
-    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
-    var tasa       = parseFloat(document.getElementById('ref-tasa').value)  || 5;
-    var saldo      = window.refSaldoActual     || 0;
-    var restantes  = window.refCuotasRestantes || 1;
-    var nuevaFecha = document.getElementById('ref-fecha').value;
+    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
+    var tasa       = parseFloat(document.getElementById('ref-tasa').value)  || 5;
+    var saldo      = window.refSaldoActual     || 0;
+    var restantes  = window.refCuotasRestantes || 1;
+    var nuevaFecha = document.getElementById('ref-fecha').value;
 
-    var elFactor = document.getElementById('ref-factor-incentivo');
-    if (elFactor) window.refFactorIncentivo = parseFloat(elFactor.value) || 0;
+    var elFactor = document.getElementById('ref-factor-incentivo');
+    if (elFactor) window.refFactorIncentivo = parseFloat(elFactor.value) || 0;
 
-    var cuotasExtra = cuotas - restantes;
-    var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
+    var cuotasExtra = cuotas - restantes;
+    var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
 
-    window.refDescProntoPago = 0;
-    if(window.refFechaLimiteOriginal && nuevaFecha) {
-        var fOrigStr = window.refFechaLimiteOriginal;
-        if(fOrigStr.includes('/')) {
-            var parts = fOrigStr.split('/');
-            if(parts.length === 3) fOrigStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-        
-        var fOrig = new Date(fOrigStr);
-        var fNueva = new Date(nuevaFecha);
-        
-        if(!isNaN(fOrig.getTime()) && !isNaN(fNueva.getTime())) {
-            var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
-            if(diffDias >= 10) { 
-                var mesesAdelanto = diffDias / 30;
-                var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
-                var interesMensualProyectado = montoFinanciado * (tasa / 100);
-                window.refDescProntoPago = interesMensualProyectado * mesesAdelanto * window.refFactorIncentivo;
-            }
-        }
-    }
+    window.refDescProntoPago = 0;
+    if(window.refFechaLimiteOriginal && nuevaFecha) {
+        var fOrigStr = window.refFechaLimiteOriginal;
+        if(fOrigStr.includes('/')) {
+            var parts = fOrigStr.split('/');
+            if(parts.length === 3) fOrigStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        
+        var fOrig = new Date(fOrigStr);
+        var fNueva = new Date(nuevaFecha);
+        
+        if(!isNaN(fOrig.getTime()) && !isNaN(fNueva.getTime())) {
+            var diffDias = (fOrig - fNueva) / (1000 * 60 * 60 * 24);
+            if(diffDias >= 10) { 
+                var mesesAdelanto = diffDias / 30;
+                var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
+                var interesMensualProyectado = montoFinanciado * (tasa / 100);
+                window.refDescProntoPago = interesMensualProyectado * mesesAdelanto * window.refFactorIncentivo;
+            }
+        }
+    }
 
-    var chkPronto = document.getElementById('chk-pronto-pago');
-    var aplicarProntoPago = chkPronto ? chkPronto.checked : false;
+    var chkPronto = document.getElementById('chk-pronto-pago');
+    var aplicarProntoPago = chkPronto ? chkPronto.checked : false;
 
-    var cargoTotal = cargoEstructural;
-    if(aplicarProntoPago && window.refDescProntoPago > 0) {
-        cargoTotal -= window.refDescProntoPago;
-    }
+    var cargoTotal = cargoEstructural;
+    if(aplicarProntoPago && window.refDescProntoPago > 0) {
+        cargoTotal -= window.refDescProntoPago;
+    }
 
-    var nuevoSaldo  = Math.max(0, saldo + cargoTotal);
-    var nuevaCuota  = nuevoSaldo / cuotas;
+    var nuevoSaldo  = Math.max(0, saldo + cargoTotal);
+    var nuevaCuota  = nuevoSaldo / cuotas;
 
-    document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
-    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
+    document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
+    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
 
-    var elAviso = document.getElementById('ref-aviso-cargo');
-    if(elAviso) {
-        var html = "";
-        if(cuotasExtra > 0) {
-            html += `<div class="text-danger mt-1 small">⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al ${tasa}% = Cargo: <strong>${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
-        } else if (cuotasExtra < 0) {
-            html += `<div class="text-success mt-1 small">✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
-        }
+    var elAviso = document.getElementById('ref-aviso-cargo');
+    if(elAviso) {
+        var html = "";
+        if(cuotasExtra > 0) {
+            html += `<div class="text-danger mt-1 small">⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al ${tasa}% = Cargo: <strong>${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
+        } else if (cuotasExtra < 0) {
+            html += `<div class="text-success mt-1 small">✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
+        }
 
-        if(window.refDescProntoPago > 0 || aplicarProntoPago) {
-            html += `
-            <div class="mt-2 p-2 border border-success rounded bg-light">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="small fw-bold text-success mb-0">🎯 Factor Multiplicador:</label>
-                    <input type="number" id="ref-factor-incentivo" class="form-control form-control-sm border-success text-success fw-bold text-end" style="width: 70px;" value="${window.refFactorIncentivo}" step="0.1" min="0" oninput="window.calcRefinanciamiento()">
-                </div>
-                <div class="form-check form-switch mt-2">
-                    <input class="form-check-input" type="checkbox" id="chk-pronto-pago" onchange="window.calcRefinanciamiento()" ${aplicarProntoPago ? 'checked' : ''}>
-                    <label class="form-check-label small fw-bold text-success" for="chk-pronto-pago">
-                        💡 Aplicar Dto. Pronto Pago: -${window.COP.format(window.refDescProntoPago)}<br>
-                        <small class="text-muted">(Basado en base inicial)</small>
-                    </label>
-                </div>
-            </div>`;
-        }
+        if(window.refDescProntoPago > 0 || aplicarProntoPago) {
+            html += `
+            <div class="mt-2 p-2 border border-success rounded bg-light">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="small fw-bold text-success mb-0">🎯 Factor Multiplicador:</label>
+                    <input type="number" id="ref-factor-incentivo" class="form-control form-control-sm border-success text-success fw-bold text-end" style="width: 70px;" value="${window.refFactorIncentivo}" step="0.1" min="0" oninput="window.calcRefinanciamiento()">
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="chk-pronto-pago" onchange="window.calcRefinanciamiento()" ${aplicarProntoPago ? 'checked' : ''}>
+                    <label class="form-check-label small fw-bold text-success" for="chk-pronto-pago">
+                        💡 Aplicar Dto. Pronto Pago: -${window.COP.format(window.refDescProntoPago)}<br>
+                        <small class="text-muted">(Basado en base inicial)</small>
+                    </label>
+                </div>
+            </div>`;
+        }
 
-        elAviso.innerHTML = html;
-        elAviso.style.display = html ? 'block' : 'none';
-        elAviso.className = "mt-2"; 
-    }
+        elAviso.innerHTML = html;
+        elAviso.style.display = html ? 'block' : 'none';
+        elAviso.className = "mt-2"; 
+    }
 
-    window.refCargoCalculado = cargoTotal;
-    window.refTasaUsada      = tasa;
+    window.refCargoCalculado = cargoTotal;
+    window.refTasaUsada      = tasa;
 }
 function procesarRefinanciamiento() {
-    const unlock = window.lockBtn();
+    const unlock = window.lockBtn();
 
-    if(!window.refEditId) { unlock(); return; }
-    if(!window.D || !window.D.deudores) { unlock(); return alert("Error: datos de cartera no disponibles."); }
+    if(!window.refEditId) { unlock(); return; }
+    if(!window.D || !window.D.deudores) { unlock(); return alert("Error: datos de cartera no disponibles."); }
 
-    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
-    var fecha  = document.getElementById('ref-fecha').value;
-    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
+    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
+    var fecha  = document.getElementById('ref-fecha').value;
+    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
 
-    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
+    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
 
-    // Usamos el cálculo final consolidado que ya contempla cuotas extra y pronto pago
-    var cargoFinal = window.refCargoCalculado || 0;
+    // Usamos el cálculo final consolidado que ya contempla cuotas extra y pronto pago
+    var cargoFinal = window.refCargoCalculado || 0;
 
-    var d = {
-        idVenta        : window.refEditId,
-        cargoAdicional : cargoFinal,
-        nuevasCuotas   : cuotas,
-        nuevaFecha     : fecha,
-        tasaInteres    : tasa,
-        aliasOperador  : window.currentUserAlias || "Operador"
-    };
+    var d = {
+        idVenta        : window.refEditId,
+        cargoAdicional : cargoFinal,
+        nuevasCuotas   : cuotas,
+        nuevaFecha     : fecha,
+        tasaInteres    : tasa,
+        aliasOperador  : window.currentUserAlias || "Operador"
+    };
 
-    var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
-    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
-    
-    if(dIdx > -1) {
-        window.D.deudores[dIdx].saldo    = Math.max(0, window.D.deudores[dIdx].saldo + cargoFinal);
-        window.D.deudores[dIdx].valCuota = window.D.deudores[dIdx].saldo / cuotas;
-        window.D.deudores[dIdx].cuotas   = cuotas;
-        window.D.deudores[dIdx].fechaLimite = fecha;
-    }
+    var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
+    var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
+    
+    if(dIdx > -1) {
+        window.D.deudores[dIdx].saldo    = Math.max(0, window.D.deudores[dIdx].saldo + cargoFinal);
+        window.D.deudores[dIdx].valCuota = window.D.deudores[dIdx].saldo / cuotas;
+        window.D.deudores[dIdx].cuotas   = cuotas;
+        window.D.deudores[dIdx].fechaLimite = fecha;
+    }
 
-    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
+    if(window.myModalRefinanciar) window.myModalRefinanciar.hide();
 
-    renderCartera();
-    if(window.showToast) window.showToast("Acuerdo financiero aplicado", "success");
+    renderCartera();
+    if(window.showToast) window.showToast("Acuerdo financiero aplicado", "success");
 
-    window.callAPI('refinanciarDeuda', d).then(r => {
-        unlock();
-        if(!r.exito) {
-            window.D.deudores = snapDeudores;
-            renderCartera();
-            alert("Error al refinanciar: " + r.error);
-        }
-    }).catch(e => {
-        unlock();
-        window.D.deudores = snapDeudores;
-        renderCartera();
-        alert("Error de red al procesar acuerdo.");
-    });
+    window.callAPI('refinanciarDeuda', d).then(r => {
+        unlock();
+        if(!r.exito) {
+            window.D.deudores = snapDeudores;
+            renderCartera();
+            alert("Error al refinanciar: " + r.error);
+        } else {
+            // FIX: la actualización optimista de arriba calcula valCuota con
+            // una división cruda (saldo/cuotas), pero el backend redondea al
+            // 100 más cercano y ajusta la última cuota para que cierre exacto
+            // (misma lógica que calcCart en pos.js) — además nunca actualiza
+            // `total`, que usan notificarCobroWA()/compartirBalanceWA() para
+            // calcular la última cuota real. Sin este refresco, la cartera
+            // mostraría una cuota ligeramente distinta a la pactada, siempre.
+            if (window.loadData) window.loadData(true);
+        }
+    }).catch(e => {
+        unlock();
+        window.D.deudores = snapDeudores;
+        renderCartera();
+        alert("Error de red al procesar acuerdo.");
+    });
 }
 
 function castigarDeuda(id, nombre) {
@@ -809,14 +842,16 @@ function castigarDeuda(id, nombre) {
             renderCartera();
             if(window.showToast) window.showToast("Cartera castigada (Guardando...)", "success");
             
-            window.callAPI('castigarCartera', {idVenta: id}).then(r => { 
+            window.callAPI('castigarCartera', {idVenta: id}).then(r => {
                 Swal.close();
-                if(!r.exito) { 
+                if(!r.exito) {
                     // Rollback
                     window.D.deudores = snapDeudores;
                     renderCartera();
                     alert("Error al castigar: " + r.error);
-                } 
+                } else {
+                    if (window.loadData) window.loadData(true);
+                }
             }).catch(e => {
                 Swal.close();
                 window.D.deudores = snapDeudores;
@@ -1024,6 +1059,8 @@ function doAbonoPasivo() {
                 var bC = document.getElementById('bal-caja');
                 if(bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo||0);
                 alert("Error al registrar pago de pasivo: " + r.error);
+            } else {
+                if (window.loadData) window.loadData(true);
             }
             unlock();
         }).catch(e => {
