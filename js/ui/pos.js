@@ -683,6 +683,11 @@ function finalizarVenta() {
    var fechaVal = window.cartState.fecha;
    var imei     = (window.cartState.imei || "").trim();
 
+   // IDs de inventario en el carrito — se necesitan para poder ocultarlos
+   // localmente si la venta queda OFFLINE (ver más abajo), antes de que
+   // clearCart() vacíe window.CART.
+   var idsInventarioVendidos = window.CART.map(function(p) { return p.id; }).filter(Boolean);
+
    var itemsData = [];
    if(window.CART.length > 0) {
        window.CART.forEach(p => {
@@ -751,6 +756,17 @@ function finalizarVenta() {
        }
        if(r.exito) {
            if(r.offline) {
+               // FIX: sin esto, un producto ya vendido offline seguía apareciendo
+               // disponible en el inventario mientras no hubiera señal — con
+               // riesgo real de venderlo dos veces (a dos clientes distintos)
+               // antes de que la cola se sincronice con el servidor.
+               if (idsInventarioVendidos.length && window.D && window.D.inv) {
+                   window.D.inv = window.D.inv.filter(function(p) {
+                       return idsInventarioVendidos.indexOf(p.id) === -1;
+                   });
+                   if (window.renderInv) window.renderInv();
+                   if (window.renderPos) window.renderPos();
+               }
                alert("Venta guardada OFFLINE. Se subirá cuando haya internet.");
            } else {
                if(window.showToast) window.showToast("¡Venta Registrada con Éxito!", "success");

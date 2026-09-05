@@ -32,11 +32,26 @@ window.guardarIdentidad = function() {
 
 window.updateOnlineStatus = function() {
     const status = document.getElementById('offline-indicator');
+    var pendientes = JSON.parse(localStorage.getItem('kingshop_queue') || "[]").length;
     if(navigator.onLine) {
-        if(status) status.style.display = 'none';
-        window.sincronizarCola(); 
+        window.sincronizarCola().then(function() {
+            var quedan = JSON.parse(localStorage.getItem('kingshop_queue') || "[]").length;
+            if(status) {
+                if(quedan > 0) {
+                    status.innerText = "🔄 Sincronizando " + quedan + " operación(es) pendiente(s)...";
+                    status.style.display = 'block';
+                } else {
+                    status.style.display = 'none';
+                }
+            }
+        });
     } else {
-        if(status) status.style.display = 'block';
+        if(status) {
+            status.innerText = pendientes > 0
+                ? "⚠️ Modo Sin Conexión - " + pendientes + " operación(es) guardada(s), se subirán solas"
+                : "⚠️ Modo Sin Conexión - Operando Localmente";
+            status.style.display = 'block';
+        }
     }
 }
 window.addEventListener('online', window.updateOnlineStatus);
@@ -309,7 +324,33 @@ window.onload = function() {
 
     window.verificarIdentidad();
     window.updateOnlineStatus();
-    
-    // Arranque vital restaurado
-    if(window.loadData) window.loadData();
+
+    // ── ARRANQUE OFFLINE-FIRST ──────────────────────────────────────────
+    // Antes, cada apertura de la app esperaba primero a la red (hasta 15s
+    // de "Conectando al Servidor...") y solo si esa petición fallaba caía
+    // a los datos guardados localmente. Eso hacía que la app pareciera
+    // requerir internet siempre, aunque ya tuviera datos de una sesión
+    // anterior. Ahora: si hay datos guardados, se muestran de inmediato
+    // (la app abre y funciona al instante, con o sin señal) y la
+    // actualización con el servidor ocurre en segundo plano sin bloquear
+    // nada. El loader que espera a la red solo aparece la primerísima vez
+    // que se abre la app (todavía no hay nada guardado localmente).
+    var datosGuardados = window.loadLocalData();
+    if (datosGuardados) {
+        datosGuardados.inv = datosGuardados.inventario || datosGuardados.inv;
+        datosGuardados.ped = datosGuardados.pedidos || datosGuardados.ped;
+        window.D = datosGuardados;
+        window.renderData();
+        // FIX: el loader arranca visible por defecto en el HTML (display:flex)
+        // y solo loadData() lo oculta — pero aquí se pinta con renderData()
+        // directamente y loadData(true) es silencioso (no lo toca), así que
+        // sin esto la pantalla "Conectando al Servidor..." se quedaba
+        // pegada para siempre TAPANDO los datos ya cargados y visibles detrás.
+        var loaderEl = document.getElementById('loader');
+        if (loaderEl) loaderEl.style.display = 'none';
+        if (window.loadData) window.loadData(true);
+    } else if (window.loadData) {
+        window.loadData();
+    }
+    // ─────────────────────────────────────────────────────────────────────
 };

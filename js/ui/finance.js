@@ -942,6 +942,14 @@ function doAbono() {
                 var bC = document.getElementById('bal-caja');
                 if (bC && window.D.metricas) bC.innerText = window.COP.format(window.D.metricas.saldo || 0);
                 alert("Error al registrar abono: " + r.error);
+            } else if (r.offline) {
+                // FIX: si el abono quedó en cola por falta de internet, NO se debe
+                // refrescar con loadData(true) — esa llamada, al fallar por la misma
+                // falta de señal, terminaba sobrescribiendo window.D con la copia
+                // guardada ANTES de este abono (loadLocalData), borrando de la
+                // pantalla la actualización optimista de arriba y dando la
+                // impresión de que el abono offline "no se guardó".
+                if (window.showToast) window.showToast("Abono guardado OFFLINE. Se subirá cuando haya internet.", "warning");
             } else {
                 if (window.showToast) window.showToast("✅ Abono registrado", "success");
                 // FIX FALTANTE INICIAL DESACTUALIZADO: la actualización optimista de
@@ -1259,6 +1267,40 @@ function abrirRadiografia(idVenta) {
     document.getElementById('rad-metodo').innerText   = (v.metodo || "Crédito").toUpperCase();
     document.getElementById('rad-costo').innerText    = window.COP.format(safeNum(v.costo));
     document.getElementById('rad-ganancia').innerText = window.COP.format(safeNum(v.ganancia));
+
+    // ── Frecuencia pactada (Mensual/Quincenal) ──────────────────────
+    var elFrec = document.getElementById('rad-frecuencia');
+    if (elFrec) {
+        if (v.metodo === 'Crédito' && v.frecuencia) {
+            elFrec.innerText = v.frecuencia;
+            elFrec.style.display = 'inline-block';
+        } else {
+            elFrec.style.display = 'none';
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────
+
+    // ── Historial de cuotas/abonos ya pagados de esta venta ─────────
+    var elPagos = document.getElementById('rad-pagos-lista');
+    if (elPagos) {
+        elPagos.innerHTML = '<span class="text-muted">Cargando...</span>';
+        window.callAPI('obtenerAbonosVenta', { idVenta: v.idVenta || v.id }).then(function (r) {
+            if (!r.exito || !r.pagos || r.pagos.length === 0) {
+                elPagos.innerHTML = '<span class="text-muted">Sin pagos registrados todavía.</span>';
+                return;
+            }
+            elPagos.innerHTML = r.pagos.map(function (p) {
+                var etiqueta = p.esInicial ? 'Inicial' : 'Cuota';
+                return '<div class="d-flex justify-content-between border-bottom py-1">' +
+                    '<span>' + p.fechaStr + ' <span class="badge bg-light text-dark border">' + etiqueta + '</span></span>' +
+                    '<strong>' + window.COP.format(p.monto) + '</strong>' +
+                    '</div>';
+            }).join('');
+        }).catch(function () {
+            elPagos.innerHTML = '<span class="text-muted">No se pudo cargar (sin conexión).</span>';
+        });
+    }
+    // ─────────────────────────────────────────────────────────────────
 
     document.querySelectorAll('.rad-secret').forEach(e => e.classList.remove('revealed'));
     document.getElementById('rad-vendedor').innerText = v.vendedor || "Sistema";
