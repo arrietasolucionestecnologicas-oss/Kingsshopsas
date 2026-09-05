@@ -509,7 +509,7 @@
 
        <div id="box-credito-detalles" style="display:none; background:#fffcf5; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid var(--gold);">
           <label class="small fw-bold text-primary">Frecuencia de Pago:</label>
-          <select id="c-frecuencia" class="form-select form-select-sm mb-2" style="border-color: var(--gold);" onchange="window.updatePrimerPago()">
+          <select id="c-frecuencia" class="form-select form-select-sm mb-2" style="border-color: var(--gold);" onchange="window.updatePrimerPago(); window.calcCart();">
               <option value="Mensual">Mensual (30 Días)</option>
               <option value="Quincenal">Quincenal (15 Días)</option>
           </select>

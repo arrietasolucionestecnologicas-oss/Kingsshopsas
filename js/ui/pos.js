@@ -738,7 +738,10 @@ function finalizarVenta() {
        eximirInicial    : isEximir,
        vendedor         : window.currentUserAlias,
        fechaPersonalizada : fechaVal,
-       cuotas           : parseInt(window.cartState.cuotas) || 1,
+       // FIX QUINCENAL: se envía el número REAL de cortes (calcCart ya lo
+       // duplicó si la frecuencia es Quincenal), no el de "meses de plazo"
+       // que el operador escribió en el campo Cuotas.
+       cuotas           : (window.calculatedValues && window.calculatedValues.cuotasReales) || parseInt(window.cartState.cuotas) || 1,
        idCotizacion     : cotId,
        frecuencia       : window.cartState.frecuencia || "Mensual",
        primerPago       : window.cartState.primerPago || "",
@@ -842,7 +845,13 @@ async function shareQuote() {
     
     var metodo = parent.querySelector('#c-metodo').value;
     if(metodo === "Crédito") {
-        var cuotas = parseInt(parent.querySelector('#c-cuotas').value) || 1;
+        // FIX QUINCENAL: usar el número REAL de cortes que ya calculó
+        // calcCart() (duplicado si la frecuencia es Quincenal), no el de
+        // "meses de plazo" que el operador escribió en el campo Cuotas —
+        // si no, el mensaje mostraría la mitad de las cuotas que realmente
+        // se van a cobrar.
+        var cuotas = (window.calculatedValues && window.calculatedValues.cuotasReales)
+            || parseInt(parent.querySelector('#c-cuotas').value) || 1;
         var frecTexto = parent.querySelector('#c-frecuencia') ? parent.querySelector('#c-frecuencia').value : "Mensual";
         var valCuota = window.calculatedValues.valorCuota || 0;
         var ultCuota = window.calculatedValues.ultimaCuota || 0;
@@ -1004,18 +1013,18 @@ window.calcCart = function() {
     if (metodo === "Crédito") {
         var saldoBaseInteres = Math.max(0, totalFinal - metaInicial);
 
-        // ── FIX QUINCENAL: tasa por periodo ──────────────────────────
-        // Quincenal = 15 días = medio mes.
-        // Usar la misma tasa mensual inflaría el costo al doble.
-        // Se divide entre 2 para que el costo financiero sea proporcional
-        // al tiempo real de cada periodo de pago.
+        // ── FIX QUINCENAL: "cuotas" (el campo que llena el operador) siempre
+        // significa MESES DE PLAZO acordados con el cliente — sin importar
+        // la frecuencia de cobro. El interés de un crédito a 6 meses es el
+        // mismo se cobre mensual o quincenal; lo único que cambia con la
+        // frecuencia es en cuántos cortes se reparte ese mismo costo (ver
+        // "cuotasReales" más abajo). Antes se aplicaba la mitad de la tasa
+        // por "cuota" tomando el número de CORTES como si fueran meses —
+        // eso hacía que pasar a Quincenal sin tocar el número de cuotas
+        // recortara el plazo real a la mitad (y el interés total también),
+        // en vez de mantener el mismo plazo con el doble de cortes.
         var frecuenciaActual = getVal('#c-frecuencia') || "Mensual";
-        var tasaPorPeriodo   = frecuenciaActual === "Quincenal"
-            ? (tasaMensual / 2) / 100
-            : tasaMensual / 100;
-        // ─────────────────────────────────────────────────────────────
-
-        var interesTotal = saldoBaseInteres * tasaPorPeriodo * cuotas;
+        var interesTotal     = saldoBaseInteres * (tasaMensual / 100) * cuotas;
         totalFinal = totalFinal + interesTotal;
         totalFinal = Math.round(totalFinal / 100) * 100;
     }
@@ -1042,33 +1051,42 @@ window.calcCart = function() {
 
     var faltanteInicial = Math.max(0, metaInicial - inicial);
 
+    // "cuotas" = meses de plazo acordados; si la frecuencia es Quincenal el
+    // cliente paga el doble de veces (cada 15 días) dentro de ese mismo
+    // plazo, así que el número real de cortes se duplica y cada cuota queda
+    // por la mitad — mismo plazo en meses, mitad de cuota en cada corte.
+    var cuotasReales = (metodo === "Crédito" && frecuenciaActual === "Quincenal")
+        ? (cuotas * 2)
+        : cuotas;
+
     var valorCuota  = 0;
     var ultimaCuota = 0;
 
     if (metodo === "Crédito") {
         var saldo = Math.max(0, totalFinal - inicial);
 
-        if (cuotas === 1) {
+        if (cuotasReales === 1) {
             valorCuota  = saldo;
             ultimaCuota = saldo;
         } else {
-            valorCuota  = Math.round((saldo / cuotas) / 100) * 100;
-            ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+            valorCuota  = Math.round((saldo / cuotasReales) / 100) * 100;
+            ultimaCuota = saldo - (valorCuota * (cuotasReales - 1));
 
             while (ultimaCuota <= 0 && valorCuota >= 100) {
                 valorCuota -= 100;
-                ultimaCuota = saldo - (valorCuota * (cuotas - 1));
+                ultimaCuota = saldo - (valorCuota * (cuotasReales - 1));
             }
         }
     }
 
     if (!window.calculatedValues) window.calculatedValues = {};
-    window.calculatedValues.inicial    = inicial;
-    window.calculatedValues.base       = baseParaCalculo;
-    window.calculatedValues.total      = totalFinal;
-    window.calculatedValues.descuento  = descuentoDineroTotal;
-    window.calculatedValues.valorCuota = valorCuota;
-    window.calculatedValues.ultimaCuota = ultimaCuota;
+    window.calculatedValues.inicial      = inicial;
+    window.calculatedValues.base         = baseParaCalculo;
+    window.calculatedValues.total        = totalFinal;
+    window.calculatedValues.descuento    = descuentoDineroTotal;
+    window.calculatedValues.valorCuota   = valorCuota;
+    window.calculatedValues.ultimaCuota  = ultimaCuota;
+    window.calculatedValues.cuotasReales = cuotasReales;
 
     pushCartState_();
 
@@ -1156,10 +1174,10 @@ window.calcCart = function() {
 
                 var txtCuotas = "";
                 // ── FIX UMBRAL: >= 1 en lugar de > 1 ─────────────────────
-                if (cuotas > 1 && Math.abs(ultimaCuota - valorCuota) >= 1 && ultimaCuota > 0) {
-                    txtCuotas = `x ${cuotas - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
+                if (cuotasReales > 1 && Math.abs(ultimaCuota - valorCuota) >= 1 && ultimaCuota > 0) {
+                    txtCuotas = `x ${cuotasReales - 1} de ${window.COP.format(valorCuota)} y 1 de ${window.COP.format(ultimaCuota)} (${fTexto})`;
                 } else {
-                    txtCuotas = `x ${cuotas} Cuota(s) (${fTexto})`;
+                    txtCuotas = `x ${cuotasReales} Cuota(s) (${fTexto})`;
                 }
                 // ─────────────────────────────────────────────────────────
 
@@ -1390,9 +1408,13 @@ window.generarCotizacionPDF = function() {
        interesAplicado = Math.round(interesAplicado / 100) * 100;
        
        if (interesAplicado > 0) {
+           // FIX QUINCENAL: mostrar el número REAL de cortes (ya duplicado
+           // por calcCart si la frecuencia es Quincenal) para que coincida
+           // con valorCuota/ultimaCuota, que sí vienen de calculatedValues.
+           var cuotasRealesPDF = (window.calculatedValues && window.calculatedValues.cuotasReales) || cuotas;
            itemsData.push({
                nombre: "Intereses de Financiación",
-               descripcion: "Costo financiero por pago a crédito (" + cuotas + " cuotas)",
+               descripcion: "Costo financiero por pago a crédito (" + cuotasRealesPDF + " cuotas)",
                cantidad: 1,
                valorUnitarioBase: interesAplicado,
                descuentoPrc: 0,
