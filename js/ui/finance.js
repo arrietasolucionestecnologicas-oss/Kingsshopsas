@@ -462,7 +462,7 @@ function renderCartera() {
                     <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
                     <button class="btn btn-xs btn-outline-warning flex-fill fw-bold" onclick="window.solicitarAbonoWA('${d.idVenta}')" title="Solicitar Abono (datos de pago)"><i class="fab fa-whatsapp"></i> Solicitar Abono</button>
                     <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
-                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0})" title="Refinanciar Deuda">🔄 Refinanc.</button>
+                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0}, '${d.frecuencia || "Mensual"}')" title="Refinanciar Deuda">🔄 Refinanc.</button>
                 </div>
                 ${planDetalle}
             </div>`;
@@ -627,12 +627,13 @@ function compartirBalanceWA(idVenta) {
     window.open(url, '_blank');
 }
 
-function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal) {
+function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, totalOriginal, frecuenciaActual) {
     window.refEditId          = id;
     window.refSaldoActual     = parseFloat(saldo)          || 0;
     window.refCuotasOriginales= parseInt(cuotasOriginales) || 1;
     window.refValCuota        = parseFloat(valCuota)       || 0;
     window.refTotalOriginal   = parseFloat(totalOriginal)  || 0;
+    window.refFrecuenciaOriginal = (frecuenciaActual === "Quincenal") ? "Quincenal" : "Mensual";
 
     var dObj = (window.D && window.D.deudores) ? window.D.deudores.find(x => x.idVenta === id) : null;
     window.refFechaLimiteOriginal = dObj ? (dObj.fechaLimiteRaw || dObj.fechaLimite) : null;
@@ -642,14 +643,22 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
     var montoFinanciado = window.refTotalOriginal - window.refInicialOriginal;
     var montoCuotasPagado = montoFinanciado - window.refSaldoActual;
     var cuotasPagadas = (window.refValCuota > 0) ? Math.floor(montoCuotasPagado / window.refValCuota) : 0;
-    
+
     window.refCuotasRestantes = Math.max(1, window.refCuotasOriginales - cuotasPagadas);
+
+    // FIX QUINCENAL: "Nuevo Plazo" se maneja siempre en MESES (igual que en
+    // la venta nueva) — si la venta original es Quincenal, los cortes
+    // restantes representan la mitad de esos meses.
+    var mesesRestantes = window.refCuotasRestantes / (window.refFrecuenciaOriginal === "Quincenal" ? 2 : 1);
 
     document.getElementById('ref-cliente').value       = cliente;
     document.getElementById('ref-saldo-actual').value  = window.COP.format(window.refSaldoActual);
-    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas / " + window.refCuotasRestantes + " restantes";
+    document.getElementById('ref-cuotas-orig').innerText = window.refCuotasOriginales + " cuotas pactadas (" +
+        window.refFrecuenciaOriginal + ") / " + window.refCuotasRestantes + " restantes (≈ " +
+        (Math.round(mesesRestantes * 10) / 10) + " meses)";
     document.getElementById('ref-tasa').value          = "5";
-    document.getElementById('ref-cuotas').value        = String(window.refCuotasRestantes);
+    document.getElementById('ref-cuotas').value        = String(Math.round(mesesRestantes * 10) / 10);
+    document.getElementById('ref-frecuencia').value    = window.refFrecuenciaOriginal;
 
     var today = new Date();
     today.setMonth(today.getMonth() + 1);
@@ -675,16 +684,25 @@ function abrirModalRefinanciar(id, cliente, saldo, cuotasOriginales, valCuota, t
 }
 
 function calcRefinanciamiento() {
-    var cuotas     = parseInt(document.getElementById('ref-cuotas').value)  || 1;
-    var tasa       = parseFloat(document.getElementById('ref-tasa').value)  || 5;
-    var saldo      = window.refSaldoActual     || 0;
-    var restantes  = window.refCuotasRestantes || 1;
-    var nuevaFecha = document.getElementById('ref-fecha').value;
+    var mesesNuevos = parseFloat(document.getElementById('ref-cuotas').value) || 1;
+    var tasa        = parseFloat(document.getElementById('ref-tasa').value)  || 5;
+    var saldo       = window.refSaldoActual     || 0;
+    var restantes   = window.refCuotasRestantes || 1;
+    var nuevaFecha  = document.getElementById('ref-fecha').value;
+    var frecOriginal = window.refFrecuenciaOriginal || "Mensual";
+    var frecNueva   = document.getElementById('ref-frecuencia')
+        ? document.getElementById('ref-frecuencia').value
+        : frecOriginal;
 
     var elFactor = document.getElementById('ref-factor-incentivo');
     if (elFactor) window.refFactorIncentivo = parseFloat(elFactor.value) || 0;
 
-    var cuotasExtra = cuotas - restantes;
+    // FIX QUINCENAL: el cargo/descuento por repactar se calcula por
+    // diferencia de MESES (la tasa es mensual), sin importar si la
+    // frecuencia vieja o nueva es Quincenal — "restantes" está en cortes
+    // de la frecuencia ORIGINAL, así que primero se convierte a meses.
+    var mesesRestantesOriginal = restantes / (frecOriginal === "Quincenal" ? 2 : 1);
+    var cuotasExtra = mesesNuevos - mesesRestantesOriginal;
     var cargoEstructural = cuotasExtra !== 0 ? (saldo * (tasa / 100) * cuotasExtra) : 0;
 
     window.refDescProntoPago = 0;
@@ -717,19 +735,28 @@ function calcRefinanciamiento() {
         cargoTotal -= window.refDescProntoPago;
     }
 
+    // FIX QUINCENAL: el número REAL de cortes es el que se guarda y con el
+    // que se divide la cuota — el doble de mesesNuevos si la frecuencia
+    // nueva es Quincenal, igual que en la venta nueva.
+    var cuotasReales = Math.max(1, Math.round(frecNueva === "Quincenal" ? mesesNuevos * 2 : mesesNuevos));
+    window.refCuotasReales    = cuotasReales;
+    window.refFrecuenciaNueva = frecNueva;
+
     var nuevoSaldo  = Math.max(0, saldo + cargoTotal);
-    var nuevaCuota  = nuevoSaldo / cuotas;
+    var nuevaCuota  = nuevoSaldo / cuotasReales;
 
     document.getElementById('ref-nuevo-saldo').innerText  = window.COP.format(nuevoSaldo);
-    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) + " / mes";
+    document.getElementById('ref-nueva-cuota').innerText  = window.COP.format(nuevaCuota) +
+        (frecNueva === "Quincenal" ? " / quincena (" + cuotasReales + " cuotas)" : " / mes (" + cuotasReales + " cuotas)");
 
     var elAviso = document.getElementById('ref-aviso-cargo');
     if(elAviso) {
         var html = "";
+        var mesesFmt = Math.round(Math.abs(cuotasExtra) * 10) / 10;
         if(cuotasExtra > 0) {
-            html += `<div class="text-danger mt-1 small">⚠️ <strong>${cuotasExtra} cuota(s) extra</strong> al ${tasa}% = Cargo: <strong>${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
+            html += `<div class="text-danger mt-1 small">⚠️ <strong>${mesesFmt} mes(es) extra</strong> al ${tasa}% = Cargo: <strong>${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
         } else if (cuotasExtra < 0) {
-            html += `<div class="text-success mt-1 small">✅ <strong>${Math.abs(cuotasExtra)} cuota(s) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
+            html += `<div class="text-success mt-1 small">✅ <strong>${mesesFmt} mes(es) menos</strong> = Dto: <strong>-${window.COP.format(Math.abs(cargoEstructural))}</strong></div>`;
         }
 
         if(window.refDescProntoPago > 0 || aplicarProntoPago) {
@@ -763,19 +790,27 @@ function procesarRefinanciamiento() {
     if(!window.refEditId) { unlock(); return; }
     if(!window.D || !window.D.deudores) { unlock(); return alert("Error: datos de cartera no disponibles."); }
 
-    var cuotas = parseInt(document.getElementById('ref-cuotas').value) || 1;
-    var fecha  = document.getElementById('ref-fecha').value;
-    var tasa   = parseFloat(document.getElementById('ref-tasa').value) || 5;
+    var mesesNuevos = parseFloat(document.getElementById('ref-cuotas').value) || 1;
+    var fecha       = document.getElementById('ref-fecha').value;
+    var tasa        = parseFloat(document.getElementById('ref-tasa').value) || 5;
+    var frecuenciaNueva = document.getElementById('ref-frecuencia')
+        ? document.getElementById('ref-frecuencia').value
+        : (window.refFrecuenciaOriginal || "Mensual");
 
-    if(!fecha || cuotas < 1) { unlock(); return alert("Verifica las cuotas y la fecha"); }
+    if(!fecha || mesesNuevos <= 0) { unlock(); return alert("Verifica el plazo y la fecha"); }
 
     // Usamos el cálculo final consolidado que ya contempla cuotas extra y pronto pago
     var cargoFinal = window.refCargoCalculado || 0;
+    // FIX QUINCENAL: número REAL de cortes (ya calculado por calcRefinanciamiento
+    // — el doble de mesesNuevos si la frecuencia nueva es Quincenal).
+    var cuotasReales = window.refCuotasReales ||
+        Math.max(1, Math.round(frecuenciaNueva === "Quincenal" ? mesesNuevos * 2 : mesesNuevos));
 
     var d = {
         idVenta        : window.refEditId,
         cargoAdicional : cargoFinal,
-        nuevasCuotas   : cuotas,
+        mesesNuevos    : mesesNuevos,
+        nuevaFrecuencia: frecuenciaNueva,
         nuevaFecha     : fecha,
         tasaInteres    : tasa,
         aliasOperador  : window.currentUserAlias || "Operador"
@@ -783,11 +818,12 @@ function procesarRefinanciamiento() {
 
     var snapDeudores = JSON.parse(JSON.stringify(window.D.deudores));
     var dIdx = window.D.deudores.findIndex(x => x.idVenta === window.refEditId);
-    
+
     if(dIdx > -1) {
-        window.D.deudores[dIdx].saldo    = Math.max(0, window.D.deudores[dIdx].saldo + cargoFinal);
-        window.D.deudores[dIdx].valCuota = window.D.deudores[dIdx].saldo / cuotas;
-        window.D.deudores[dIdx].cuotas   = cuotas;
+        window.D.deudores[dIdx].saldo      = Math.max(0, window.D.deudores[dIdx].saldo + cargoFinal);
+        window.D.deudores[dIdx].valCuota   = window.D.deudores[dIdx].saldo / cuotasReales;
+        window.D.deudores[dIdx].cuotas     = cuotasReales;
+        window.D.deudores[dIdx].frecuencia = frecuenciaNueva;
         window.D.deudores[dIdx].fechaLimite = fecha;
     }
 
@@ -802,6 +838,11 @@ function procesarRefinanciamiento() {
             window.D.deudores = snapDeudores;
             renderCartera();
             alert("Error al refinanciar: " + r.error);
+        } else if (r.offline) {
+            // FIX: igual que en abonos, no refrescar con loadData(true) sin
+            // señal — sobrescribiría la actualización optimista de arriba
+            // con la copia local vieja (antes de este refinanciamiento).
+            if (window.showToast) window.showToast("Acuerdo guardado OFFLINE. Se subirá cuando haya internet.", "warning");
         } else {
             // FIX: la actualización optimista de arriba calcula valCuota con
             // una división cruda (saldo/cuotas), pero el backend redondea al
