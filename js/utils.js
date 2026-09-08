@@ -10,15 +10,19 @@ window.extraerDriveId_ = function(url) {
     return match ? match[1] : null;
 };
 
-// FIX FOTOS: enlace CLICABLE normal para insertar en texto (WhatsApp, etc.)
-// — cuando alguien lo abre, lo hace desde SU PROPIO navegador/WhatsApp, no
-// desde el WebView de esta app, así que el problema de carga intermitente
-// que sufre la app instalada no aplica aquí. NO usar esto para pintar
-// pixeles dentro de la propia app — para eso existe cargarFotoProducto().
+// FIX FOTOS: enlace para insertar en texto (WhatsApp, etc.) — se abre fino
+// en cualquier navegador, PERO drive.google.com/uc?export=view no genera
+// vista previa dentro de WhatsApp (su robot de previsualización no logra
+// leer esa redirección), aunque el enlace en sí funcione al abrirlo. El
+// formato lh3.googleusercontent.com/d/<id> sí genera la miniatura dentro
+// del chat, porque responde la imagen directo sin redirecciones. NO usar
+// esto para pintar pixeles dentro de la propia app (esa carga es la que
+// fallaba de forma intermitente en el WebView) — para eso existe
+// cargarFotoProducto(), que nunca depende de este enlace.
 window.fixDriveLink = function(url) {
     if (!url) return "";
     var id = window.extraerDriveId_(url);
-    if (id) return "https://drive.google.com/uc?export=view&id=" + id;
+    if (id) return "https://lh3.googleusercontent.com/d/" + id + "=w1000";
     try { return decodeURIComponent(url).trim().split(' ')[0]; } catch(e) { return String(url).split(' ')[0]; }
 };
 
