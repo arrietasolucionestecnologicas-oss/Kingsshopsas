@@ -1,17 +1,74 @@
 /* ARCHIVO: js/utils.js - Utilidades Globales KING'S SHOP */
 
+// Solo extrae el ID del archivo de Drive de una URL — no construye ningún
+// enlace de visualización directa. Ver [[cargarFotoProducto]] para eso.
+window.extraerDriveId_ = function(url) {
+    if (!url) return null;
+    var clean = url;
+    try { clean = decodeURIComponent(url).trim(); } catch(e) {}
+    var match = clean.match(/[?&]id=([a-zA-Z0-9_-]+)/) || clean.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
+};
+
+// FIX FOTOS: enlace CLICABLE normal para insertar en texto (WhatsApp, etc.)
+// — cuando alguien lo abre, lo hace desde SU PROPIO navegador/WhatsApp, no
+// desde el WebView de esta app, así que el problema de carga intermitente
+// que sufre la app instalada no aplica aquí. NO usar esto para pintar
+// pixeles dentro de la propia app — para eso existe cargarFotoProducto().
 window.fixDriveLink = function(url) {
     if (!url) return "";
-    try { 
-        url = decodeURIComponent(url).trim(); 
+    var id = window.extraerDriveId_(url);
+    if (id) return "https://drive.google.com/uc?export=view&id=" + id;
+    try { return decodeURIComponent(url).trim().split(' ')[0]; } catch(e) { return String(url).split(' ')[0]; }
+};
+
+// FIX FOTOS: trae los pixeles reales de la foto de un producto para
+// PINTARLOS dentro de la app (inventario, carrito, compartir con imagen
+// adjunta). En vez de que el WebView le pida la imagen directo a la CDN
+// pública de Drive (lh3.googleusercontent.com / drive.google.com) — que en
+// algunos celulares/operadores falla de forma intermitente sin poder
+// reproducirse ni diagnosticarse desde afuera — se pide por el MISMO canal
+// (script.google.com) que ya usa toda la app para sus datos, comprobado
+// confiable. Se cachea en localStorage por fileId: la primera vez cuesta
+// una petición, de ahí en adelante es instantánea y funciona sin internet.
+window.cargarFotoProducto = function(url) {
+    if (!url) return Promise.resolve("");
+    if (String(url).indexOf('data:image') === 0) return Promise.resolve(url); // ya viene incrustada
+
+    var fileId = window.extraerDriveId_(url);
+    if (!fileId) return Promise.resolve(url); // no es un enlace de Drive reconocible, se usa tal cual
+
+    var cacheKey = 'kingshop_foto_' + fileId;
+    try {
+        var cached = localStorage.getItem(cacheKey);
+        if (cached) return Promise.resolve(cached);
     } catch(e) {}
-    
-    var match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    
-    if (match && match[1]) {
-        return "https://lh3.googleusercontent.com/d/" + match[1] + "=w1000";
-    }
-    return url.split(' ')[0];
+
+    if (!window.callAPI) return Promise.resolve("");
+
+    return window.callAPI('obtenerFotoBase64', { fileId: fileId }).then(function(r) {
+        if (!r || !r.exito || !r.data) return "";
+        var dataUri = "data:" + (r.mime || "image/jpeg") + ";base64," + r.data;
+        try { localStorage.setItem(cacheKey, dataUri); } catch(e) { /* localStorage lleno: se sirve igual, solo no se cachea */ }
+        return dataUri;
+    }).catch(function() { return ""; });
+};
+
+// Busca todos los <img data-foto-src="..."> dentro de un contenedor recién
+// pintado y les resuelve la foto real de forma asíncrona (uno por uno, sin
+// bloquear el render de la lista). Usar después de inyectar HTML con
+// data-foto-src en vez de src directo.
+window.hidratarFotos = function(container) {
+    if (!container) return;
+    var imgs = container.querySelectorAll('img[data-foto-src]');
+    imgs.forEach(function(img) {
+        var raw = img.getAttribute('data-foto-src');
+        img.removeAttribute('data-foto-src');
+        window.cargarFotoProducto(raw).then(function(dataUri) {
+            if (dataUri) img.src = dataUri;
+            else if (img.parentElement) img.parentElement.innerHTML = '<i class="bi bi-box-seam" style="font-size:2rem; color:#eee;"></i>';
+        });
+    });
 };
 
 window.embellecerDescripcion = function(texto) {
@@ -77,14 +134,23 @@ window.compartirNativoCapacitor_ = async function(title, text, file) {
 
 window.getFileFromUrlAsync = async function(url, defaultName) {
     try {
+        // FIX FOTOS: si es un enlace de Drive, se trae por nuestro propio
+        // backend (cargarFotoProducto) en vez de hacer fetch() directo a la
+        // CDN pública de Google — mismo motivo que el resto de este fix: esa
+        // ruta falla de forma intermitente en algunos celulares/operadores.
+        if (!url.startsWith('data:image') && window.extraerDriveId_ && window.extraerDriveId_(url)) {
+            url = await window.cargarFotoProducto(url);
+            if (!url) return null;
+        }
+
         if (url.startsWith('data:image')) {
             var arr = url.split(',');
             var mime = arr[0].match(/:(.*?);/)[1];
             var bstr = atob(arr[1]);
             var n = bstr.length;
             var u8arr = new Uint8Array(n);
-            while(n--) { 
-                u8arr[n] = bstr.charCodeAt(n); 
+            while(n--) {
+                u8arr[n] = bstr.charCodeAt(n);
             }
             return new File([u8arr], defaultName + ".jpg", {type: mime});
         } else {

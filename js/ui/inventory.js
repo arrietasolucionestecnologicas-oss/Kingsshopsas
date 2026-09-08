@@ -71,15 +71,21 @@ function openEdit(p) {
     document.getElementById('inp-edit-web').checked = p.enWeb || false;
     document.getElementById('inp-edit-cat-web').value = p.catWeb || 'tecnologia';
     document.getElementById('inp-file-foto').value = "";
-    document.getElementById('img-preview-box').style.display = 'none'; 
-    
-    var fixedUrl = window.fixDriveLink(p.foto);
-    if(fixedUrl) { 
-        document.getElementById('img-preview-box').src = fixedUrl; 
-        document.getElementById('img-preview-box').style.display = 'block';
-    } 
-    
-    if(window.myModalEdit) window.myModalEdit.show(); 
+    document.getElementById('img-preview-box').style.display = 'none';
+
+    // FIX FOTOS: se pinta con cargarFotoProducto (canal propio + caché
+    // local) en vez de apuntar el <img> directo al enlace de Drive.
+    if (p.foto) {
+        window.cargarFotoProducto(p.foto).then(function(dataUri) {
+            var box = document.getElementById('img-preview-box');
+            if (dataUri && box) {
+                box.src = dataUri;
+                box.style.display = 'block';
+            }
+        });
+    }
+
+    if(window.myModalEdit) window.myModalEdit.show();
 }
 
 function renderProvs() {
@@ -145,9 +151,12 @@ function renderWeb() {
     }
     
     lista.slice(0, 50).forEach(p => {
-        var fixedUrl = window.fixDriveLink(p.foto);
-        var img = fixedUrl ? `<img src="${fixedUrl}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;">` : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
-        
+        // FIX FOTOS: placeholder inmediato + data-foto-src — hidratarFotos()
+        // resuelve la imagen real por el canal propio (con caché) después.
+        var img = p.foto
+            ? `<img data-foto-src="${window.escHtml(p.foto)}" style="width:50px; height:50px; object-fit:cover; border-radius:5px; background:#eee;">`
+            : `<div style="width:50px; height:50px; background:#eee; border-radius:5px;">📷</div>`;
+
         c.innerHTML += `
         <div class="card-k">
             <div class="d-flex justify-content-between align-items-center">
@@ -155,7 +164,7 @@ function renderWeb() {
                     ${img}
                     <div>
                         <strong>${window.escHtml(p.nombre)}</strong><br>
-                        <small class="badge bg-primary">${p.catWeb}</small> 
+                        <small class="badge bg-primary">${p.catWeb}</small>
                         <small class="text-muted">| ${window.COP.format(p.publico)}</small>
                     </div>
                 </div>
@@ -163,6 +172,7 @@ function renderWeb() {
             </div>
         </div>`;
     });
+    if (window.hidratarFotos) window.hidratarFotos(c);
 }
 
 function toggleWebStatus(id) {
@@ -214,8 +224,11 @@ function renderInv() {
     }
 
     lista.slice(0, 50).forEach(p => {
-        var fixedUrl = window.fixDriveLink(p.foto);
-        var imgHtml = fixedUrl ? `<img src="${fixedUrl}">` : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
+        // FIX FOTOS: placeholder inmediato + data-foto-src — hidratarFotos()
+        // resuelve la imagen real por el canal propio (con caché) después.
+        var imgHtml = p.foto
+            ? `<img data-foto-src="${window.escHtml(p.foto)}">`
+            : `<i class="bi bi-box-seam" style="font-size:3rem; color:#eee;"></i>`;
         var precioDisplay = p.publico > 0 ? window.COP.format(p.publico) : 'N/A';
         
         var btnAddCart = `<div class="btn-copy-mini text-white" style="background:var(--primary); border-color:var(--primary);" onclick="window.agregarAlCarritoDesdeInv('${p.id}')" title="Agregar al Carrito"><i class="fas fa-cart-plus"></i></div>`;
@@ -242,7 +255,8 @@ function renderInv() {
         </div>`;
         
         c.appendChild(div);
-    }); 
+    });
+    if (window.hidratarFotos) window.hidratarFotos(c);
 }
 
 function copyingDato(txt) {
