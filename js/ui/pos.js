@@ -1010,26 +1010,13 @@ window.calcCart = function() {
     // interés como para la inicial sugerida real. ──────────────────────────
     var metaInicial = isEximir ? 0 : Math.round((totalFinal * 0.30) / 100) * 100;
 
-    if (metodo === "Crédito") {
-        var saldoBaseInteres = Math.max(0, totalFinal - metaInicial);
-
-        // ── FIX QUINCENAL: "cuotas" (el campo que llena el operador) siempre
-        // significa MESES DE PLAZO acordados con el cliente — sin importar
-        // la frecuencia de cobro. El interés de un crédito a 6 meses es el
-        // mismo se cobre mensual o quincenal; lo único que cambia con la
-        // frecuencia es en cuántos cortes se reparte ese mismo costo (ver
-        // "cuotasReales" más abajo). Antes se aplicaba la mitad de la tasa
-        // por "cuota" tomando el número de CORTES como si fueran meses —
-        // eso hacía que pasar a Quincenal sin tocar el número de cuotas
-        // recortara el plazo real a la mitad (y el interés total también),
-        // en vez de mantener el mismo plazo con el doble de cortes.
-        var frecuenciaActual = getVal('#c-frecuencia') || "Mensual";
-        var interesTotal     = saldoBaseInteres * (tasaMensual / 100) * cuotas;
-        totalFinal = totalFinal + interesTotal;
-        totalFinal = Math.round(totalFinal / 100) * 100;
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
+    // ── FIX INTERÉS SOBRE INICIAL REAL: la inicial se determina ANTES de
+    // calcular el interés (antes era al revés — el interés siempre se
+    // calculaba contra la inicial SUGERIDA del 30%, sin importar cuánto
+    // pagara realmente el cliente). Si el cliente paga más de lo sugerido,
+    // eso debe financiarse con menos saldo y por lo tanto pagar menos
+    // interés — antes el precio final quedaba fijo sin importar cuánto
+    // adelantara de inicial, lo cual era incorrecto. ───────────────────────
     var inpInicial   = activeParent.querySelector('#c-inicial');
     var isTypingInicial = (document.activeElement && document.activeElement === inpInicial);
 
@@ -1048,6 +1035,27 @@ window.calcCart = function() {
         window.usuarioForzoInicial = false;
         inicial = isEximir ? 0 : metaInicial;
     }
+
+    var frecuenciaActual = getVal('#c-frecuencia') || "Mensual";
+
+    if (metodo === "Crédito") {
+        var saldoBaseInteres = Math.max(0, totalFinal - inicial);
+
+        // ── FIX QUINCENAL: "cuotas" (el campo que llena el operador) siempre
+        // significa MESES DE PLAZO acordados con el cliente — sin importar
+        // la frecuencia de cobro. El interés de un crédito a 6 meses es el
+        // mismo se cobre mensual o quincenal; lo único que cambia con la
+        // frecuencia es en cuántos cortes se reparte ese mismo costo (ver
+        // "cuotasReales" más abajo). Antes se aplicaba la mitad de la tasa
+        // por "cuota" tomando el número de CORTES como si fueran meses —
+        // eso hacía que pasar a Quincenal sin tocar el número de cuotas
+        // recortara el plazo real a la mitad (y el interés total también),
+        // en vez de mantener el mismo plazo con el doble de cortes.
+        var interesTotal = saldoBaseInteres * (tasaMensual / 100) * cuotas;
+        totalFinal = totalFinal + interesTotal;
+        totalFinal = Math.round(totalFinal / 100) * 100;
+    }
+    // ─────────────────────────────────────────────────────────────────────
 
     var faltanteInicial = Math.max(0, metaInicial - inicial);
 
