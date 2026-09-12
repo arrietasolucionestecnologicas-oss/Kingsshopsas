@@ -17,9 +17,18 @@ const API_HEADERS_ = { 'Content-Type': 'text/plain;charset=utf-8' };
 // AbortController, a los 15s se aborta y el flujo cae al catch normal.
 const FETCH_TIMEOUT_MS_ = 15000;
 
-function fetchConTimeout_(url, options) {
+// FIX DUPLICADOS: crear/editar un producto CON FOTO implica que el servidor
+// suba el archivo a Drive antes de responder — eso puede tardar más de 15s
+// con una conexión lenta. Antes, ese caso normal (no un cuelgue real) se
+// abortaba igual, el cliente lo daba por fallido y lo reintentaba desde la
+// cola offline — mientras el servidor SÍ había terminado de guardarlo,
+// generando un producto duplicado. Se le da más margen solo a estas
+// llamadas específicas; todo lo demás sigue con el timeout corto de 15s.
+const FETCH_TIMEOUT_MS_FOTO_ = 45000;
+
+function fetchConTimeout_(url, options, timeoutMs) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS_);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs || FETCH_TIMEOUT_MS_);
     return fetch(url, Object.assign({}, options, { signal: controller.signal }))
         .finally(() => clearTimeout(timeoutId));
 }
@@ -33,34 +42,50 @@ export function guardarEnCola(accion, datos) {
 }
 window.guardarEnCola = guardarEnCola;
 
+// FIX COLA ATASCADA: sincronizarCola() se dispara desde varios lugares
+// (evento 'online', apertura de la app, reintentos) — sin un candado, dos
+// llamadas podían solaparse, cada una leyendo la MISMA cola de localStorage
+// antes de que la otra terminara de escribirla de vuelta. La que terminaba
+// último pisaba el resultado de la primera (una condición de carrera
+// clásica), así que ítems que sí se habían sincronizado con éxito volvían a
+// aparecer como pendientes — la cola nunca bajaba de verdad.
+let sincronizandoCola_ = false;
+
 export async function sincronizarCola() {
+    if (sincronizandoCola_) return; // ya hay una sincronización en curso
     let cola = JSON.parse(localStorage.getItem('kingshop_queue') || "[]");
     if (cola.length === 0) return;
 
+    sincronizandoCola_ = true;
     if(window.showToast) window.showToast(`Sincronizando ${cola.length} acciones pendientes...`, "info");
 
     let nuevaCola = [];
-    for (let item of cola) {
-        try {
-            const response = await fetchConTimeout_(API_URL, {
-                method: 'POST',
-                headers: API_HEADERS_,
-                body: JSON.stringify({ action: item.action, data: item.data })
-            });
-            const res = await response.json();
-            if (!res.exito) throw new Error(res.error);
-        } catch (e) {
-            console.error("Fallo al sincronizar item:", item, e);
-            nuevaCola.push(item);
+    try {
+        for (let item of cola) {
+            try {
+                const timeoutItem = (item.data && item.data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_ : FETCH_TIMEOUT_MS_;
+                const response = await fetchConTimeout_(API_URL, {
+                    method: 'POST',
+                    headers: API_HEADERS_,
+                    body: JSON.stringify({ action: item.action, data: item.data })
+                }, timeoutItem);
+                const res = await response.json();
+                if (!res.exito && !res.duplicado) throw new Error(res.error);
+            } catch (e) {
+                console.error("Fallo al sincronizar item:", item, e);
+                nuevaCola.push(item);
+            }
         }
-    }
 
-    localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
-    if (nuevaCola.length === 0) {
-        if(window.showToast) window.showToast("¡Sincronización completada!", "success");
-        if(window.loadData) window.loadData(true);
-    } else {
-        if(window.showToast) window.showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
+        localStorage.setItem('kingshop_queue', JSON.stringify(nuevaCola));
+        if (nuevaCola.length === 0) {
+            if(window.showToast) window.showToast("¡Sincronización completada!", "success");
+            if(window.loadData) window.loadData(true);
+        } else {
+            if(window.showToast) window.showToast(`Quedan ${nuevaCola.length} pendientes.`, "warning");
+        }
+    } finally {
+        sincronizandoCola_ = false;
     }
 }
 window.sincronizarCola = sincronizarCola;
@@ -82,11 +107,12 @@ export async function callAPI(action, data = null) {
   }
 
   try {
+    const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_ : FETCH_TIMEOUT_MS_;
     const response = await fetchConTimeout_(API_URL, {
       method: 'POST',
       headers: API_HEADERS_,
       body: JSON.stringify({ action: action, data: data })
-    });
+    }, timeoutMs);
     const result = await response.json();
     return result;
   } catch (e) {
