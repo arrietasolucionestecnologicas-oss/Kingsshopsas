@@ -1,9 +1,16 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v89
+ * 👑 KINGSHOP SERVICE WORKER v91
  * FIX CRÍTICO 9: utils.js añadido al caché
  * FIX BAJO 6   : install con Promise.allSettled (fallo parcial no bloquea)
+ * FIX CRÍTICO 10: cache:'no-store' en el fetch de HTML/JS (ver abajo) — sin
+ * esto, GitHub Pages manda Cache-Control: max-age=600 y el navegador podía
+ * quedarse hasta 10 minutos sirviendo una versión vieja del código aunque
+ * el Service Worker "intentara" traer la más reciente, obligando a
+ * usuarios sin conocimiento técnico a borrar caché a mano para ver un
+ * arreglo recién publicado. Recordar subir este número cada vez que se
+ * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v90-cache';
+const CACHE_NAME = 'kingshop-v91-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -55,8 +62,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com')) return;
   if (event.request.mode === 'navigate' || event.request.url.includes('.js')) {
+    // FIX CRÍTICO 10: cache:'no-store' obliga a ir siempre a la red real,
+    // ignorando el caché HTTP del navegador (el de GitHub Pages, 10 min).
+    // Sin esto, "traer lo más reciente" quedaba a medias: se saltaba el
+    // caché del Service Worker pero no el del navegador, y una app recién
+    // publicada podía tardar hasta 10 minutos en llegarle a cada usuario.
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request, { cache: 'no-store' }).catch(() => caches.match(event.request))
     );
   } else {
     event.respondWith(

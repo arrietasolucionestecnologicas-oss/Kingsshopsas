@@ -1042,6 +1042,20 @@
           .then(reg => console.log('SW registrado', reg))
           .catch(err => console.log('SW fallo', err));
       });
+
+      // FIX CRÍTICO 10: cuando el navegador detecta un Service Worker con
+      // contenido distinto al ya instalado (subimos CACHE_NAME en cada
+      // publicación importante), toma control y recarga sola una vez —
+      // así alguien que deja la app abierta horas/días igual termina
+      // viendo la versión más reciente sin que nadie tenga que explicarle
+      // "borra el caché". reloading_ evita un bucle si el evento dispara
+      // más de una vez.
+      let reloading_ = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading_) return;
+        reloading_ = true;
+        window.location.reload();
+      });
     }
   </script>
   <script type="module" src="./js/app.js"></script>
