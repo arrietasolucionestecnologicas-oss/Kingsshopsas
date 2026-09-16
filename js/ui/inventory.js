@@ -198,7 +198,12 @@ function toggleWebStatus(id) {
             catWeb: p.catWeb 
         };
         
-        window.callAPI('guardarProductoAvanzado', payload);
+        window.callAPI('guardarProductoAvanzado', payload).then(r => {
+            // FIX: mismo problema que crearProducto/guardarEditorItem — sin
+            // refrescar, este cambio solo vivía en memoria y se perdía al
+            // recargar la app (kingshop_data en caché no se actualizaba).
+            if (r && r.exito && !r.offline && window.loadData) window.loadData(true);
+        });
     }
 }
 
@@ -361,12 +366,18 @@ function guardarCambiosAvanzado() {
             payload.nombreArchivo = f.name; 
         }
        
-        window.callAPI('guardarProductoAvanzado', payload).then(r => { 
-            if(r.exito) { 
-                if(window.showToast) window.showToast("¡Guardado exitoso!", "success"); 
-            } else { 
-                if(window.showToast) window.showToast("Error guardando: " + r.error, "danger"); 
-            } 
+        window.callAPI('guardarProductoAvanzado', payload).then(r => {
+            if(r.exito) {
+                if(window.showToast) window.showToast("¡Guardado exitoso!", "success");
+                // FIX: la actualización optimista de arriba solo vive en memoria — sin
+                // este refresco, el producto editado (nombre/precio/foto nuevos)
+                // se veía bien un instante, pero al recargar la app volvía a
+                // mostrar los datos viejos guardados en caché (kingshop_data),
+                // como si la edición nunca se hubiera guardado.
+                if (window.loadData) window.loadData(true);
+            } else {
+                if(window.showToast) window.showToast("Error guardando: " + r.error, "danger");
+            }
         });
     });
 }
@@ -438,12 +449,23 @@ function crearProducto() {
             d.nombreArchivo = f.name; 
         }
         
-        window.callAPI('crearProductoManual', d).then(r => { 
-            if(r.exito){ 
-                if(window.showToast) window.showToast("Producto sincronizado", "success"); 
-            } else { 
-                if(window.showToast) window.showToast("Error al crear en servidor", "danger"); 
-            } 
+        window.callAPI('crearProductoManual', d).then(r => {
+            if(r.exito && r.offline){
+                if(window.showToast) window.showToast("Producto guardado OFFLINE. Se subirá cuando haya internet.", "warning");
+            } else if(r.exito){
+                if(window.showToast) window.showToast("Producto sincronizado", "success");
+                // FIX: la actualización optimista de arriba (window.D.inv.unshift)
+                // solo vive en memoria — sin este refresco, el producto se veía
+                // bien un instante, pero al recargar la app (o con el arranque
+                // "cache-first" que lee kingshop_data) volvía a desaparecer,
+                // como si nunca se hubiera guardado, aunque el servidor sí lo
+                // tenía. No se refresca si quedó offline: loadData(true) fallaría
+                // igual sin señal y sobrescribiría esta copia optimista con el
+                // caché viejo.
+                if (window.loadData) window.loadData(true);
+            } else {
+                if(window.showToast) window.showToast("Error al crear en servidor", "danger");
+            }
         });
     });
 }
