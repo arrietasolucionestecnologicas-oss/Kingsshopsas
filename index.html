@@ -58,6 +58,22 @@
         display: none;
     }
 
+    /* AUDITORÍA 2026-09-24: antes, si el refresco de fondo fallaba una y
+       otra vez (ej. el celular restringiendo la app en batería), la pantalla
+       seguía mostrando la última copia guardada sin ningún aviso — pasaron
+       8 días sin que nadie notara que los datos ya no eran reales. Este
+       banner hace visible esa situación en vez de esconderla. */
+    #stale-data-indicator {
+        background-color: #dc3545;
+        color: #fff;
+        text-align: center;
+        padding: 6px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        display: none;
+        cursor: pointer;
+    }
+
     .main-layout { display: flex; gap: 20px; align-items: flex-start; padding: 15px; }
     .list-column { flex: 1; min-width: 0; }
     .panel-column { width: 350px; position: sticky; top: 10px; display: none; }
@@ -255,6 +271,7 @@
   </div>
 
   <div id="offline-indicator">⚠️ Modo Sin Conexión - Operando Localmente</div>
+  <div id="stale-data-indicator" onclick="window.loadData(false)"></div>
 
   <div class="container-fluid px-3">
     <div id="view-pos" class="view-sec">

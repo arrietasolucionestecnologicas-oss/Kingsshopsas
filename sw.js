@@ -1,5 +1,10 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v94
+ * 👑 KINGSHOP SERVICE WORKER v95
+ * GARANTIA 2026-09-24: si el refresco de fondo lleva mas de 30 min sin
+ * exito, ahora aparece un banner rojo visible avisandolo (antes se quedaba
+ * mostrando datos viejos en silencio, sin ningun aviso, como paso 8 dias en
+ * el celular por una restriccion de bateria de Samsung). Ademas reintenta
+ * sola cada 3 minutos en segundo plano.
  * AUDITORIA 2026-09-24: piso general de timeout subido de 15s a 30s (Apps
  * Script mide 40s+ a veces incluso en operaciones normales); PDF de
  * cotizacion e importacion masiva ahora en 45s (Drive + lotes); importacion
@@ -26,7 +31,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v94-cache';
+const CACHE_NAME = 'kingshop-v95-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -67,6 +67,44 @@ window.loadLocalData = function() {
     return raw ? JSON.parse(raw) : null;
 }
 
+// GARANTÍA 2026-09-24: antes, si el refresco de fondo fallaba una y otra vez
+// (celular restringiendo la app en batería, wifi mala, lo que sea), la
+// pantalla seguía mostrando la última copia guardada SIN NINGÚN AVISO — así
+// pasaron 8 días con datos congelados sin que nadie lo notara. Esto hace
+// visible ese atraso en vez de esconderlo, y reintenta solo en segundo
+// plano sin que haya que abrir/cerrar la app para "despertarla".
+window.STALE_DATA_MS_ = 30 * 60 * 1000; // 30 minutos sin sincronizar de verdad
+
+window.checkDataFreshness = function() {
+    const el = document.getElementById('stale-data-indicator');
+    if (!el) return;
+    const raw = localStorage.getItem('kingshop_last_sync');
+    if (!raw) { el.style.display = 'none'; return; }
+    const ms = Date.now() - new Date(raw).getTime();
+    if (ms > window.STALE_DATA_MS_) {
+        const horas = Math.floor(ms / 3600000);
+        const texto = horas < 1 ? 'hace menos de 1 hora'
+                    : horas < 24 ? `hace ${horas} hora(s)`
+                    : `hace ${Math.floor(horas/24)} día(s)`;
+        el.innerText = `🔴 Sin sincronizar con el servidor ${texto} — toca aquí para reintentar`;
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+};
+
+// Reintento automático de fondo: revisa cada 3 minutos, y si los datos están
+// viejos y hay señal, intenta refrescar sola — sin esperar a que alguien
+// abra/cierre la app para que "despierte".
+setInterval(function() {
+    window.checkDataFreshness();
+    const raw = localStorage.getItem('kingshop_last_sync');
+    const ms = raw ? Date.now() - new Date(raw).getTime() : Infinity;
+    if (ms > window.STALE_DATA_MS_ && navigator.onLine && window.loadData) {
+        window.loadData(true);
+    }
+}, 3 * 60 * 1000);
+
 window.showToast = function(msg, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
@@ -150,6 +188,8 @@ window.loadData = function(silent = false) {
             }
         }
         if(!silent) document.getElementById('loader').style.display = 'none';
+    }).finally(() => {
+        if (window.checkDataFreshness) window.checkDataFreshness();
     });
 }
 
