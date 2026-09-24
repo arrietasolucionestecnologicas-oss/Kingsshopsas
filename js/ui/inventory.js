@@ -139,9 +139,12 @@ function renderWeb() {
     if(!c) return;
     
     c.innerHTML = '';
-    var lista = (window.D.inv || []).filter(p => p.enWeb === true);
-    
-    if(q) { 
+    // FIX 2026-09-24: mismo criterio que renderInv() — más nuevos primero,
+    // para que un producto recién marcado "En Web" no quede fuera del corte
+    // de abajo (slice 0,50) detrás de los ~138 productos más viejos.
+    var lista = (window.D.inv || []).slice().reverse().filter(p => p.enWeb === true);
+
+    if(q) {
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q)); 
     }
     
@@ -216,10 +219,16 @@ function renderInv() {
     var q = searchEl ? searchEl.value.toLowerCase().trim() : "";
     var filterProv = filterEl ? filterEl.value : "";
     
-    c.innerHTML = ''; 
-    var lista = window.D.inv || [];
-    
-    if(q) { 
+    c.innerHTML = '';
+    // FIX 2026-09-24: el servidor entrega los productos en el orden de la
+    // hoja (los más viejos primero) — con más de 50 productos, uno recién
+    // creado quedaba después del corte de abajo (slice 0,50) y nunca
+    // aparecía sin buscarlo por nombre exacto. Se invierte para que los más
+    // nuevos salgan primero — así un producto recién creado siempre entra
+    // en el corte, y de paso es más útil ver lo último agregado primero.
+    var lista = (window.D.inv || []).slice().reverse();
+
+    if(q) {
         lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || p.cat.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)); 
     }
     

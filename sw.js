@@ -1,5 +1,9 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v97
+ * 👑 KINGSHOP SERVICE WORKER v98
+ * FIX 2026-09-24: Inventario y Web mostraban los primeros 50 productos en
+ * orden de hoja (mas viejos primero) - con 138+ productos, uno recien
+ * creado quedaba fuera de ese corte y parecia no existir aunque SI estaba
+ * bien guardado en la hoja. Ahora se muestran los mas nuevos primero.
  * FIX CRITICO 13 2026-09-24: reproducido en vivo — a veces Apps Script
  * entrega mal la respuesta de un POST y regresa el texto de estado de
  * doGet en vez del JSON real (SyntaxError al parsear). Llega RAPIDO, no es
@@ -40,7 +44,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v97-cache';
+const CACHE_NAME = 'kingshop-v98-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
