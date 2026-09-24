@@ -26,6 +26,17 @@ const FETCH_TIMEOUT_MS_ = 15000;
 // llamadas específicas; todo lo demás sigue con el timeout corto de 15s.
 const FETCH_TIMEOUT_MS_FOTO_ = 45000;
 
+// FIX TIMEOUT PREMATURO: obtenerDatosCompletos() arma y agrega TODO el
+// negocio del servidor (inventario, ventas, cartera, historial de caja...) —
+// crece con el tiempo y, medido en vivo, alguna vez tardó más de 40s aunque
+// el servidor estuviera respondiendo bien (Apps Script tiene variabilidad
+// propia, no es un cuelgue real). Con el timeout corto de 15s eso se
+// abortaba solo, mostrando "Error cargando datos: AbortError" y dejando la
+// pantalla con la copia vieja de localStorage — parecía un daño real
+// (producto que "no aparece", app que "no recarga") siendo solo que el
+// cliente se rindió antes de tiempo.
+const FETCH_TIMEOUT_MS_DATOS_ = 45000;
+
 function fetchConTimeout_(url, options, timeoutMs) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs || FETCH_TIMEOUT_MS_);
@@ -107,7 +118,9 @@ export async function callAPI(action, data = null) {
   }
 
   try {
-    const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_ : FETCH_TIMEOUT_MS_;
+    const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_
+                     : (action === 'obtenerDatosCompletos') ? FETCH_TIMEOUT_MS_DATOS_
+                     : FETCH_TIMEOUT_MS_;
     const response = await fetchConTimeout_(API_URL, {
       method: 'POST',
       headers: API_HEADERS_,

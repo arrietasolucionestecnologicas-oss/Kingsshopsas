@@ -1,5 +1,11 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v92
+ * 👑 KINGSHOP SERVICE WORKER v93
+ * FIX CRÍTICO 12: obtenerDatosCompletos() (trae TODO el negocio) tenía el
+ * mismo timeout corto de 15s que una escritura chica — medido en vivo,
+ * a veces tarda mas de 40s sin que el servidor este fallando, solo lento.
+ * Se abortaba solo y en una sesion sin cache previo (incognito, celular
+ * nuevo) la app se quedaba sin nada que mostrar. Ahora tiene 45s, igual
+ * que la subida de fotos.
  * FIX CRÍTICO 11: loadData(true) (refresco silencioso tras un abono/ingreso/
  * gasto ya confirmado) ya no pisa el estado correcto en memoria con la
  * caché vieja de localStorage cuando ese refresco topa con la falla
@@ -16,7 +22,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v92-cache';
+const CACHE_NAME = 'kingshop-v93-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
