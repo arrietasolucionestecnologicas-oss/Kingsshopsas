@@ -75,18 +75,37 @@ window.hidratarFotos = function(container) {
     });
 };
 
+// MEJORA LECTURA WHATSAPP 2026-09-24: antes cada especificación quedaba
+// como un párrafo largo pegado al siguiente por un solo salto de línea —
+// en la pantalla de WhatsApp del celular se veía como un bloque denso de
+// texto, sin ningún punto de referencia visual (todo el mismo peso, nada
+// resaltado). Ahora: la etiqueta antes de los dos puntos ("Cámara:",
+// "Batería:"...) se resalta en negrita para poder escanear de un vistazo,
+// y queda una línea en blanco entre cada punto para que respire.
 window.embellecerDescripcion = function(texto) {
     if (!texto) return "";
-    var lineas = texto.split('\n');
-    var bonitas = lineas.map(l => {
-        var tl = l.trim();
-        if(!tl) return "";
-        if(tl.startsWith('-') || tl.startsWith('🔹') || tl.startsWith('•') || tl.startsWith('*')) {
-            return "• " + tl.replace(/^[-•*🔹]\s*/, '');
+    var lineas = texto.split('\n').map(l => l.trim()).filter(l => l !== "");
+    if (lineas.length === 0) return "";
+
+    var salida = lineas.map(function(l, i) {
+        var tl = l.replace(/^[-•*🔹]\s*/, '');
+        var m = tl.match(/^([^:]{2,40}):\s*(.+)$/);
+        if (m) {
+            // "Etiqueta: detalle" -> "• *Etiqueta:* detalle"
+            return "• *" + m[1] + ":* " + m[2];
+        }
+        if (i === 0 && lineas.length > 1) {
+            // Primera línea sin "Etiqueta:" y hay más después de ella: es el
+            // resumen/gancho que se escribe antes de las especificaciones
+            // técnicas — se resalta como titular en negrita en vez de
+            // metersele una viñeta más, para que no compita visualmente con
+            // los datos técnicos de abajo.
+            return "*" + tl + "*";
         }
         return "• " + tl;
-    }).filter(l => l !== "").join('\n');
-    return bonitas;
+    });
+
+    return salida.join('\n\n');
 };
 
 // ── Compartir nativo en Android (Capacitor) ────────────────────────────────

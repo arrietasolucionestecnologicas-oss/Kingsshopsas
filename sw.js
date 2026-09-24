@@ -1,5 +1,8 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v95
+ * 👑 KINGSHOP SERVICE WORKER v96
+ * MEJORA 2026-09-24: descripcion de producto al compartir por WhatsApp con
+ * mejor formato de lectura (etiqueta en negrita + linea en blanco entre
+ * cada especificacion, en vez de un bloque de texto denso y pegado).
  * GARANTIA 2026-09-24: si el refresco de fondo lleva mas de 30 min sin
  * exito, ahora aparece un banner rojo visible avisandolo (antes se quedaba
  * mostrando datos viejos en silencio, sin ningun aviso, como paso 8 dias en
@@ -31,7 +34,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v95-cache';
+const CACHE_NAME = 'kingshop-v96-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
