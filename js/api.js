@@ -14,28 +14,41 @@ const API_HEADERS_ = { 'Content-Type': 'text/plain;charset=utf-8' };
 // Timeout defensivo: si la petición queda colgada a nivel de red/WebView (el
 // caso que reporta el usuario), sin esto la promesa de fetch() nunca se
 // resuelve ni rechaza y la pantalla de carga queda pegada para siempre. Con
-// AbortController, a los 15s se aborta y el flujo cae al catch normal.
-const FETCH_TIMEOUT_MS_ = 15000;
+// AbortController, se aborta y el flujo cae al catch normal.
+// AUDITORÍA 2026-09-24: medido en vivo, Apps Script puede tardar 40s+ en
+// responder incluso en operaciones normales, sin que el servidor esté
+// fallando — es variabilidad propia de su infraestructura (cold starts,
+// colas internas), no un cuelgue real de red. 15s era demasiado agresivo
+// para CUALQUIER acción, no solo para fotos/datos — se sube el piso general
+// a 30s, y las operaciones pesadas (Drive, PDFs, importación masiva, traer
+// todo el negocio) usan 45s.
+const FETCH_TIMEOUT_MS_ = 30000;
 
 // FIX DUPLICADOS: crear/editar un producto CON FOTO implica que el servidor
-// suba el archivo a Drive antes de responder — eso puede tardar más de 15s
+// suba el archivo a Drive antes de responder — eso puede tardar más de 30s
 // con una conexión lenta. Antes, ese caso normal (no un cuelgue real) se
 // abortaba igual, el cliente lo daba por fallido y lo reintentaba desde la
 // cola offline — mientras el servidor SÍ había terminado de guardarlo,
-// generando un producto duplicado. Se le da más margen solo a estas
-// llamadas específicas; todo lo demás sigue con el timeout corto de 15s.
+// generando un producto duplicado. Se le da más margen a estas llamadas y
+// a cualquier otra que también toque Drive o procese en lote (ver lista en
+// ACCIONES_LENTAS_ más abajo).
 const FETCH_TIMEOUT_MS_FOTO_ = 45000;
 
-// FIX TIMEOUT PREMATURO: obtenerDatosCompletos() arma y agrega TODO el
-// negocio del servidor (inventario, ventas, cartera, historial de caja...) —
-// crece con el tiempo y, medido en vivo, alguna vez tardó más de 40s aunque
-// el servidor estuviera respondiendo bien (Apps Script tiene variabilidad
-// propia, no es un cuelgue real). Con el timeout corto de 15s eso se
-// abortaba solo, mostrando "Error cargando datos: AbortError" y dejando la
-// pantalla con la copia vieja de localStorage — parecía un daño real
-// (producto que "no aparece", app que "no recarga") siendo solo que el
-// cliente se rindió antes de tiempo.
-const FETCH_TIMEOUT_MS_DATOS_ = 45000;
+// FIX TIMEOUT PREMATURO: estas acciones son inherentemente más lentas que
+// una escritura chica — obtenerDatosCompletos() arma y agrega TODO el
+// negocio (inventario, ventas, cartera, historial...) y sigue creciendo;
+// generarCotizacionPDF crea carpetas en Drive y renderiza un PDF;
+// procesarImportacionDirecta puede insertar decenas de productos de una
+// pegada de WhatsApp. Con el timeout corto, cualquiera de estas se abortaba
+// sola aunque el servidor SÍ estuviera terminando bien — mostrando errores
+// falsos ("no aparece", "no carga") o, peor, reintentando desde la cola
+// offline una acción que ya se había completado.
+const FETCH_TIMEOUT_MS_LENTA_ = 45000;
+const ACCIONES_LENTAS_ = {
+    obtenerDatosCompletos: true,
+    generarCotizacionPDF: true,
+    procesarImportacionDirecta: true
+};
 
 function fetchConTimeout_(url, options, timeoutMs) {
     const controller = new AbortController();
@@ -74,7 +87,9 @@ export async function sincronizarCola() {
     try {
         for (let item of cola) {
             try {
-                const timeoutItem = (item.data && item.data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_ : FETCH_TIMEOUT_MS_;
+                const timeoutItem = (item.data && item.data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_
+                                  : ACCIONES_LENTAS_[item.action] ? FETCH_TIMEOUT_MS_LENTA_
+                                  : FETCH_TIMEOUT_MS_;
                 const response = await fetchConTimeout_(API_URL, {
                     method: 'POST',
                     headers: API_HEADERS_,
@@ -119,7 +134,7 @@ export async function callAPI(action, data = null) {
 
   try {
     const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_
-                     : (action === 'obtenerDatosCompletos') ? FETCH_TIMEOUT_MS_DATOS_
+                     : ACCIONES_LENTAS_[action] ? FETCH_TIMEOUT_MS_LENTA_
                      : FETCH_TIMEOUT_MS_;
     const response = await fetchConTimeout_(API_URL, {
       method: 'POST',

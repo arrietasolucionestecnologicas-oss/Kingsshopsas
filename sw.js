@@ -1,5 +1,9 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v93
+ * 👑 KINGSHOP SERVICE WORKER v94
+ * AUDITORIA 2026-09-24: piso general de timeout subido de 15s a 30s (Apps
+ * Script mide 40s+ a veces incluso en operaciones normales); PDF de
+ * cotizacion e importacion masiva ahora en 45s (Drive + lotes); importacion
+ * masiva protegida contra duplicados si un reintento la alcanza a repetir.
  * FIX CRÍTICO 12: obtenerDatosCompletos() (trae TODO el negocio) tenía el
  * mismo timeout corto de 15s que una escritura chica — medido en vivo,
  * a veces tarda mas de 40s sin que el servidor este fallando, solo lento.
@@ -22,7 +26,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v93-cache';
+const CACHE_NAME = 'kingshop-v94-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
