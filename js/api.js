@@ -47,7 +47,12 @@ const FETCH_TIMEOUT_MS_LENTA_ = 45000;
 const ACCIONES_LENTAS_ = {
     obtenerDatosCompletos: true,
     generarCotizacionPDF: true,
-    procesarImportacionDirecta: true
+    procesarImportacionDirecta: true,
+    // AUDITORÍA 2026-09-24: medido en vivo, traer una foto (lee el archivo
+    // de Drive y lo codifica a base64 del lado del servidor) tardó casi
+    // 30s — justo en el filo del timeout general y se abortaba antes de
+    // recibir la respuesta buena.
+    obtenerFotoBase64: true
 };
 
 function fetchConTimeout_(url, options, timeoutMs) {
