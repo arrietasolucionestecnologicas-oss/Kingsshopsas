@@ -324,6 +324,23 @@ window.renderData = function() {
     }
 }
 
+// LIMPIEZA 2026-09-24: los que ya venían usando la app acumularon el
+// caché de fotos SIN comprimir (hasta 19.8 MB medidos en vivo) antes de
+// este arreglo — esperar a que vuelva a fallar por cupo para limpiarlo
+// dejaría a esos usuarios atascados un rato más. Se revisa una vez al
+// abrir la app y, si pesa demasiado, se limpia de una — las fotos se
+// vuelven a traer solas (ya comprimidas) la próxima vez que se necesiten.
+(function limpiarCacheFotosViejo_() {
+    try {
+        var claves = Object.keys(localStorage).filter(function(k) { return k.indexOf('kingshop_foto_') === 0; });
+        var pesoTotal = claves.reduce(function(acc, k) { return acc + (localStorage.getItem(k) || '').length; }, 0);
+        if (pesoTotal > 3 * 1024 * 1024) { // más de 3MB en fotos: de sobra para el atasco que ya conocemos
+            claves.forEach(function(k) { localStorage.removeItem(k); });
+            console.warn('[limpiarCacheFotosViejo_] liberados ' + (pesoTotal/1024/1024).toFixed(1) + 'MB de fotos sin comprimir.');
+        }
+    } catch (e) {}
+})();
+
 window.onload = function() {
     if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
     if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));

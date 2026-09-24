@@ -35,6 +35,33 @@ window.fixDriveLink = function(url) {
 // (script.google.com) que ya usa toda la app para sus datos, comprobado
 // confiable. Se cachea en localStorage por fileId: la primera vez cuesta
 // una petición, de ahí en adelante es instantánea y funciona sin internet.
+// MEJORA 2026-09-24: la foto original (tal como está en Drive, a veces
+// varios MB si viene directo de la cámara de un celular) es mucho más
+// pesada de lo que realmente hace falta para pintarla en una tarjeta
+// chica de catálogo. Se reduce a una miniatura (máximo 500px de ancho)
+// antes de guardarla en caché — así el mismo espacio guarda MUCHAS más
+// fotos, y esa fue la causa real de que se llenara el almacenamiento del
+// navegador (ver saveLocalData en app.js).
+window.comprimirImagenBase64_ = function(dataUri, maxWidth, quality) {
+    return new Promise(function(resolve) {
+        var img = new Image();
+        img.onload = function() {
+            if (!img.width || img.width <= maxWidth) { resolve(dataUri); return; }
+            try {
+                var canvas = document.createElement('canvas');
+                var escala = maxWidth / img.width;
+                canvas.width = maxWidth;
+                canvas.height = Math.round(img.height * escala);
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            } catch (e) { resolve(dataUri); } // si algo falla al comprimir, se usa la original tal cual
+        };
+        img.onerror = function() { resolve(dataUri); };
+        img.src = dataUri;
+    });
+};
+
 window.cargarFotoProducto = function(url) {
     if (!url) return Promise.resolve("");
     if (String(url).indexOf('data:image') === 0) return Promise.resolve(url); // ya viene incrustada
@@ -52,22 +79,29 @@ window.cargarFotoProducto = function(url) {
 
     return window.callAPI('obtenerFotoBase64', { fileId: fileId }).then(function(r) {
         if (!r || !r.exito || !r.data) return "";
-        var dataUri = "data:" + (r.mime || "image/jpeg") + ";base64," + r.data;
-        // FIX CRÍTICO 2026-09-24: este caché no tenía límite ni vencimiento
-        // — medido en vivo, llegó a acumular 19.8 MB en 75 fotos y eso
-        // hacía fallar el guardado del dato REAL del negocio (kingshop_data,
-        // apenas 0.6 MB) por falta de cupo en el navegador. Se pone un
-        // techo simple: si ya hay demasiadas fotos guardadas, se borran
-        // TODAS antes de guardar la nueva — son desechables, se vuelven a
-        // traer solas la próxima vez que se necesiten.
-        try {
-            var clavesFoto = Object.keys(localStorage).filter(function(k) { return k.indexOf('kingshop_foto_') === 0; });
-            if (clavesFoto.length >= 40) {
-                clavesFoto.forEach(function(k) { localStorage.removeItem(k); });
-            }
-            localStorage.setItem(cacheKey, dataUri);
-        } catch(e) { /* localStorage lleno igual: se sirve la foto, solo no se cachea */ }
-        return dataUri;
+        var dataUriOriginal = "data:" + (r.mime || "image/jpeg") + ";base64," + r.data;
+        // MEJORA 2026-09-24: comprimir a miniatura (máx 500px) antes de
+        // cachear — una foto de cámara puede pesar varios MB; una miniatura
+        // pesa unos 20-40 KB. Con esto, el mismo cupo del navegador alcanza
+        // para muchísimas más fotos sin volver a llenarse.
+        return window.comprimirImagenBase64_(dataUriOriginal, 500, 0.65).then(function(dataUri) {
+            // FIX CRÍTICO 2026-09-24: este caché no tenía límite ni
+            // vencimiento — medido en vivo, llegó a acumular 19.8 MB en 75
+            // fotos y eso hacía fallar el guardado del dato REAL del
+            // negocio (kingshop_data, apenas 0.6 MB) por falta de cupo en
+            // el navegador. Se deja además un techo por cantidad, como
+            // segunda red de seguridad: si ya hay demasiadas guardadas, se
+            // borran TODAS antes de guardar la nueva — son desechables, se
+            // vuelven a traer solas la próxima vez que se necesiten.
+            try {
+                var clavesFoto = Object.keys(localStorage).filter(function(k) { return k.indexOf('kingshop_foto_') === 0; });
+                if (clavesFoto.length >= 80) {
+                    clavesFoto.forEach(function(k) { localStorage.removeItem(k); });
+                }
+                localStorage.setItem(cacheKey, dataUri);
+            } catch(e) { /* localStorage lleno igual: se sirve la foto, solo no se cachea */ }
+            return dataUri;
+        });
     }).catch(function() { return ""; });
 };
 
