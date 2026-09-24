@@ -1,5 +1,11 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v91
+ * 👑 KINGSHOP SERVICE WORKER v92
+ * FIX CRÍTICO 11: loadData(true) (refresco silencioso tras un abono/ingreso/
+ * gasto ya confirmado) ya no pisa el estado correcto en memoria con la
+ * caché vieja de localStorage cuando ese refresco topa con la falla
+ * intermitente de Apps Script (devuelve una página de carga en vez del
+ * JSON real). Antes eso hacía parecer que un pago o ingreso "no se había
+ * guardado" aunque sí estaba a salvo en la hoja.
  * FIX CRÍTICO 9: utils.js añadido al caché
  * FIX BAJO 6   : install con Promise.allSettled (fallo parcial no bloquea)
  * FIX CRÍTICO 10: cache:'no-store' en el fetch de HTML/JS (ver abajo) — sin
@@ -10,7 +16,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v91-cache';
+const CACHE_NAME = 'kingshop-v92-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
