@@ -1,5 +1,11 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v96
+ * 👑 KINGSHOP SERVICE WORKER v97
+ * FIX CRITICO 13 2026-09-24: reproducido en vivo — a veces Apps Script
+ * entrega mal la respuesta de un POST y regresa el texto de estado de
+ * doGet en vez del JSON real (SyntaxError al parsear). Llega RAPIDO, no es
+ * una demora, y se resuelve solo casi siempre al reintentar de inmediato.
+ * callAPI ahora reintenta hasta 2 veces sin que el usuario vea nada antes
+ * de darlo por fallido.
  * MEJORA 2026-09-24: descripcion de producto al compartir por WhatsApp con
  * mejor formato de lectura (etiqueta en negrita + linea en blanco entre
  * cada especificacion, en vez de un bloque de texto denso y pegado).
@@ -34,7 +40,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v96-cache';
+const CACHE_NAME = 'kingshop-v97-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

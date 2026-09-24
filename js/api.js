@@ -132,18 +132,41 @@ export async function callAPI(action, data = null) {
       return { exito: true, offline: true };
   }
 
-  try {
-    const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_
-                     : ACCIONES_LENTAS_[action] ? FETCH_TIMEOUT_MS_LENTA_
-                     : FETCH_TIMEOUT_MS_;
-    const response = await fetchConTimeout_(API_URL, {
-      method: 'POST',
-      headers: API_HEADERS_,
-      body: JSON.stringify({ action: action, data: data })
-    }, timeoutMs);
-    const result = await response.json();
-    return result;
-  } catch (e) {
+  const timeoutMs = (data && data.imagenBase64) ? FETCH_TIMEOUT_MS_FOTO_
+                   : ACCIONES_LENTAS_[action] ? FETCH_TIMEOUT_MS_LENTA_
+                   : FETCH_TIMEOUT_MS_;
+
+  // FIX 2026-09-24: Apps Script entrega la respuesta real de un POST vía una
+  // redirección — y de forma intermitente y ya documentada, esa redirección
+  // puede resolver mal y devolver el texto plano de doGet ("KING'S SHOP API
+  // v2.5 ONLINE...") en vez del JSON real. response.json() truena con un
+  // SyntaxError ("Unexpected token 'K'..."), PERO esto llega RÁPIDO (no es
+  // una demora, es contenido equivocado) y casi siempre se resuelve solo en
+  // el siguiente intento — reintentar de inmediato, sin que el usuario vea
+  // nada, es mucho mejor que dejar caer la llamada.
+  const REINTENTOS_PARSE_ = 2;
+  let ultimoError;
+  for (let intento = 0; intento <= REINTENTOS_PARSE_; intento++) {
+    try {
+      const response = await fetchConTimeout_(API_URL, {
+        method: 'POST',
+        headers: API_HEADERS_,
+        body: JSON.stringify({ action: action, data: data })
+      }, timeoutMs);
+      return await response.json();
+    } catch (e) {
+      ultimoError = e;
+      // Un AbortError significa que YA se esperó el timeout completo (30-45s)
+      // — reintentar de inmediato solo alargaría la espera sin ganar nada;
+      // ese caso lo maneja la cola offline más abajo. El reintento inmediato
+      // es solo para el caso rápido de contenido equivocado (SyntaxError).
+      if (e.name === 'AbortError' || intento === REINTENTOS_PARSE_) break;
+      await new Promise(r => setTimeout(r, 700));
+    }
+  }
+
+  {
+    const e = ultimoError;
     console.error("Error API:", e);
     if (action !== 'obtenerDatosCompletos') {
         window.guardarEnCola(action, data);
