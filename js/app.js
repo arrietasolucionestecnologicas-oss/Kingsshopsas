@@ -341,6 +341,23 @@ window.renderData = function() {
     } catch (e) {}
 })();
 
+// LIMPIEZA 2026-09-24: antes, una foto que no cargaba se quedaba pegada en
+// la cola offline para siempre (tratada igual que una venta sin guardar) —
+// esto saca de la cola ya existente lo que sean solo lecturas (fotos,
+// listados) que quedaron atascadas de antes de este arreglo. Las ventas,
+// abonos, etc. NO se tocan — solo se quitan pedidos de lectura.
+(function limpiarColaSoloLectura_() {
+    try {
+        var SOLO_LECTURA = { obtenerDatosCompletos: 1, obtenerFotoBase64: 1, obtenerAbonosVenta: 1, obtenerClientesCRM: 1, obtenerHistorialCRM: 1, getDashboardData: 1, exportarParaWeb: 1 };
+        var cola = JSON.parse(localStorage.getItem('kingshop_queue') || '[]');
+        var colaReal = cola.filter(function(item) { return !SOLO_LECTURA[item.action]; });
+        if (colaReal.length !== cola.length) {
+            localStorage.setItem('kingshop_queue', JSON.stringify(colaReal));
+            console.warn('[limpiarColaSoloLectura_] quitados ' + (cola.length - colaReal.length) + ' pedidos de solo lectura atascados.');
+        }
+    } catch (e) {}
+})();
+
 window.onload = function() {
     if(document.getElementById('modalEdicion')) window.myModalEdit = new bootstrap.Modal(document.getElementById('modalEdicion'));
     if(document.getElementById('modalNuevo')) window.myModalNuevo = new bootstrap.Modal(document.getElementById('modalNuevo'));

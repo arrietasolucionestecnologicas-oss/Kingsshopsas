@@ -55,6 +55,24 @@ const ACCIONES_LENTAS_ = {
     obtenerFotoBase64: true
 };
 
+// FIX 2026-09-24: acciones de SOLO LECTURA — si fallan, no tiene sentido
+// guardarlas en la cola offline para "reintentar más tarde" como si fueran
+// una venta o un abono que no se puede perder. Una foto que no cargó, o un
+// listado que no llegó, simplemente se vuelve a pedir solo cuando se
+// necesite otra vez. Antes, cada foto que fallaba (muy común: son 40+ por
+// catálogo) se quedaba pegada en la cola para siempre, mostrando "Quedan
+// 37 pendientes" cada vez que se abría la app aunque en realidad no hubiera
+// nada urgente sin guardar — solo ruido.
+const ACCIONES_SOLO_LECTURA_ = {
+    obtenerDatosCompletos: true,
+    obtenerFotoBase64: true,
+    obtenerAbonosVenta: true,
+    obtenerClientesCRM: true,
+    obtenerHistorialCRM: true,
+    getDashboardData: true,
+    exportarParaWeb: true
+};
+
 function fetchConTimeout_(url, options, timeoutMs) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs || FETCH_TIMEOUT_MS_);
@@ -132,7 +150,7 @@ export async function callAPI(action, data = null) {
       }
   }
 
-  if (!navigator.onLine && action !== 'obtenerDatosCompletos') {
+  if (!navigator.onLine && !ACCIONES_SOLO_LECTURA_[action]) {
       window.guardarEnCola(action, data);
       return { exito: true, offline: true };
   }
@@ -173,7 +191,7 @@ export async function callAPI(action, data = null) {
   {
     const e = ultimoError;
     console.error("Error API:", e);
-    if (action !== 'obtenerDatosCompletos') {
+    if (!ACCIONES_SOLO_LECTURA_[action]) {
         window.guardarEnCola(action, data);
         return { exito: true, offline: true };
     }

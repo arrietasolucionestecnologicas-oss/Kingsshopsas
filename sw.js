@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v102
+ * 👑 KINGSHOP SERVICE WORKER v103
+ * FIX 2026-09-24: acciones de solo lectura (fotos, listados) ya no se guardan en la cola offline para reintentar para siempre - antes una foto que fallaba se quedaba pegada mostrando "Sincronizando X pendientes" cada vez que se abria la app. Se limpian tambien las que ya estaban atascadas de antes.
  * FIX URGENTE 2026-09-24: al bloque de limpieza de cache de fotos agregado antes le faltaba un punto y coma despues de renderData() - JS lo interpreto como una llamada, rompiendo TODO: window.onload nunca se registraba, la app se quedaba pegada en "Conectando..." para siempre. Corregido.
  * FIX 2026-09-24: obtenerFotoBase64 (traer una foto de producto) medido en 30s, tambien pasa a timeout largo (45s) - se abortaba justo antes de recibir la respuesta buena.
  * MEJORA 2026-09-24: fotos de producto ahora se comprimen a miniatura (max 500px) antes de cachear, y se limpia de una el cache viejo sin comprimir al abrir la app si pesa mas de 3MB.
@@ -48,7 +49,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v102-cache';
+const CACHE_NAME = 'kingshop-v103-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
