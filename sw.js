@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v98
+ * 👑 KINGSHOP SERVICE WORKER v99
+ * FIX CRITICO 2026-09-24: cache de fotos sin limite llego a 19.8 MB y hacia fallar por cupo el guardado del dato real (0.6 MB). Guardar el dato real ya no depende de las fotos, y el cache de fotos ahora tiene techo.
  * FIX 2026-09-24: Inventario y Web mostraban los primeros 50 productos en
  * orden de hoja (mas viejos primero) - con 138+ productos, uno recien
  * creado quedaba fuera de ese corte y parecia no existir aunque SI estaba
@@ -44,7 +45,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v98-cache';
+const CACHE_NAME = 'kingshop-v99-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

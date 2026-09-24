@@ -57,9 +57,39 @@ window.updateOnlineStatus = function() {
 window.addEventListener('online', window.updateOnlineStatus);
 window.addEventListener('offline', window.updateOnlineStatus);
 
+// FIX CRÍTICO 2026-09-24 (causa real de "no se actualiza" / "sin
+// sincronizar hace días" en web Y celular): el caché de fotos de producto
+// (cargarFotoProducto en utils.js, claves "kingshop_foto_*") guarda cada
+// foto vista en localStorage SIN límite ni vencimiento — medido en vivo,
+// llegó a 19.8 MB en 75 fotos, contra apenas 0.6 MB del dato real del
+// negocio. El navegador da ~5-10 MB por sitio en total; con el caché de
+// fotos lleno, ESTA escritura (la que de verdad importa) empezaba a fallar
+// con QuotaExceededError — y como loadData() no la protegía, esa falla
+// abortaba TODO el refresco silenciosamente, dejando la app mostrando
+// datos de días atrás aunque el servidor sí hubiera respondido bien.
+// Ahora, si falla por cupo, se libera el caché de fotos (son desechables,
+// se vuelven a traer solas cuando se necesiten) y se reintenta.
 window.saveLocalData = function(data) {
-    localStorage.setItem('kingshop_data', JSON.stringify(data));
-    localStorage.setItem('kingshop_last_sync', new Date().toISOString());
+    try {
+        localStorage.setItem('kingshop_data', JSON.stringify(data));
+        localStorage.setItem('kingshop_last_sync', new Date().toISOString());
+    } catch (e) {
+        console.warn('[saveLocalData] cupo de almacenamiento lleno, liberando caché de fotos y reintentando:', e.message);
+        try {
+            Object.keys(localStorage)
+                .filter(k => k.indexOf('kingshop_foto_') === 0)
+                .forEach(k => localStorage.removeItem(k));
+            localStorage.setItem('kingshop_data', JSON.stringify(data));
+            localStorage.setItem('kingshop_last_sync', new Date().toISOString());
+        } catch (e2) {
+            console.error('[saveLocalData] no se pudo guardar ni liberando fotos:', e2.message);
+            // La fecha es una cadena chica que casi nunca falla por cupo —
+            // se intenta aparte para que, aunque no se pueda cachear el
+            // dato completo, el aviso de "datos desactualizados" no marque
+            // una demora que en realidad no existió.
+            try { localStorage.setItem('kingshop_last_sync', new Date().toISOString()); } catch (e3) {}
+        }
+    }
 }
 
 window.loadLocalData = function() {
@@ -143,8 +173,14 @@ window.loadData = function(silent = false) {
             res.ped = res.pedidos;
 
             window.D = res;
-            window.saveLocalData(res);
+            // FIX: renderData() va ANTES de guardar en localStorage — así la
+            // pantalla siempre se actualiza con el dato fresco que ya está
+            // en memoria, así falle el guardado en caché (ver saveLocalData
+            // más arriba). Antes, si saveLocalData() tronaba, renderData()
+            // nunca llegaba a ejecutarse: el servidor había respondido bien
+            // pero la pantalla se quedaba congelada con lo de antes.
             window.renderData();
+            window.saveLocalData(res);
             if(!silent) document.getElementById('loader').style.display = 'none';
         } else if (silent && window.D) {
             // FIX: un loadData(true) se dispara justo después de un abono/ingreso/

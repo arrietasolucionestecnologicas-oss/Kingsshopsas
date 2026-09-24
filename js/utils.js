@@ -53,7 +53,20 @@ window.cargarFotoProducto = function(url) {
     return window.callAPI('obtenerFotoBase64', { fileId: fileId }).then(function(r) {
         if (!r || !r.exito || !r.data) return "";
         var dataUri = "data:" + (r.mime || "image/jpeg") + ";base64," + r.data;
-        try { localStorage.setItem(cacheKey, dataUri); } catch(e) { /* localStorage lleno: se sirve igual, solo no se cachea */ }
+        // FIX CRÍTICO 2026-09-24: este caché no tenía límite ni vencimiento
+        // — medido en vivo, llegó a acumular 19.8 MB en 75 fotos y eso
+        // hacía fallar el guardado del dato REAL del negocio (kingshop_data,
+        // apenas 0.6 MB) por falta de cupo en el navegador. Se pone un
+        // techo simple: si ya hay demasiadas fotos guardadas, se borran
+        // TODAS antes de guardar la nueva — son desechables, se vuelven a
+        // traer solas la próxima vez que se necesiten.
+        try {
+            var clavesFoto = Object.keys(localStorage).filter(function(k) { return k.indexOf('kingshop_foto_') === 0; });
+            if (clavesFoto.length >= 40) {
+                clavesFoto.forEach(function(k) { localStorage.removeItem(k); });
+            }
+            localStorage.setItem(cacheKey, dataUri);
+        } catch(e) { /* localStorage lleno igual: se sirve la foto, solo no se cachea */ }
         return dataUri;
     }).catch(function() { return ""; });
 };
