@@ -322,7 +322,7 @@ window.renderData = function() {
     } else if (editCat) {
         // En caso de que siga siendo un input con list="list-cats" en vez de un select real, no lo sobreescribimos
     }
-}
+};
 
 // LIMPIEZA 2026-09-24: los que ya venían usando la app acumularon el
 // caché de fotos SIN comprimir (hasta 19.8 MB medidos en vivo) antes de

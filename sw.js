@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v101
+ * 👑 KINGSHOP SERVICE WORKER v102
+ * FIX URGENTE 2026-09-24: al bloque de limpieza de cache de fotos agregado antes le faltaba un punto y coma despues de renderData() - JS lo interpreto como una llamada, rompiendo TODO: window.onload nunca se registraba, la app se quedaba pegada en "Conectando..." para siempre. Corregido.
  * FIX 2026-09-24: obtenerFotoBase64 (traer una foto de producto) medido en 30s, tambien pasa a timeout largo (45s) - se abortaba justo antes de recibir la respuesta buena.
  * MEJORA 2026-09-24: fotos de producto ahora se comprimen a miniatura (max 500px) antes de cachear, y se limpia de una el cache viejo sin comprimir al abrir la app si pesa mas de 3MB.
  * FIX CRITICO 2026-09-24: cache de fotos sin limite llego a 19.8 MB y hacia fallar por cupo el guardado del dato real (0.6 MB). Guardar el dato real ya no depende de las fotos, y el cache de fotos ahora tiene techo.
@@ -47,7 +48,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v101-cache';
+const CACHE_NAME = 'kingshop-v102-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
