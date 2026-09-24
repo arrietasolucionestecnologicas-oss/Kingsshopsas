@@ -101,32 +101,53 @@ window.loadData = function(silent = false) {
     window.callAPI('obtenerDatosCompletos', {}).then(res => {
         if(res.inventario) {
             // 🛠️ MAPEOS CRÍTICOS: El backend envía nombres completos, el frontend usa alias.
-            res.inv = res.inventario; 
+            res.inv = res.inventario;
             res.ped = res.pedidos;
-            
+
             window.D = res;
             window.saveLocalData(res);
             window.renderData();
             if(!silent) document.getElementById('loader').style.display = 'none';
+        } else if (silent && window.D) {
+            // FIX: un loadData(true) se dispara justo después de un abono/ingreso/
+            // gasto YA confirmado como exitoso por el propio callAPI de esa acción
+            // — window.D en memoria ya refleja ese cambio (actualización optimista).
+            // Google Apps Script tiene una falla intermitente y documentada donde
+            // /exec devuelve una página de "sandbox loader" en vez del JSON real
+            // (no es un problema de conectividad ni de este código). Antes, si
+            // este refresco silencioso topaba con esa falla, se pisaba window.D
+            // (correcto) con la copia vieja de localStorage y se re-renderizaba,
+            // dando la falsa impresión de que la acción "no se guardó" aunque el
+            // dato ya estaba a salvo en la hoja. Un refresco silencioso fallido
+            // ahora simplemente se ignora: la pantalla se queda con el estado
+            // correcto que ya tenía, y el próximo loadData (o el siguiente
+            // silencioso) trae la versión real del servidor.
+            console.warn('[loadData] refresco silencioso falló, se conserva el estado actual:', res.error);
         } else {
             if(!silent) alert("Error cargando datos: " + res.error);
             let local = window.loadLocalData();
-            if(local) { 
+            if(local) {
                 local.inv = local.inventario || local.inv;
                 local.ped = local.pedidos || local.ped;
-                window.D = local; 
-                window.renderData(); 
+                window.D = local;
+                window.renderData();
             }
             if(!silent) document.getElementById('loader').style.display = 'none';
         }
     }).catch(err => {
         console.error(err);
-        let local = window.loadLocalData();
-        if(local) { 
-            local.inv = local.inventario || local.inv;
-            local.ped = local.pedidos || local.ped;
-            window.D = local; 
-            window.renderData(); 
+        if (silent && window.D) {
+            // Mismo criterio que arriba: no pisar un estado ya correcto con el
+            // caché viejo solo porque el refresco silencioso posterior falló.
+            console.warn('[loadData] refresco silencioso falló (excepción), se conserva el estado actual.');
+        } else {
+            let local = window.loadLocalData();
+            if(local) {
+                local.inv = local.inventario || local.inv;
+                local.ped = local.pedidos || local.ped;
+                window.D = local;
+                window.renderData();
+            }
         }
         if(!silent) document.getElementById('loader').style.display = 'none';
     });
