@@ -1322,10 +1322,21 @@ function abrirRadiografia(idVenta) {
     // ─────────────────────────────────────────────────────────────────
 
     // ── Historial de cuotas/abonos ya pagados de esta venta ─────────
+    // FIX 2026-09-25: si se abre la Radiografía de un cliente y luego,
+    // antes de que responda el servidor, se abre la de OTRO cliente, la
+    // respuesta vieja podía llegar tarde y pisar la lista que ya se estaba
+    // mostrando — apareciendo abonos de una venta distinta a la que se
+    // tiene abierta en pantalla. window.radiografiaVentaActual_ marca cuál
+    // es la venta realmente abierta AHORA; si la respuesta llega para una
+    // venta que ya no es la que está en pantalla, se descarta.
+    var idVentaSolicitada = v.idVenta || v.id;
+    window.radiografiaVentaActual_ = idVentaSolicitada;
+
     var elPagos = document.getElementById('rad-pagos-lista');
     if (elPagos) {
         elPagos.innerHTML = '<span class="text-muted">Cargando...</span>';
-        window.callAPI('obtenerAbonosVenta', { idVenta: v.idVenta || v.id }).then(function (r) {
+        window.callAPI('obtenerAbonosVenta', { idVenta: idVentaSolicitada }).then(function (r) {
+            if (window.radiografiaVentaActual_ !== idVentaSolicitada) return; // ya se abrió otra venta, esta respuesta es vieja
             if (!r.exito || !r.pagos || r.pagos.length === 0) {
                 elPagos.innerHTML = '<span class="text-muted">Sin pagos registrados todavía.</span>';
                 return;
@@ -1338,6 +1349,7 @@ function abrirRadiografia(idVenta) {
                     '</div>';
             }).join('');
         }).catch(function () {
+            if (window.radiografiaVentaActual_ !== idVentaSolicitada) return;
             elPagos.innerHTML = '<span class="text-muted">No se pudo cargar (sin conexión).</span>';
         });
     }
