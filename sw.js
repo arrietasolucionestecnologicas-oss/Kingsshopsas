@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v104
+ * 👑 KINGSHOP SERVICE WORKER v105
+ * FIX 2026-09-25: compartirBalanceWA (boton Balance) filtraba abonos por nombre de cliente en el texto, no por ID exacto de venta - abonos de OTRO cliente con nombre parecido se colaban en el balance compartido, inflando la lista sin que coincidiera con el saldo real. Ahora filtra solo por ID exacto de la venta.
  * FIX 2026-09-25: Radiografia podia mostrar abonos de OTRA venta si se abria una radiografia y luego otra antes de que respondiera el servidor (condicion de carrera) - la respuesta vieja pisaba la lista de la venta que en realidad estaba en pantalla. Corregido descartando respuestas de una venta que ya no esta abierta.
  * FIX 2026-09-24: acciones de solo lectura (fotos, listados) ya no se guardan en la cola offline para reintentar para siempre - antes una foto que fallaba se quedaba pegada mostrando "Sincronizando X pendientes" cada vez que se abria la app. Se limpian tambien las que ya estaban atascadas de antes.
  * FIX URGENTE 2026-09-24: al bloque de limpieza de cache de fotos agregado antes le faltaba un punto y coma despues de renderData() - JS lo interpreto como una llamada, rompiendo TODO: window.onload nunca se registraba, la app se quedaba pegada en "Conectando..." para siempre. Corregido.
@@ -50,7 +51,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v104-cache';
+const CACHE_NAME = 'kingshop-v105-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

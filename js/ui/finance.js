@@ -572,10 +572,17 @@ function compartirBalanceWA(idVenta) {
         var saldoOriginal = totalVenta - inicialVenta;
         var ultimaCuotaReal = window.calcUltimaCuota(totalVenta, inicialVenta, valCuotaReal, numCuotas);
         
+        // FIX 2026-09-25: el filtro anterior también aceptaba cualquier
+        // movimiento cuya descripción SOLO contuviera el nombre del cliente
+        // como texto (matchDesc) — si otro cliente con nombre parecido (ej.
+        // "Elieth Cervantes" en una venta distinta a la de "Elieth") tenía
+        // abonos, esos entraban por error a este balance, inflando la lista
+        // de pagos sin que coincidiera con el saldo real (que sí se calcula
+        // bien en el servidor, aparte de este filtro). Ahora solo se
+        // aceptan movimientos con el ID exacto de ESTA venta — el mismo
+        // criterio, ya probado, que usa obtenerAbonosVenta() en el backend.
         var abonosCliente = (window.D.historial || []).filter(h => {
-            var matchId = (h.idTransaccion === idVenta || h.idVenta === idVenta || h.ID_Venta === idVenta);
-            var matchDesc = h.desc && (h.desc.includes(idVenta) || (h.tipo && h.tipo.includes('abono') && h.desc.toLowerCase().includes(d.cliente.toLowerCase())));
-            return matchId || matchDesc;
+            return h.idTransaccion === idVenta || h.idVenta === idVenta || h.ID_Venta === idVenta;
         });
 
         var historialTxt = "";
