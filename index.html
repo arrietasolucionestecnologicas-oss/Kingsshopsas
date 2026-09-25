@@ -697,6 +697,35 @@
     </div>
   </div>
 
+  <!-- MEJORA 2026-09-25: abono rápido desde la tarjeta de Cobranza, sin tener
+       que ir a la pestaña de Finanzas — reutiliza el mismo doAbono() de
+       siempre, solo que precargado con el cliente/venta correctos. -->
+  <div class="modal fade" id="modalAbonoRapido" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold text-success"><i class="fas fa-hand-holding-usd"></i> Registrar Abono</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 p-2 bg-light border rounded">
+                    <div class="fw-bold" id="abr-cliente">-</div>
+                    <small class="text-muted" id="abr-producto">-</small>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">Debe:</small>
+                        <strong class="text-danger" id="abr-saldo">-</strong>
+                    </div>
+                </div>
+                <label class="small fw-bold">Monto Recibido</label>
+                <input type="number" id="abr-monto" class="form-control mb-2" placeholder="Monto Recibido">
+                <label class="small text-muted fw-bold">Fecha del Pago:</label>
+                <input type="date" id="abr-fecha" class="form-control mb-3" style="border-color: var(--gold);">
+                <button class="btn btn-success w-100 fw-bold py-2" onclick="window.confirmarAbonoRapido()">CONFIRMAR RECAUDO</button>
+            </div>
+        </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalCotizaciones" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">

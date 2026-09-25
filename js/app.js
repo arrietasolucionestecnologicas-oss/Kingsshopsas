@@ -371,6 +371,7 @@ window.onload = function() {
     if(document.getElementById('modalCotizaciones')) window.myModalCotizaciones = new bootstrap.Modal(document.getElementById('modalCotizaciones'));
     if(document.getElementById('modalLoginApp')) window.myModalLogin = new bootstrap.Modal(document.getElementById('modalLoginApp'));
     if(document.getElementById('modalAbonarPasivo')) window.myModalAbonarPasivo = new bootstrap.Modal(document.getElementById('modalAbonarPasivo'));
+    if(document.getElementById('modalAbonoRapido')) window.myModalAbonoRapido = new bootstrap.Modal(document.getElementById('modalAbonoRapido'));
     if(document.getElementById('modalRadiografia')) window.myModalRadiografia = new bootstrap.Modal(document.getElementById('modalRadiografia'));
     if(document.getElementById('modalItemManual')) window.myModalItemManual = new bootstrap.Modal(document.getElementById('modalItemManual'));
     

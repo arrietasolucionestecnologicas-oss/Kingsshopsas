@@ -453,16 +453,23 @@ function renderCartera() {
                     <div class="text-end" style="white-space: nowrap;">
                         <h5 class="fw-bold text-danger m-0">${window.COP.format(d.saldo)}</h5>
                         <span class="badge-debt d-inline-block mt-1">Pendiente</span>
-                        <button class="btn btn-sm text-muted p-0 ms-1" onclick="window.castigarDeuda('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}')" title="Castigar Cartera"><i class="fas fa-skull-crossbones"></i></button>
                         <br>${badgeAdelanto}
                     </div>
                 </div>
-                <div class="mt-2 d-flex gap-2 flex-wrap justify-content-end border-top pt-2">
-                    <button class="btn btn-xs btn-outline-dark flex-fill fw-bold" onclick="window.abrirRadiografia('${d.idVenta}')" title="Ver Radiografía Financiera"><i class="fas fa-microscope"></i> Detalles</button>
-                    <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Cobrar Cuota"><i class="fab fa-whatsapp"></i> Cobrar</button>
-                    <button class="btn btn-xs btn-outline-warning flex-fill fw-bold" onclick="window.solicitarAbonoWA('${d.idVenta}')" title="Solicitar Abono (datos de pago)"><i class="fab fa-whatsapp"></i> Solicitar Abono</button>
-                    <button class="btn btn-xs btn-outline-info flex-fill fw-bold" onclick="window.compartirBalanceWA('${d.idVenta}')" title="Enviar Extracto"><i class="fas fa-file-invoice-dollar"></i> Balance</button>
-                    <button class="btn btn-xs btn-outline-primary flex-fill" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0}, '${d.frecuencia || "Mensual"}')" title="Refinanciar Deuda">🔄 Refinanc.</button>
+                <div class="mt-2 d-flex gap-2 justify-content-end border-top pt-2">
+                    <button class="btn btn-xs btn-success flex-fill fw-bold" onclick="window.abrirAbonoRapido('${d.idVenta}')" title="Registrar un pago de esta deuda">Abono</button>
+                    <button class="btn btn-xs btn-outline-success flex-fill" onclick="window.notificarCobroWA('${d.idVenta}')" title="Recordar cobro por WhatsApp">Cobrar</button>
+                    <button class="btn btn-xs btn-outline-dark flex-fill fw-bold" onclick="window.abrirRadiografia('${d.idVenta}')" title="Ver detalle completo">Detalles</button>
+                    <div class="btn-group">
+                        <button class="btn btn-xs btn-outline-secondary px-2" data-bs-toggle="dropdown" aria-expanded="false" title="Más opciones">···</button>
+                        <ul class="dropdown-menu dropdown-menu-end" style="font-size:0.85rem;">
+                            <li><a class="dropdown-item" href="#" onclick="window.solicitarAbonoWA('${d.idVenta}'); return false;"><i class="fab fa-whatsapp text-success"></i> Solicitar Abono</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="window.compartirBalanceWA('${d.idVenta}'); return false;"><i class="fas fa-file-invoice-dollar text-info"></i> Enviar Balance</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="window.abrirModalRefinanciar('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}', ${d.saldo}, ${parseInt(d.cuotas)||1}, ${parseFloat(d.valCuota)||0}, ${parseFloat(d.total)||0}, '${d.frecuencia || "Mensual"}'); return false;"><i class="fas fa-sync-alt text-primary"></i> Refinanciar</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="window.castigarDeuda('${d.idVenta}', '${d.cliente.replace(/'/g, "\\'")}'); return false;"><i class="fas fa-skull-crossbones"></i> Castigar Cartera</a></li>
+                        </ul>
+                    </div>
                 </div>
                 ${planDetalle}
             </div>`;
@@ -909,6 +916,46 @@ function castigarDeuda(id, nombre) {
         }
     });
 }
+
+// MEJORA 2026-09-25: abono rápido desde la propia tarjeta de Cobranza, sin
+// tener que ir a la pestaña de Finanzas a buscar el cliente en un select —
+// reutiliza el mismo doAbono() de siempre (con todas sus protecciones),
+// solo que precargando los campos ocultos de Finanzas con el cliente y el
+// monto de este mini-formulario antes de llamarlo.
+window.abrirAbonoRapido = function(idVenta) {
+    var d = (window.D.deudores || []).find(function(x) { return x.idVenta === idVenta; });
+    if (!d) return alert("Deuda no encontrada en memoria.");
+
+    window.abonoRapidoIdVenta_ = idVenta;
+    document.getElementById('abr-cliente').innerText  = d.cliente;
+    document.getElementById('abr-producto').innerText = d.producto;
+    document.getElementById('abr-saldo').innerText    = window.COP.format(d.saldo);
+    document.getElementById('abr-monto').value = '';
+    document.getElementById('abr-fecha').value = new Date().toISOString().split('T')[0];
+
+    if (window.myModalAbonoRapido) window.myModalAbonoRapido.show();
+};
+
+window.confirmarAbonoRapido = function() {
+    var idVenta = window.abonoRapidoIdVenta_;
+    var monto   = document.getElementById('abr-monto').value;
+    var fecha   = document.getElementById('abr-fecha').value;
+    if (!idVenta) return alert("Falta seleccionar la deuda.");
+    if (!parseFloat(monto) || parseFloat(monto) <= 0) return alert("Verifica el monto ingresado.");
+
+    var selCli = document.getElementById('ab-cli');
+    selCli.value = idVenta;
+    if (selCli.value !== idVenta) {
+        // el select de Finanzas todavía no tiene esta venta cargada (raro,
+        // pero por seguridad no se dispara un abono a la venta equivocada)
+        return alert("No se pudo preparar el abono, recarga la app e intenta de nuevo.");
+    }
+    document.getElementById('ab-monto').value = monto;
+    document.getElementById('ab-fecha').value  = fecha;
+
+    if (window.myModalAbonoRapido) window.myModalAbonoRapido.hide();
+    window.doAbono();
+};
 
 function doAbono() {
     // ── Capa 1: mutex de módulo ────────────────────────────────────
