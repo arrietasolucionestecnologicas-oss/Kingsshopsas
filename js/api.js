@@ -198,10 +198,12 @@ export async function callAPI(action, data = null) {
     // Respuesta estructurada garantizada aunque el fetch cuelgue/aborte: el
     // llamador (loadData en app.js) siempre recibe un objeto con 'exito' y
     // puede cerrar el loader y avisar al usuario, en vez de quedarse esperando.
-    var msg = (e && e.name === 'AbortError')
-        ? "Tiempo de espera agotado conectando al servidor. Verifica tu internet."
-        : "Error de conexión con el servidor.";
-    if(window.showToast) window.showToast(msg, 'danger');
+    // AUDITORÍA 2026-10-07: aquí YA NO se muestra ningún aviso. Esta rama solo
+    // se ejecuta para acciones de SOLO LECTURA (fotos, listados, refrescos de
+    // fondo) — una foto que no cargó o un refresco silencioso que falló no son
+    // algo que el usuario deba ver en rojo (llegaban a apilarse 50 avisos a la
+    // vez). Quien necesite avisar (loadData en modo no silencioso) lo hace él
+    // mismo, una sola vez; y el banner de "sin sincronizar" cubre lo prolongado.
     return { exito: false, error: e.toString(), offline: !navigator.onLine };
   }
 }

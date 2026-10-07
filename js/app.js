@@ -135,10 +135,19 @@ setInterval(function() {
     }
 }, 3 * 60 * 1000);
 
+// AUDITORÍA 2026-10-07: antes cada falla de red mostraba su propio aviso —
+// una pantalla de inventario pide hasta 50 fotos a la vez, y si la señal
+// fallaba salían 50 avisos rojos apilados ("la app está loca"). Ahora: un
+// mismo mensaje no se repite mientras el anterior siga visible, y nunca hay
+// más de 3 avisos en pantalla a la vez.
 window.showToast = function(msg, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) return;
+    const clave = type + '|' + msg;
+    for (const t of toastContainer.children) { if (t.dataset && t.dataset.clave === clave) return; }
+    while (toastContainer.children.length >= 3) toastContainer.firstChild.remove();
     const toast = document.createElement('div');
+    toast.dataset.clave = clave;
     toast.className = `toast align-items-center text-white bg-${type} border-0 show mb-2`;
     toast.role = 'alert';
     toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
@@ -198,7 +207,9 @@ window.loadData = function(silent = false) {
             // silencioso) trae la versión real del servidor.
             console.warn('[loadData] refresco silencioso falló, se conserva el estado actual:', res.error);
         } else {
-            if(!silent) alert("Error cargando datos: " + res.error);
+            // Un aviso suave (no rojo, no bloqueante) — el banner rojo de
+            // "sin sincronizar" ya cubre el caso de que dure demasiado.
+            if(!silent && window.showToast) window.showToast("No se pudo actualizar ahora. Se muestran los últimos datos guardados.", "warning");
             let local = window.loadLocalData();
             if(local) {
                 local.inv = local.inventario || local.inv;

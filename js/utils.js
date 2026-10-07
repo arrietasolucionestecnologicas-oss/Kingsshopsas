@@ -77,7 +77,31 @@ window.cargarFotoProducto = function(url) {
 
     if (!window.callAPI) return Promise.resolve("");
 
-    return window.callAPI('obtenerFotoBase64', { fileId: fileId }).then(function(r) {
+    // AUDITORÍA 2026-10-07: una pantalla de inventario pedía hasta 50 fotos
+    // AL MISMO TIEMPO a Apps Script — eso lo satura (cada foto tarda de 5 a
+    // 30s) y provoca justo las fallas/timeouts que luego se veían como una
+    // lluvia de errores. Ahora salen como máximo 3 a la vez, el resto espera
+    // su turno; y una foto que falló no se vuelve a pedir en los siguientes
+    // 2 minutos (evita reintentar sin parar el mismo archivo roto).
+    window.fotosFallidas_ = window.fotosFallidas_ || {};
+    if (window.fotosFallidas_[fileId] && Date.now() - window.fotosFallidas_[fileId] < 120000) return Promise.resolve("");
+    window.fotosCola_ = window.fotosCola_ || { activas: 0, espera: [] };
+    var cola = window.fotosCola_;
+    var turno = new Promise(function(resolve) {
+        if (cola.activas < 3) { cola.activas++; resolve(); }
+        else cola.espera.push(resolve);
+    });
+    var liberado = false;
+    var liberar = function() {
+        if (liberado) return; // se llama desde el éxito Y desde el catch: solo vale una vez
+        liberado = true;
+        var sig = cola.espera.shift();
+        if (sig) sig(); else cola.activas--;
+    };
+
+    return turno.then(function() { return window.callAPI('obtenerFotoBase64', { fileId: fileId }); }).then(function(r) {
+        liberar();
+        if (!r || !r.exito || !r.data) window.fotosFallidas_[fileId] = Date.now();
         if (!r || !r.exito || !r.data) return "";
         var dataUriOriginal = "data:" + (r.mime || "image/jpeg") + ";base64," + r.data;
         // MEJORA 2026-09-24: comprimir a miniatura (máx 500px) antes de
@@ -102,7 +126,7 @@ window.cargarFotoProducto = function(url) {
             } catch(e) { /* localStorage lleno igual: se sirve la foto, solo no se cachea */ }
             return dataUri;
         });
-    }).catch(function() { return ""; });
+    }).catch(function() { liberar(); window.fotosFallidas_[fileId] = Date.now(); return ""; });
 };
 
 // Busca todos los <img data-foto-src="..."> dentro de un contenedor recién

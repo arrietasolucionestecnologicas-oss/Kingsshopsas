@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v106
+ * 👑 KINGSHOP SERVICE WORKER v107
+ * AUDITORIA 2026-10-07: fin de la lluvia de avisos rojos - fallas de lectura (fotos, refrescos) ya no muestran aviso, avisos repetidos se deduplican (max 3 en pantalla), fotos salen de 3 en 3 en vez de 50 a la vez.
  * MEJORA 2026-09-25: tarjeta de Cobranza simplificada - menos botones sueltos, texto en vez de solo iconos, y un menu \"...\" para las opciones menos usadas (Solicitar Abono, Balance, Refinanciar, Castigar). Nuevo boton Abono para registrar un pago directo desde la tarjeta sin ir a Finanzas.
  * FIX 2026-09-25: compartirBalanceWA (boton Balance) filtraba abonos por nombre de cliente en el texto, no por ID exacto de venta - abonos de OTRO cliente con nombre parecido se colaban en el balance compartido, inflando la lista sin que coincidiera con el saldo real. Ahora filtra solo por ID exacto de la venta.
  * FIX 2026-09-25: Radiografia podia mostrar abonos de OTRA venta si se abria una radiografia y luego otra antes de que respondiera el servidor (condicion de carrera) - la respuesta vieja pisaba la lista de la venta que en realidad estaba en pantalla. Corregido descartando respuestas de una venta que ya no esta abierta.
@@ -52,7 +53,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v106-cache';
+const CACHE_NAME = 'kingshop-v107-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
