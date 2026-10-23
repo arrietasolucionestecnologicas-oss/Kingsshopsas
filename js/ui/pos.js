@@ -1038,20 +1038,28 @@ window.calcCart = function() {
 
     var frecuenciaActual = getVal('#c-frecuencia') || "Mensual";
 
+    // REGLA 2026-10-23 (pedida por Gerson): el campo de plazo cuenta CUOTAS
+    // EN LA FRECUENCIA ELEGIDA — con Mensual son meses, con Quincenal son
+    // quincenas (2 = dos pagos de 15 días). Antes el campo siempre eran
+    // meses y Quincenal los duplicaba (2 → 4 cuotas), y el cliente que iba
+    // a pagar en dos quincenas veía cuatro. El interés se sigue calculando
+    // sobre el TIEMPO real en meses: 2 quincenas = 1 mes de interés.
+    var mesesPlazo = (metodo === "Crédito" && frecuenciaActual === "Quincenal")
+        ? (cuotas / 2)
+        : cuotas;
+
+    // El rótulo del campo sigue a la frecuencia, para que no diga "Plazo (M)"
+    // cuando en realidad se están contando quincenas.
+    var rotuloPlazo = (metodo === "Crédito" && frecuenciaActual === "Quincenal") ? "Quincenas" : "Plazo (M)";
+    document.querySelectorAll('#c-cuotas').forEach(function(inp) {
+        var etiqueta = inp.previousElementSibling;
+        if (etiqueta && etiqueta.tagName === 'SMALL' && etiqueta.textContent !== rotuloPlazo) etiqueta.textContent = rotuloPlazo;
+    });
+
     if (metodo === "Crédito") {
         var saldoBaseInteres = Math.max(0, totalFinal - inicial);
 
-        // ── FIX QUINCENAL: "cuotas" (el campo que llena el operador) siempre
-        // significa MESES DE PLAZO acordados con el cliente — sin importar
-        // la frecuencia de cobro. El interés de un crédito a 6 meses es el
-        // mismo se cobre mensual o quincenal; lo único que cambia con la
-        // frecuencia es en cuántos cortes se reparte ese mismo costo (ver
-        // "cuotasReales" más abajo). Antes se aplicaba la mitad de la tasa
-        // por "cuota" tomando el número de CORTES como si fueran meses —
-        // eso hacía que pasar a Quincenal sin tocar el número de cuotas
-        // recortara el plazo real a la mitad (y el interés total también),
-        // en vez de mantener el mismo plazo con el doble de cortes.
-        var interesTotal = saldoBaseInteres * (tasaMensual / 100) * cuotas;
+        var interesTotal = saldoBaseInteres * (tasaMensual / 100) * mesesPlazo;
         totalFinal = totalFinal + interesTotal;
         totalFinal = Math.round(totalFinal / 100) * 100;
     }
@@ -1059,13 +1067,10 @@ window.calcCart = function() {
 
     var faltanteInicial = Math.max(0, metaInicial - inicial);
 
-    // "cuotas" = meses de plazo acordados; si la frecuencia es Quincenal el
-    // cliente paga el doble de veces (cada 15 días) dentro de ese mismo
-    // plazo, así que el número real de cortes se duplica y cada cuota queda
-    // por la mitad — mismo plazo en meses, mitad de cuota en cada corte.
-    var cuotasReales = (metodo === "Crédito" && frecuenciaActual === "Quincenal")
-        ? (cuotas * 2)
-        : cuotas;
+    // El número escrito ya ES el número real de cortes (ver REGLA 2026-10-23
+    // arriba) — no se duplica. Se conserva el nombre cuotasReales porque es
+    // lo que viaja al backend (columna "cuotas" de VENTAS) y a cotizaciones.
+    var cuotasReales = cuotas;
 
     var valorCuota  = 0;
     var ultimaCuota = 0;
@@ -1095,6 +1100,7 @@ window.calcCart = function() {
     window.calculatedValues.valorCuota   = valorCuota;
     window.calculatedValues.ultimaCuota  = ultimaCuota;
     window.calculatedValues.cuotasReales = cuotasReales;
+    window.calculatedValues.mesesPlazo   = mesesPlazo;
 
     pushCartState_();
 
@@ -1412,7 +1418,10 @@ window.generarCotizacionPDF = function() {
        // saldo que realmente se financiará, y el total del PDF coincide con
        // el total que procesará la venta. ─────────────────────────────────
        var saldoBaseInteresPDF = Math.max(0, totalFormateadoPDF - (window.calculatedValues.inicial || 0));
-       interesAplicado = saldoBaseInteresPDF * (tasaMensual / 100) * cuotas;
+       // mismo criterio que calcCart: el interés va sobre el tiempo en MESES
+       // (2 quincenas = 1 mes), que calcCart deja en calculatedValues.mesesPlazo
+       var mesesPlazoPDF = (window.calculatedValues && window.calculatedValues.mesesPlazo) || cuotas;
+       interesAplicado = saldoBaseInteresPDF * (tasaMensual / 100) * mesesPlazoPDF;
        interesAplicado = Math.round(interesAplicado / 100) * 100;
        
        if (interesAplicado > 0) {
