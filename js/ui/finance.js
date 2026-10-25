@@ -1725,7 +1725,7 @@ function enviarSeguimientoWA(index, btnEl) {
 }
 
 function verBancos() {
-    const datosBanco = `🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-51\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1`;
+    const datosBanco = `🏦 Banco: Bancolombia\n💳 Tipo de cuenta: Ahorro\n🔢 No Cuenta: 767-000051-31\n🔢 Llave: 0090894825\n👤 Titular: KINGS SHOP SAS\n📄 NIT: 901866162-1`;
 
     // Antes había un solo mensaje ("...para procesar tu pedido...") que solo
     // tenía sentido para una compra nueva. Se usaba también al pedir abonos

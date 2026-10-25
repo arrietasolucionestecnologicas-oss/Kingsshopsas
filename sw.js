@@ -1,5 +1,6 @@
 /**
- * 👑 KINGSHOP SERVICE WORKER v108
+ * 👑 KINGSHOP SERVICE WORKER v109
+ * CORRECCION 2026-10-25: numero de cuenta bancaria en "Copiar Datos" (verBancos) termina en 31, no en 51.
  * REGLA 2026-10-23: con frecuencia Quincenal el campo de plazo cuenta QUINCENAS (2 = dos cortes de 15 dias), ya no meses duplicados; el interes se calcula sobre el tiempo real (2 quincenas = 1 mes). El rotulo del campo cambia a "Quincenas".
  * AUDITORIA 2026-10-07: fin de la lluvia de avisos rojos - fallas de lectura (fotos, refrescos) ya no muestran aviso, avisos repetidos se deduplican (max 3 en pantalla), fotos salen de 3 en 3 en vez de 50 a la vez.
  * MEJORA 2026-09-25: tarjeta de Cobranza simplificada - menos botones sueltos, texto en vez de solo iconos, y un menu \"...\" para las opciones menos usadas (Solicitar Abono, Balance, Refinanciar, Castigar). Nuevo boton Abono para registrar un pago directo desde la tarjeta sin ir a Finanzas.
@@ -54,7 +55,7 @@
  * arreglo recién publicado. Recordar subir este número cada vez que se
  * publique un cambio, para que el propio Service Worker se reinstale.
  */
-const CACHE_NAME = 'kingshop-v108-cache';
+const CACHE_NAME = 'kingshop-v109-cache';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
